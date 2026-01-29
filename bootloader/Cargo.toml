@@ -1,0 +1,22 @@
+[package]
+name = "bootloader"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "bootloader"
+path = "src/main.rs"
+
+[dependencies]
+uefi = { version = "0.32", features = ["alloc"] }
+uefi-raw = "0.9"
+webbos-shared = { path = "../shared" }
+
+[profile.dev]
+opt-level = 2
+
+[profile.release]
+opt-level = "s"
+lto = true

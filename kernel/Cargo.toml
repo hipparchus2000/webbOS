@@ -1,0 +1,31 @@
+[package]
+name = "kernel"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "kernel"
+path = "src/main.rs"
+
+[dependencies]
+webbos-shared = { path = "../shared" }
+spin = { version = "0.9", default-features = false, features = ["use_ticket_mutex", "lazy"] }
+bitflags = "2.4"
+bit_field = "0.10"
+volatile = "0.6"
+linked_list_allocator = "0.10"
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+
+# Remove x86_64 dependency - we'll use inline assembly instead
+# x86_64 = { version = "0.15", default-features = false, features = ["instructions"] }
+
+[dev-dependencies]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
