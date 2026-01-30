@@ -415,7 +415,7 @@ pub unsafe extern "C" fn _start() -> ! {
         "hlt",
         "jmp 2b",
         
-        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x100000u64, // 1MB stack
+        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x400000u64, // 4MB stack (above kernel)
         kernel_entry = sym kernel_entry,
     );
 }

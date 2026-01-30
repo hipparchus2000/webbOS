@@ -212,6 +212,13 @@ fn allocate_page_table() -> uefi::Result<&'static mut PageTable, ()> {
 /// This creates page tables that map:
 /// - Identity mapping for first 4GB (for bootloader transition)
 /// - Higher half mapping for kernel at 0xFFFF_8000_0000_0000
+/// 
+/// The kernel has three segments that need to be mapped:
+/// - 0xFFFF_8000_0010_0000 -> 0x100000 (rodata)
+/// - 0xFFFF_8000_0012_14f0 -> 0x1214f0 (text/code - entry point)
+/// - 0xFFFF_8000_0022_a3dd -> 0x22a3dd (data)
+/// 
+/// We map the entire region from 0xFFFF_8000_0010_0000 to cover all segments
 pub fn setup_kernel_paging(kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
     // Allocate PML4
     let pml4 = allocate_page_table()?;
@@ -230,16 +237,40 @@ pub fn setup_kernel_paging(kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
             )?;
         }
         
-        // Map kernel to higher half
-        // Kernel is at 0x100000 physically, map to 0xFFFF_8000_0010_0000
+        // Map kernel segments to higher half
+        // Base virtual address: 0xFFFF_8000_0010_0000
+        // We need to map this to the actual physical addresses in the ELF
+        // The ELF has physical addresses like 0x100000, 0x1214f0, 0x22a3dd
+        // We map the range 0xFFFF_8000_0010_0000 -> 0x100000 and so on
+        
+        // Find the highest physical address we need to map
         let kernel_pages = (kernel_size + 0xFFF) / 0x1000;
+        
+        // Map from virtual 0xFFFF_8000_0010_0000 to physical 0x100000
+        // This covers all segments since they're within ~12MB of 0x100000
         for i in 0..kernel_pages as u64 {
-            let phys = PhysAddr::new(0x100000 + i * 0x1000);
-            let virt = 0xFFFF_8000_0010_0000 + i * 0x1000;
+            let phys_addr = 0x100000 + i * 0x1000;
+            let virt_addr = 0xFFFF_8000_0010_0000 + i * 0x1000;
+            
             // Map as present and writable (no NX so code can execute)
             manager.map_page(
-                virt,
-                phys,
+                virt_addr,
+                PhysAddr::new(phys_addr),
+                flags::PRESENT | flags::WRITABLE,
+            )?;
+        }
+        
+        // Map kernel stack at 0xFFFF_8000_0040_0000 (4MB in higher half)
+        // Stack is 128KB and grows DOWN from 0xFFFF_8000_0040_0000
+        // So we need to map from 0xFFFF_8000_003E_0000 to 0xFFFF_8000_0040_0000
+        const STACK_TOP_VIRT: u64 = 0xFFFF_8000_0000_0000 + 0x400000;
+        const STACK_PHYS_BASE: u64 = 0x400000 - 0x20000; // 4MB - 128KB
+        const STACK_PAGES: u64 = 32; // 128KB stack
+        
+        for i in 0..STACK_PAGES {
+            manager.map_page(
+                STACK_TOP_VIRT - (STACK_PAGES - i) * 0x1000,
+                PhysAddr::new(STACK_PHYS_BASE + i * 0x1000),
                 flags::PRESENT | flags::WRITABLE,
             )?;
         }

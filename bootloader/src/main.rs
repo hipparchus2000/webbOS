@@ -143,7 +143,7 @@ fn main() -> Status {
 
     // Jump to kernel
     // The kernel entry point is at virtual address 0xFFFF_8000_0012_14f0
-    // (determined from the ELF entry point offset)
+    // This corresponds to physical address 0x1214f0 in the ELF
     const KERNEL_ENTRY_VIRT: u64 = 0xFFFF_8000_0012_14f0;
     
     unsafe {
@@ -163,7 +163,42 @@ fn main() -> Status {
     Status::LOAD_ERROR
 }
 
-/// Load kernel from disk
+/// ELF64 header
+#[repr(C)]
+struct Elf64Header {
+    e_ident: [u8; 16],
+    e_type: u16,
+    e_machine: u16,
+    e_version: u32,
+    e_entry: u64,
+    e_phoff: u64,
+    e_shoff: u64,
+    e_flags: u32,
+    e_ehsize: u16,
+    e_phentsize: u16,
+    e_phnum: u16,
+    e_shentsize: u16,
+    e_shnum: u16,
+    e_shstrndx: u16,
+}
+
+/// ELF64 program header
+#[repr(C)]
+struct Elf64Phdr {
+    p_type: u32,
+    p_flags: u32,
+    p_offset: u64,
+    p_vaddr: u64,
+    p_paddr: u64,
+    p_filesz: u64,
+    p_memsz: u64,
+    p_align: u64,
+}
+
+const ELFMAG: [u8; 4] = [0x7f, b'E', b'L', b'F'];
+const PT_LOAD: u32 = 1;
+
+/// Load kernel from disk and parse ELF
 fn load_kernel() -> uefi::Result<usize> {
     let fs = boot::get_image_file_system(boot::image_handle())?;
     let mut fs = fs;
@@ -171,7 +206,7 @@ fn load_kernel() -> uefi::Result<usize> {
     // Open root directory
     let mut root = fs.open_volume()?;
     
-    // Open kernel file - use literal16! macro
+    // Open kernel file
     let file = root.open(
         uefi::cstr16!("kernel.elf"),
         FileMode::Read,
@@ -186,28 +221,84 @@ fn load_kernel() -> uefi::Result<usize> {
     
     println!("Kernel file size: {} bytes", file_size);
     
-    // Allocate pages for kernel
-    let pages = (file_size + 0xFFF) / 0x1000;
-    let kernel_pages = allocate_pages(
+    // Read entire file into temporary buffer
+    let temp_pages = allocate_pages(
         AllocateType::AnyPages,
         MemoryType::LOADER_DATA,
-        pages,
+        (file_size + 0xFFF) / 0x1000,
     )?;
     
-    // Read kernel into memory
-    let kernel_buffer = unsafe {
-        core::slice::from_raw_parts_mut(kernel_pages.as_ptr(), file_size)
+    let file_buffer = unsafe {
+        core::slice::from_raw_parts_mut(temp_pages.as_ptr(), file_size)
     };
-    let bytes_read = file.read(kernel_buffer)?;
+    let bytes_read = file.read(file_buffer)?;
     
     if bytes_read != file_size {
         println!("WARNING: Read {} bytes, expected {}", bytes_read, file_size);
     }
     
-    // Parse ELF header and load segments (simplified - assumes flat binary for now)
-    // TODO: Implement proper ELF loading
+    // Parse ELF header
+    let elf_header = unsafe { &*(file_buffer.as_ptr() as *const Elf64Header) };
     
-    Ok(bytes_read)
+    // Verify ELF magic
+    if elf_header.e_ident[0..4] != ELFMAG {
+        println!("ERROR: Invalid ELF magic");
+        return Err(uefi::Error::new(Status::LOAD_ERROR, ()));
+    }
+    
+    println!("ELF entry point: {:#x}", elf_header.e_entry);
+    println!("Program headers: {} at offset {:#x}", elf_header.e_phnum, elf_header.e_phoff);
+    
+    // Load each program segment at the correct physical address
+    let phdr_table = unsafe {
+        core::slice::from_raw_parts(
+            file_buffer.as_ptr().add(elf_header.e_phoff as usize) as *const Elf64Phdr,
+            elf_header.e_phnum as usize,
+        )
+    };
+    
+    let mut max_addr = 0usize;
+    
+    for phdr in phdr_table {
+        if phdr.p_type == PT_LOAD {
+            // The ELF file has virtual addresses in p_paddr for some segments
+            // We need to convert to physical addresses
+            // Kernel virtual base is 0xFFFF_8000_0000_0000
+            const KERNEL_VIRT_BASE: u64 = 0xFFFF_8000_0000_0000;
+            
+            let mut dest_addr = phdr.p_paddr as usize;
+            // If the address is in the higher half, convert to physical
+            if dest_addr as u64 >= KERNEL_VIRT_BASE {
+                dest_addr = (dest_addr as u64 - KERNEL_VIRT_BASE) as usize;
+            }
+            
+            let src_offset = phdr.p_offset as usize;
+            let filesz = phdr.p_filesz as usize;
+            let memsz = phdr.p_memsz as usize;
+            
+            println!("Loading segment: src={:#x} -> dest={:#x} (phys), size={:#x}/{:#x}",
+                src_offset, dest_addr, filesz, memsz);
+            
+            // Copy data from file to destination
+            unsafe {
+                let src = file_buffer.as_ptr().add(src_offset);
+                let dst = dest_addr as *mut u8;
+                core::ptr::copy_nonoverlapping(src, dst, filesz);
+                
+                // Zero the rest if mem_size > file_size
+                if memsz > filesz {
+                    core::ptr::write_bytes(dst.add(filesz), 0, memsz - filesz);
+                }
+            }
+            
+            // Track highest physical address
+            if dest_addr + memsz > max_addr {
+                max_addr = dest_addr + memsz;
+            }
+        }
+    }
+    
+    Ok(max_addr)
 }
 
 /// Get memory map from UEFI
