@@ -279,7 +279,7 @@ fn process_command(cmd: &[u8]) {
             println!("Example: http http://example.com");
         }
         "fetch" => {
-            if let Err(_) = net::dns::resolve("example.com") {
+            if net::dns::resolve("example.com").is_none() {
                 println!("Configuring network with static IP...");
                 let config = net::NetworkConfig {
                     ip: net::Ipv4Address::from_octets(10, 0, 2, 15),

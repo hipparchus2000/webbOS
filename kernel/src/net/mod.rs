@@ -15,6 +15,7 @@ pub mod arp;
 pub mod dhcp;
 pub mod dns;
 pub mod socket;
+pub mod http;
 
 use crate::println;
 

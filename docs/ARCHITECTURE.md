@@ -1,194 +1,361 @@
 # WebbOS Architecture
 
-## System Overview
+This document describes the architecture of WebbOS, a web browser operating system written in Rust for x86_64 platforms.
+
+## Overview
+
+WebbOS is a monolithic kernel designed specifically for running a web browser directly on bare metal. It provides a complete networking stack, modern cryptography (TLS 1.3), filesystem support, and a web rendering engine.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Space (Ring 3)                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Browser   │  │   Desktop   │  │  User Apps          │ │
-│  │   Engine    │  │  (HTML/JS)  │  │  (WASM/JS/HTML)     │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    System Call Interface
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                  Kernel Space (Ring 0)                      │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              System Call Handler                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Process   │  │    VFS      │  │   Network Stack     │ │
-│  │   Manager   │  │   Layer     │  │   (TCP/IP/TLS)      │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Memory    │  │   Device    │  │   File Systems      │ │
-│  │   Manager   │  │   Drivers   │  │   (WebbFS/FAT32)    │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │              Hardware Abstraction Layer (HAL)           ││
-│  │         (Paging, Interrupts, Timers, I/O)               ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        WebbOS Kernel                             │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────┐│
+│  │   Browser   │  │   Shell     │  │   Tests     │  │   FS    ││
+│  │   Engine    │  │   Command   │  │   Suite     │  │   Utils ││
+│  └──────┬──────┘  └─────────────┘  └─────────────┘  └─────────┘│
+├───────┬─┴──────────────────────────────────────────────────────┤
+│       │                     Web Stack                          │
+│  ┌────┴────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐│
+│  │   HTTP  │  │    TLS      │  │    DNS      │  │   TCP/IP   ││
+│  │  Client │  │    1.3      │  │  Resolver   │  │   Stack    ││
+│  └─────────┘  └─────────────┘  └─────────────┘  └────────────┘│
+├─────────────────────────────────────────────────────────────────┤
+│                        System Services                           │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────┐│
+│  │   VFS     │  │  Process  │  │  Syscall  │  │    Graphics   ││
+│  │   Layer   │  │  Manager  │  │ Interface │  │    (VESA)     ││
+│  └───────────┘  └───────────┘  └───────────┘  └───────────────┘│
+├─────────────────────────────────────────────────────────────────┤
+│                        Hardware Abstraction                      │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────┐│
+│  │   VirtIO  │  │  Storage  │  │   Time    │  │    PCI Bus    ││
+│  │   Net     │  │  (ATA/NVMe)│  │   (RTC)   │  │   Scanner     ││
+│  └───────────┘  └───────────┘  └───────────┘  └───────────────┘│
+├─────────────────────────────────────────────────────────────────┤
+│                        Kernel Core                               │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────┐│
+│  │  Memory   │  │ Interrupt │  │  Console  │  │    Panic      ││
+│  │  Manager  │  │  Handler  │  │   (VGA)   │  │   Handler     ││
+│  └───────────┘  └───────────┘  └───────────┘  └───────────────┘│
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Boot Process
 
-### Phase 1: UEFI Boot
-
-1. **UEFI Firmware** initializes hardware
-2. **Bootloader** (`bootloader.efi`) loaded from ESP
-3. Bootloader performs:
-   - Memory map acquisition
-   - Kernel file loading
-   - Page table setup
-   - Graphics output protocol initialization
-
-### Phase 2: Kernel Initialization
-
-1. **Assembly entry** (`_start`) sets up stack
-2. **Rust entry** (`kernel_entry`) receives BootInfo
-3. Subsystem initialization:
-   - Console (VGA + Serial)
-   - CPU features (SSE, NX bit)
-   - Memory management
-   - Interrupt handling
-   - Device drivers
-
-### Phase 3: Userspace
-
-1. Initialize browser engine
-2. Load desktop environment
-3. Start app store service
+```
+1. UEFI Firmware
+        ↓
+2. Bootloader (bootloader/)
+   - UEFI services initialization
+   - Framebuffer setup
+   - Load kernel ELF to 0xFFFF_8000_0000_0000
+        ↓
+3. Kernel Entry (kernel/src/main.rs:kernel_entry)
+   - CPU initialization
+   - Memory management setup
+   - Interrupt system
+   - Driver initialization
+   - Network stack
+   - Shell
+```
 
 ## Memory Layout
 
-### Physical Memory
-
 ```
-0x00000000 - 0x000FFFFF  Reserved (BIOS, VGA)
-0x00100000 - 0x00FFFFFF  Kernel load address
-0x01000000 - ...         Available RAM
-```
+Higher Half Kernel Mapping (0xFFFF_8000_0000_0000+)
 
-### Virtual Memory (Higher Half Kernel)
+0xFFFF_FFFF_FFFF_FFFF  ┌─────────────────┐
+                       │   Kernel Stack  │  Stack grows down
+0xFFFF_FFFF_8000_0000  ├─────────────────┤
+                       │   Kernel Code   │  Text, Data, BSS
+0xFFFF_8000_0100_0000  ├─────────────────┤
+                       │   Kernel Heap   │  Dynamic allocation
+0xFFFF_8000_0010_0000  ├─────────────────┤
+                       │   Boot Info     │  UEFI boot data
+0xFFFF_8000_0000_0000  └─────────────────┘
 
-```
-0x0000000000000000 - 0x00007FFFFFFFFFFF  User space
-0x0000800000000000 - 0xFFFF7FFFFFFFFFFF  Non-canonical
-0xFFFF800000000000 - 0xFFFF80003FFFFFFF  Kernel code/data (1GB)
-0xFFFF800040000000 - 0xFFFF8000BFFFFFFF  Kernel heap (2GB)
-0xFFFF8000C0000000 - 0xFFFF80FFFFFFFFFF  Kernel stacks
-0xFFFF810000000000 - 0xFFFFFEFFFFFFFFFF  Physical memory mapping
-0xFFFFFF0000000000 - 0xFFFFFFFFFFFFFFFF  Reserved
-```
-
-## Page Table Structure
-
-4-level paging (x86_64):
-- **PML4** (Page Map Level 4)
-- **PDPT** (Page Directory Pointer Table)
-- **PD** (Page Directory)
-- **PT** (Page Table)
-
-Each table has 512 entries (9 bits), covering 48-bit virtual addresses.
-
-## Interrupt Handling
-
-IDT (Interrupt Descriptor Table) layout:
-- 0-31: CPU exceptions
-- 32-47: PIC/IO-APIC interrupts
-- 128: System call interrupt
-- Others: Available for devices
-
-## System Calls
-
-Implemented via `syscall`/`sysret` instructions:
-
-```rust
-// Example syscall interface
-pub fn syscall(num: u64, arg1: u64, arg2: u64, arg3: u64) -> u64;
+Identity Mapped (First 1GB)
+0x0000_0000_0000_0000  ┌─────────────────┐
+                       │   Physical      │  MMIO, DMA buffers
+                       │   Memory        │  Identity mapped
+                       └─────────────────┘
 ```
 
-Syscall numbers defined in `shared/src/syscalls.rs`.
+## Components
 
-## File Systems
+### 1. Bootloader (`bootloader/`)
 
-### WebbFS (Native)
-- Optimized for web assets
-- Compression support
-- Deduplication
+UEFI-compliant bootloader that:
+- Locates and loads the kernel ELF
+- Sets up higher-half kernel mapping
+- Provides boot information to kernel
+- Exits UEFI boot services properly
 
-### Supported External
-- FAT32 (USB/removable)
-- EXT2/4 (Linux compatibility)
+### 2. Memory Management (`kernel/src/mm/`)
 
-## Network Stack
+| Module | Purpose |
+|--------|---------|
+| `frame_allocator.rs` | Physical page allocation |
+| `paging.rs` | Virtual memory mapping |
+| `heap.rs` | Kernel heap allocator |
+| `gdt.rs` | Global Descriptor Table |
 
-### Layers
-1. **Driver** (Intel E1000/VirtIO)
-2. **Link** (Ethernet)
-3. **Network** (IPv4/IPv6)
-4. **Transport** (TCP/UDP)
-5. **Application** (HTTP/HTTPS/DNS)
+**Frame Allocation:** Bitmap-based allocator for physical frames.
 
-### TLS
-- rustls library
-- TLS 1.3 support
-- Certificate management
+**Page Tables:** 4-level paging for x86_64 with identity mapping for first 1GB.
 
-## Browser Engine
+**Heap:** 16MB kernel heap using `linked_list_allocator`.
 
-### Components
-1. **HTML Parser** - Spec-compliant parsing
-2. **CSS Engine** - Style computation
-3. **Layout** - Box model, flex, grid
-4. **Renderer** - CPU/GPU painting
-5. **JavaScript** - QuickJS integration
-6. **WASM** - wasmtime runtime
+### 3. Interrupts (`kernel/src/arch/x86_64/interrupts/`)
 
-### Security
-- Same-origin policy
-- Content Security Policy
-- Sandboxed iframe execution
+| Component | Description |
+|-----------|-------------|
+| IDT | 256 interrupt descriptors |
+| PIC | 8259A Programmable Interrupt Controller |
+| Exceptions | CPU exceptions with error codes |
+| IRQs | Hardware interrupts 0-15 |
 
-## App Model
+### 4. Process Management (`kernel/src/process/`)
 
-### App Package (.webapp)
+| Structure | Description |
+|-----------|-------------|
+| PCB | Process Control Block |
+| TCB | Thread Control Block |
+| Scheduler | 32-priority round-robin |
+
+**Context Switch:** Saves/restores:
+- General-purpose registers (RAX-R15)
+- Instruction pointer (RIP)
+- Stack pointer (RSP)
+- Segment registers (CS, SS)
+- Page table (CR3)
+
+### 5. Syscall Interface (`kernel/src/syscall.rs`)
+
+Uses `syscall`/`sysret` instructions.
+
+| Syscall | Number | Description |
+|---------|--------|-------------|
+| exit | 0 | Terminate process |
+| write | 1 | Write to file descriptor |
+| read | 2 | Read from file descriptor |
+| open | 3 | Open file |
+| close | 4 | Close file descriptor |
+| socket | 10 | Create socket |
+| connect | 11 | Connect socket |
+
+### 6. Virtual Filesystem (`kernel/src/fs/`)
+
+Layered architecture:
+
 ```
-manifest.json   - Metadata
-main.html       - Entry point
-assets/         - Static files
-wasm/           - WebAssembly modules
+┌─────────────────────────────────────┐
+│  System Calls (open, read, write)   │
+├─────────────────────────────────────┤
+│        VFS Layer (vfs.rs)           │
+├─────────────────────────────────────┤
+│  File Systems (ext2.rs, fat32.rs)   │
+├─────────────────────────────────────┤
+│     Block Devices (block.rs)        │
+├─────────────────────────────────────┤
+│  Storage Drivers (ata, nvme)        │
+└─────────────────────────────────────┘
 ```
 
-### App Lifecycle
-1. Download from store
-2. Verify signature
-3. Install to `/apps/{id}/`
-4. Create user data dir
-5. Launch in sandboxed context
+### 7. Network Stack (`kernel/src/net/`)
 
-## Development Guidelines
+**Layer 2:** VirtIO network driver
+**Layer 3:** IPv4, ARP, ICMP
+**Layer 4:** TCP, UDP with BSD sockets API
+**Layer 5+:** DNS resolver, HTTP/1.1 & HTTP/2 client
 
-### Code Organization
-- `arch/` - Architecture-specific code
-- `mm/` - Memory management
-- `fs/` - File systems
-- `net/` - Networking
-- `process/` - Process management
-- `drivers/` - Device drivers
+```
+┌─────────────────────────────────────────┐
+│         Application (Browser)           │
+├─────────────────────────────────────────┤
+│  HTTP/1.1  │  HTTP/2  │  DNS Resolver  │
+├────────────┴──────────┴────────────────┤
+│            BSD Socket API               │
+├─────────────────┬───────────────────────┤
+│      TCP        │         UDP           │
+├─────────────────┴───────────────────────┤
+│              IPv4 / ICMP                │
+├─────────────────────────────────────────┤
+│           ARP Resolution                │
+├─────────────────────────────────────────┤
+│         VirtIO Network Driver           │
+└─────────────────────────────────────────┘
+```
 
-### Error Handling
-Use `Result<T, Error>` throughout kernel. Panic on unrecoverable errors.
+### 8. Cryptography (`kernel/src/crypto/`)
 
-### Safety
-- Use `unsafe` only when necessary
-- Document all `unsafe` blocks
-- Prefer safe abstractions
+Modern cryptographic primitives:
 
-### Testing
-- Unit tests: `cargo test`
-- Integration: QEMU + test harness
-- Coverage: `cargo tarpaulin`
+| Algorithm | Purpose | Implementation |
+|-----------|---------|----------------|
+| SHA-256 | Hashing | Core algorithm |
+| SHA-384 | Hashing | Core algorithm |
+| ChaCha20 | Symmetric cipher | TLS 1.3 cipher |
+| Poly1305 | MAC | ChaCha20-Poly1305 AEAD |
+| X25519 | Key exchange | TLS 1.3 handshake |
+| HKDF | Key derivation | TLS 1.3 key schedule |
+
+### 9. TLS 1.3 (`kernel/src/tls/`)
+
+Full TLS 1.3 implementation supporting:
+- `TLS_CHACHA20_POLY1305_SHA256` cipher suite
+- X25519 key exchange
+- 1-RTT handshake
+- Encrypted records (TLSInnerPlaintext)
+
+```
+Client                                  Server
+  │                                        │
+  │────────── ClientHello ────────────────>│
+  │          + KeyShare (X25519)           │
+  │                                        │
+  │<───────── ServerHello ────────────────│
+  │          + KeyShare (X25519)           │
+  │<───────── {EncryptedExtensions} ──────│
+  │<───────── {Certificate} ──────────────│
+  │<───────── {CertificateVerify} ────────│
+  │<───────── {Finished} ─────────────────│
+  │                                        │
+  │────────── {Finished} ────────────────>│
+  │                                        │
+  │========== Application Data ===========>│
+  │<========== Application Data ==========│
+```
+
+### 10. HTTP Client (`kernel/src/net/http.rs`)
+
+Features:
+- HTTP/1.1 and HTTP/2 support
+- Connection pooling
+- TLS integration for HTTPS
+- Request/response parsing
+- Automatic protocol selection
+
+### 11. Browser Engine (`kernel/src/browser/`)
+
+Web rendering pipeline:
+
+```
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│ HTML Parser  │──>│   CSS Parser │──>│ Layout Engine│
+│  (Tokenizer) │   │  (Selector)  │   │  (Box Model) │
+└──────────────┘   └──────────────┘   └──────┬───────┘
+                                              │
+┌──────────────┐   ┌──────────────┐   ┌──────▼───────┐
+│   Renderer   │<──│  Framebuffer │<──│ Render Tree  │
+│  (Display)   │   │   (VESA)     │   │  Generation  │
+└──────────────┘   └──────────────┘   └──────────────┘
+                                              ↑
+┌──────────────┐   ┌──────────────┐           │
+│  JavaScript  │──>│   WASM VM    │───────────┘
+│ Interpreter  │   │  (Runtime)   │
+└──────────────┘   └──────────────┘
+```
+
+### 12. Graphics (`kernel/src/graphics/`)
+
+- Graphics context for rendering
+- 2D drawing primitives (lines, circles, rectangles)
+- Bitmap font rendering
+- Color utilities
+- Framebuffer management (VESA/VBE planned)
+
+### 13. Storage Drivers (`kernel/src/drivers/storage/`)
+
+| Driver | Interface | Supported Devices |
+|--------|-----------|-------------------|
+| ATA/IDE | PIO/DMA | Hard drives, CD-ROMs |
+| AHCI | SATA | Modern SATA drives |
+| NVMe | PCIe | SSDs (high performance) |
+
+## Security Features
+
+1. **Higher-half kernel:** Kernel code in high memory
+2. **NX bit:** No-execute for data pages
+3. **ASLR:** Address space layout randomization (planned)
+4. **TLS 1.3:** Modern encryption for network connections
+5. **SMAP/SMEP:** Supervisor mode access prevention
+
+## Build System
+
+```
+Cargo workspace with 2 crates:
+- bootloader: x86_64-unknown-uefi target
+- kernel: x86_64-unknown-none target
+
+Linker: rust-lld
+Boot: UEFI → higher-half kernel
+Size: ~6.7MB kernel binary
+```
+
+## Testing
+
+```
+WebbOS Test Suite
+├── Memory Management
+│   ├── Frame allocator
+│   ├── Heap allocation
+│   └── Paging
+├── Process Management
+│   ├── Process creation
+│   ├── Thread creation
+│   └── Context switching
+├── Network Stack
+│   ├── Socket API
+│   ├── TCP/IP
+│   └── DNS
+├── Cryptography
+│   ├── SHA-256/384
+│   ├── ChaCha20-Poly1305
+│   └── TLS 1.3
+└── Virtual Filesystem
+    ├── VFS operations
+    ├── EXT2
+    └── FAT32
+```
+
+## Future Work
+
+1. **Graphics:** VESA/VBE framebuffer driver
+2. **Networking:** IPv6 support
+3. **USB:** HID and mass storage support
+4. **SMP:** Multi-processor support
+5. **Audio:** Audio subsystem
+6. **WebRTC:** Real-time communication
+
+## Architecture Decisions
+
+### Why Rust?
+- Memory safety without garbage collection
+- Zero-cost abstractions
+- Fearless concurrency
+- Embedded/bare-metal support
+
+### Why Monolithic Kernel?
+- Performance for web browser workloads
+- Simpler IPC (direct function calls)
+- Easier hardware access
+
+### Why TLS 1.3?
+- Modern security standard
+- Reduced handshake latency
+- No legacy cipher support
+
+### Why Custom Browser Engine?
+- Educational value
+- Minimal dependencies
+- Complete system control
+
+## References
+
+- [UEFI Specification](https://uefi.org/specifications)
+- [Intel SDM](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)
+- [TLS 1.3 RFC 8446](https://tools.ietf.org/html/rfc8446)
+- [ChaCha20-Poly1305 RFC 8439](https://tools.ietf.org/html/rfc8439)
+- [X25519 RFC 7748](https://tools.ietf.org/html/rfc7748)

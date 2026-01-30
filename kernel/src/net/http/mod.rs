@@ -4,6 +4,7 @@
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use alloc::vec;
 use alloc::collections::BTreeMap;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -232,13 +233,15 @@ impl Response {
             data[body_start..].to_vec()
         };
         
+        let body_len = body.len();
+        
         Ok((Self {
             version,
             status,
             status_text,
             headers,
             body,
-        }, body_start + body.len()))
+        }, body_start + body_len))
     }
     
     /// Decode chunked transfer encoding
@@ -508,10 +511,7 @@ fn resolve_host(host: &str) -> Result<Ipv4Address, HttpError> {
     // Try DNS lookup
     use crate::net::dns;
     if let Some(ip) = dns::resolve(host) {
-        match ip {
-            crate::net::IpAddress::V4(ipv4) => Ok(ipv4),
-            _ => Err(HttpError::ConnectionFailed),
-        }
+        Ok(ip)
     } else {
         Err(HttpError::ConnectionFailed)
     }
