@@ -142,9 +142,20 @@ fn main() -> Status {
     }
 
     // Jump to kernel
+    // The kernel entry point is at virtual address 0xFFFF_8000_0012_14f0
+    // (determined from the ELF entry point offset)
+    const KERNEL_ENTRY_VIRT: u64 = 0xFFFF_8000_0012_14f0;
+    
     unsafe {
+        // Switch to the new page tables
+        core::arch::asm!(
+            "mov cr3, {0}",
+            in(reg) _page_tables.as_u64(),
+        );
+        
+        // Jump to kernel at virtual address
         let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
-            core::mem::transmute(KERNEL_LOAD_ADDR.as_ptr::<u8>());
+            core::mem::transmute(KERNEL_ENTRY_VIRT as *const u8);
         kernel_entry(boot_info.as_ptr::<BootInfo>());
     }
 

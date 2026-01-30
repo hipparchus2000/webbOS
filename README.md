@@ -31,22 +31,53 @@ rustup component add rust-src --toolchain nightly-2025-01-15
 # Ubuntu: sudo apt install qemu-system-x86
 ```
 
-### Build and Run
+### Quick Start (Windows)
+
+**Important:** Creating the bootable disk image requires WSL (Windows Subsystem for Linux) with Ubuntu. The setup requires a **computer reboot**.
+
+**Option 1: Automatic Setup (Recommended)**
 
 ```powershell
 # Clone the repository
 git clone https://github.com/yourusername/webbos.git
 cd webbos
 
-# Build and run (Windows PowerShell)
-.\scripts\run-qemu.ps1
+# Run setup script as Administrator
+# This will install WSL, Ubuntu, build WebbOS, and run it
+# NOTE: You will need to REBOOT when prompted!
+.\scripts\setup-wsl-and-run.ps1
+```
 
-# Or manually:
+The setup script will:
+1. Install WSL (Windows Subsystem for Linux) if not present
+2. Install Ubuntu distribution  
+3. **You will be prompted to REBOOT** - this is required!
+4. After reboot, run the script again to complete setup
+5. Install required tools (mtools for creating FAT32 images)
+6. Build the kernel and bootloader
+7. Create a bootable UEFI disk image
+8. Download OVMF firmware (UEFI BIOS)
+9. Launch WebbOS in QEMU
+
+**Don't want to reboot?** See [Alternative Methods](docs/RUNNING_ALTERNATIVES.md) for ways to run WebbOS without WSL (Linux VM, live USB, etc.)
+
+**Option 2: Manual Steps**
+
+```powershell
+# Prerequisites: WSL with Ubuntu, Rust nightly, QEMU
+
+# Build
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-.\scripts\create-image.ps1
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -vga std -m 512M
+
+# Create disk image (requires WSL with mtools)
+.\scripts\run-qemu.ps1 -Rebuild
+
+# Or run without rebuilding
+.\scripts\run-qemu.ps1
 ```
+
+See [scripts/README.md](scripts/README.md) for detailed script documentation.
 
 ### Default Login
 

@@ -236,10 +236,11 @@ pub fn setup_kernel_paging(kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
         for i in 0..kernel_pages as u64 {
             let phys = PhysAddr::new(0x100000 + i * 0x1000);
             let virt = 0xFFFF_8000_0010_0000 + i * 0x1000;
+            // Map as present and writable (no NX so code can execute)
             manager.map_page(
                 virt,
                 phys,
-                flags::PRESENT | flags::WRITABLE | flags::NX,
+                flags::PRESENT | flags::WRITABLE,
             )?;
         }
         
