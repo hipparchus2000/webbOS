@@ -37,12 +37,20 @@ pub struct GraphicsContext {
 }
 
 impl GraphicsContext {
-    /// Create new graphics context
+    /// Create new graphics context (lazy allocation)
     pub fn new(width: u32, height: u32) -> Self {
+        // Defer pixel allocation to avoid large allocation at init
         Self {
             width,
             height,
-            pixels: vec![0; (width * height) as usize],
+            pixels: Vec::new(),
+        }
+    }
+    
+    /// Initialize pixel buffer when needed
+    pub fn init_buffer(&mut self) {
+        if self.pixels.is_empty() {
+            self.pixels = vec![0; (self.width * self.height) as usize];
         }
     }
     
@@ -58,19 +66,21 @@ impl GraphicsContext {
     
     /// Clear with color
     pub fn clear(&mut self, color: u32) {
+        self.init_buffer();
         self.pixels.fill(color);
     }
     
     /// Set pixel
     pub fn set_pixel(&mut self, x: u32, y: u32, color: u32) {
         if x < self.width && y < self.height {
+            self.init_buffer();
             self.pixels[(y * self.width + x) as usize] = color;
         }
     }
     
     /// Get pixel
     pub fn get_pixel(&self, x: u32, y: u32) -> u32 {
-        if x < self.width && y < self.height {
+        if x < self.width && y < self.height && !self.pixels.is_empty() {
             self.pixels[(y * self.width + x) as usize]
         } else {
             0

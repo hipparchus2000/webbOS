@@ -183,8 +183,18 @@ impl Browser {
 
     /// Render to framebuffer
     fn render(&mut self) -> Result<(), BrowserError> {
+        // Initialize framebuffer if not already done
+        if self.render_context.framebuffer.is_none() {
+            self.render_context.init_framebuffer(
+                self.config.viewport_width,
+                self.config.viewport_height
+            );
+        }
+        
         if let Some(ref tree) = self.render_context.layout_tree {
-            render::render(tree, &mut self.render_context.framebuffer)?;
+            if let Some(ref mut fb) = self.render_context.framebuffer {
+                render::render(tree, fb)?;
+            }
         }
         Ok(())
     }
@@ -290,15 +300,24 @@ lazy_static! {
 pub fn init() {
     println!("[browser] Initializing browser engine...");
 
+    println!("[browser] Creating browser instance...");
     let browser = Browser::new();
+    println!("[browser] Browser instance created, storing...");
     *BROWSER.lock() = Some(browser);
+    println!("[browser] Browser stored");
 
     // Initialize subsystems
+    println!("[browser] Init HTML...");
     html::init();
+    println!("[browser] Init CSS...");
     css::init();
+    println!("[browser] Init JS...");
     js::init();
+    println!("[browser] Init WASM...");
     wasm::init();
+    println!("[browser] Init layout...");
     layout::init();
+    println!("[browser] Init render...");
     render::init();
 
     println!("[browser] Browser engine initialized");

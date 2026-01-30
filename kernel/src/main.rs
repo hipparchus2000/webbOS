@@ -136,38 +136,47 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Initialize browser engine
     println!("\n[browser] Initializing browser engine...");
     browser::init();
+    println!("[browser] Browser engine initialized");
 
     // Initialize cryptographic subsystem
     println!("\n[crypto] Initializing cryptographic subsystem...");
     crypto::init();
+    println!("[crypto] Cryptographic subsystem initialized");
 
     // Initialize TLS 1.3
     println!("\n[tls] Initializing TLS 1.3...");
     tls::init();
+    println!("[tls] TLS 1.3 initialized");
 
     // Initialize HTTP client
     println!("\n[http] Initializing HTTP client...");
     net::http::init();
+    println!("[http] HTTP client initialized");
 
     // Initialize graphics subsystem
     println!("\n[graphics] Initializing graphics subsystem...");
     graphics::init();
+    println!("[graphics] Graphics subsystem initialized");
 
     // Initialize VESA framebuffer (using default 1024x768 for now)
     println!("\n[vesa] Initializing VESA framebuffer...");
     drivers::vesa::init(1024, 768, 32, 0xFD000000); // Default framebuffer address
+    println!("[vesa] VESA framebuffer initialized");
 
     // Initialize user management
     println!("\n[users] Initializing user management...");
     users::init();
+    println!("[users] User management initialized");
 
     // Initialize input subsystem
     println!("\n[input] Initializing input subsystem...");
     drivers::input::init();
+    println!("[input] Input subsystem initialized");
 
     // Initialize desktop environment
     println!("\n[desktop] Initializing desktop environment...");
     desktop::init();
+    println!("[desktop] Desktop environment initialized");
 
     println!("\n✓ WebbOS kernel initialized successfully!");
     println!("\nSystem is ready. Type 'help' for available commands.");

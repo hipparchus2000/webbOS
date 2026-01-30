@@ -108,19 +108,32 @@ impl Framebuffer {
 
 /// Render context
 pub struct RenderContext {
-    /// Framebuffer
-    pub framebuffer: Framebuffer,
+    /// Framebuffer (lazy init)
+    pub framebuffer: Option<Framebuffer>,
     /// Layout tree
     pub layout_tree: Option<LayoutTree>,
+    /// Viewport width
+    pub viewport_width: u32,
+    /// Viewport height
+    pub viewport_height: u32,
 }
 
 impl RenderContext {
-    /// Create new render context
+    /// Create new render context (without allocating framebuffer)
     pub fn new() -> Self {
         Self {
-            framebuffer: Framebuffer::new(1024, 768),
+            framebuffer: None,
             layout_tree: None,
+            viewport_width: 800,
+            viewport_height: 600,
         }
+    }
+    
+    /// Initialize framebuffer when needed
+    pub fn init_framebuffer(&mut self, width: u32, height: u32) {
+        self.viewport_width = width;
+        self.viewport_height = height;
+        self.framebuffer = Some(Framebuffer::new(width, height));
     }
 }
 

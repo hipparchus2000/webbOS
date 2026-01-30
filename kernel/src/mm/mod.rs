@@ -19,7 +19,7 @@ pub const PHYSICAL_MEMORY_OFFSET: u64 = KERNEL_BASE;
 /// Kernel heap start address
 pub const HEAP_START: u64 = KERNEL_BASE + 0x40000000; // 1GB after kernel base
 /// Initial kernel heap size
-pub const HEAP_SIZE: u64 = 1024 * 1024; // 1MB initial heap
+pub const HEAP_SIZE: u64 = 8 * 1024 * 1024; // 8MB heap for browser and apps
 
 /// Global bump allocator for early boot
 static mut BUMP_ALLOCATOR: Option<bump::BumpAllocator> = None;

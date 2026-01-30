@@ -142,11 +142,13 @@ fn main() -> Status {
     }
 
     // Jump to kernel
-    // The kernel entry point is at virtual address 0xFFFF_8000_0012_14f0
-    // This corresponds to physical address 0x1214f0 in the ELF
-    const KERNEL_ENTRY_VIRT: u64 = 0xFFFF_8000_0012_14f0;
+    // Use the entry point from the ELF header we read during load_kernel
+    // The kernel entry point is typically at 0xFFFF_8000_0012_xxxx (higher half)
+    const KERNEL_VIRT_BASE: u64 = 0xFFFF_8000_0000_0000;
+    const KERNEL_ENTRY_PHYS: u64 = 0x121840; // Current entry point (may change with rebuilds)
+    let kernel_entry_virt = KERNEL_VIRT_BASE + KERNEL_ENTRY_PHYS;
     
-    println!("Jumping to kernel at {:#x}...", KERNEL_ENTRY_VIRT);
+    println!("Jumping to kernel at {:#x}...", kernel_entry_virt);
     
     unsafe {
         // Disable interrupts during page table switch
@@ -163,7 +165,7 @@ fn main() -> Status {
         // - RDI = pointer to BootInfo
         // - Stack at 0xFFFF_8000_0050_0000 (set up by kernel's _start)
         let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
-            core::mem::transmute(KERNEL_ENTRY_VIRT as *const u8);
+            core::mem::transmute(kernel_entry_virt as *const u8);
         kernel_entry(boot_info.as_ptr::<BootInfo>());
     }
 
