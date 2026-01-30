@@ -25,3 +25,6 @@ build/
 .DS_Store
 *.swp
 
+KIMI_CONTEXT.md
+serial.log
+1048576
