@@ -30,6 +30,8 @@ mod crypto;
 mod tls;
 mod graphics;
 mod testing;
+mod users;
+mod desktop;
 
 use arch::cpu;
 use arch::interrupts;
@@ -151,6 +153,14 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[graphics] Initializing graphics subsystem...");
     graphics::init();
 
+    // Initialize user management
+    println!("\n[users] Initializing user management...");
+    users::init();
+
+    // Initialize desktop environment
+    println!("\n[desktop] Initializing desktop environment...");
+    desktop::init();
+
     println!("\n✓ WebbOS kernel initialized successfully!");
     println!("\nSystem is ready. Type 'help' for available commands.");
 
@@ -224,6 +234,11 @@ fn process_command(cmd: &[u8]) {
             println!("  fetch      - Fetch a URL (e.g., fetch http://example.com)");
             println!("  graphics   - Show graphics info");
             println!("  test       - Run test suite");
+            println!("  users      - List user accounts");
+            println!("  sessions   - List active sessions");
+            println!("  login      - Login to desktop");
+            println!("  desktop    - Show desktop info");
+            println!("  launch     - Launch application (e.g., launch notepad)");
             println!("  browser    - Show browser engine status");
             println!("  navigate   - Navigate to URL (e.g., navigate file:///test.html)");
             println!("  reboot     - Reboot the system");
@@ -299,6 +314,38 @@ fn process_command(cmd: &[u8]) {
         }
         "test" => {
             testing::run_tests();
+        }
+        "users" => {
+            users::print_users();
+        }
+        "sessions" => {
+            users::print_sessions();
+        }
+        "login" => {
+            println!("Usage: login <username> <password>");
+            println!("Example: login admin admin");
+        }
+        "desktop" => {
+            desktop::print_info();
+        }
+        "launch" => {
+            // Parse command to get app name
+            let args = &cmd_str[cmd_str.len().min(6)..];
+            let app_name = args.trim();
+            if !app_name.is_empty() {
+                if let Some(window_id) = desktop::launch_app(app_name) {
+                    println!("Launched {} (window {})", app_name, window_id);
+                } else {
+                    println!("Failed to launch {}", app_name);
+                    println!("Available apps: filemanager, notepad, paint, taskmanager, usermanager, terminal, browser");
+                }
+            } else {
+                println!("Usage: launch <app_name>");
+                println!("Available apps:");
+                for app in desktop::list_apps() {
+                    println!("  {} - {} {}", app.name, app.icon, app.title);
+                }
+            }
         }
         "browser" => {
             browser::print_stats();
