@@ -28,6 +28,8 @@ mod browser;
 mod storage;
 mod crypto;
 mod tls;
+mod graphics;
+mod testing;
 
 use arch::cpu;
 use arch::interrupts;
@@ -141,6 +143,14 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[tls] Initializing TLS 1.3...");
     tls::init();
 
+    // Initialize HTTP client
+    println!("\n[http] Initializing HTTP client...");
+    net::http::init();
+
+    // Initialize graphics subsystem
+    println!("\n[graphics] Initializing graphics subsystem...");
+    graphics::init();
+
     println!("\n✓ WebbOS kernel initialized successfully!");
     println!("\nSystem is ready. Type 'help' for available commands.");
 
@@ -210,6 +220,10 @@ fn process_command(cmd: &[u8]) {
             println!("  netstat    - Show network connections");
             println!("  storage    - Show storage devices");
             println!("  tls        - Test TLS connection");
+            println!("  http       - HTTP client usage");
+            println!("  fetch      - Fetch a URL (e.g., fetch http://example.com)");
+            println!("  graphics   - Show graphics info");
+            println!("  test       - Run test suite");
             println!("  browser    - Show browser engine status");
             println!("  navigate   - Navigate to URL (e.g., navigate file:///test.html)");
             println!("  reboot     - Reboot the system");
@@ -259,6 +273,32 @@ fn process_command(cmd: &[u8]) {
         }
         "tls" => {
             let _ = tls::connect("example.com");
+        }
+        "http" => {
+            println!("Usage: http <url>");
+            println!("Example: http http://example.com");
+        }
+        "fetch" => {
+            if let Err(_) = net::dns::resolve("example.com") {
+                println!("Configuring network with static IP...");
+                let config = net::NetworkConfig {
+                    ip: net::Ipv4Address::from_octets(10, 0, 2, 15),
+                    netmask: net::Ipv4Address::from_octets(255, 255, 255, 0),
+                    gateway: net::Ipv4Address::from_octets(10, 0, 2, 2),
+                    dns: net::Ipv4Address::from_octets(8, 8, 8, 8),
+                };
+                net::set_config(config);
+            }
+            match net::http::get("http://example.com") {
+                Ok(response) => net::http::print_response(&response),
+                Err(e) => println!("HTTP request failed: {:?}", e),
+            }
+        }
+        "graphics" => {
+            graphics::print_info();
+        }
+        "test" => {
+            testing::run_tests();
         }
         "browser" => {
             browser::print_stats();
