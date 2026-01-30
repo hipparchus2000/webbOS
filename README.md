@@ -1,165 +1,211 @@
-# WebbOS
+# 🌐 WebbOS
 
-A minimal, high-performance operating system written in Rust, designed around a web-first architecture.
+A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management.
 
-![WebbOS Logo](docs/assets/logo.png)
+![WebbOS](docs/assets/webbos-logo.png)
 
-## Overview
+## ✨ Features
 
-WebbOS is an experimental operating system where the entire desktop environment is implemented as a single HTML file with an integrated web browser engine. Applications are web-based (HTML/JS/WASM) and distributed through a built-in app store.
+- **🖥️ Desktop Environment** - Modern HTML/CSS-based desktop with windows, taskbar, and start menu
+- **🎨 Built-in Apps** - Notepad, Paint, File Manager, Task Manager, User Manager, Terminal, Web Browser
+- **👤 User Management** - Multi-user support with authentication and sessions
+- **🌐 Full Networking** - TCP/IP, HTTP/HTTPS, TLS 1.3, DNS resolver
+- **💾 File Systems** - EXT2, FAT32 with storage drivers (ATA, NVMe)
+- **🔒 Security** - SHA-256 password hashing, modern cryptography
 
-## Features
-
-- **Rust-based kernel** - Memory safety and high performance
-- **UEFI bootloader** - Modern boot process
-- **x86_64 support** - Multi-core processor support
-- **Web browser engine** - HTML5, CSS3, JavaScript, WebAssembly
-- **HTML-based desktop** - Single-file desktop environment
-- **App store** - Download and manage web applications
-- **TLS 1.3** - Secure network connections
-
-## Project Structure
-
-```
-webbos/
-├── bootloader/          # UEFI bootloader
-├── kernel/              # OS kernel
-│   ├── arch/            # Architecture-specific code (x86_64)
-│   ├── mm/              # Memory management
-│   ├── console/         # VGA/serial output
-│   └── ...
-├── shared/              # Shared types between bootloader and kernel
-└── docs/                # Documentation
-```
-
-## Building
+## 🚀 Quick Start
 
 ### Prerequisites
 
-1. **Rust nightly toolchain** (nightly-2025-01-15)
-2. **Build dependencies:**
-   - Windows: Visual Studio Build Tools 2019+ or LLVM/MinGW
-   - Linux: `build-essential`, `lld`
-   - macOS: Xcode Command Line Tools
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup toolchain install nightly-2025-01-15
+rustup component add rust-src --toolchain nightly-2025-01-15
 
-3. **QEMU** (for testing)
+# Install QEMU
+# Windows: choco install qemu
+# macOS: brew install qemu
+# Ubuntu: sudo apt install qemu-system-x86
+```
 
-### Quick Start
+### Build and Run
+
+```powershell
+# Clone the repository
+git clone https://github.com/yourusername/webbos.git
+cd webbos
+
+# Build and run (Windows PowerShell)
+.\scripts\run-qemu.ps1
+
+# Or manually:
+cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+.\scripts\create-image.ps1
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -vga std -m 512M
+```
+
+### Default Login
+
+When WebbOS boots, use these credentials:
+
+| Username | Password | Type |
+|----------|----------|------|
+| `admin` | `admin` | Administrator |
+| `user` | `user` | Standard User |
+
+## 📸 Screenshots
+
+### Login Screen
+```
+╔══════════════════════════════════════════╗
+║                                          ║
+║              🌐 WebbOS                   ║
+║                                          ║
+║         Welcome to WebbOS                ║
+║    Web Browser Operating System          ║
+║                                          ║
+║    ┌─────────────────────────┐          ║
+║    │ Username                │          ║
+║    └─────────────────────────┘          ║
+║    ┌─────────────────────────┐          ║
+║    │ Password                │          ║
+║    └─────────────────────────┘          ║
+║                                          ║
+║         [ Sign In ]                      ║
+║                                          ║
+║    Default: admin/admin or user/user     ║
+║                                          ║
+╚══════════════════════════════════════════╝
+```
+
+### Desktop
+```
+╔══════════════════════════════════════════════════════════╗
+║  🏠 Home     📄 Documents                    12:45  👤  ║
+╠══════════════════════════════════════════════════════════╣
+║                                                          ║
+║   📝 Notepad          ┌────────────────────────┐        ║
+║   📊 Task Manager     │  Welcome to WebbOS!    │        ║
+║   🎨 Paint            │                        │        ║
+║   📁 File Manager     │  This is a fully       │        ║
+║   💻 Terminal         │  functional desktop    │        ║
+║                       │  environment.          │        ║
+║   🗑 Trash            │                        │        ║
+║                       └────────────────────────┘        ║
+╠══════════════════════════════════════════════════════════╣
+║  🌐 Start │ 📝 Notepad │ 📊 Task Manager      12:45 PM  ║
+╚══════════════════════════════════════════════════════════╝
+```
+
+## 🎮 Using WebbOS
+
+### Desktop Navigation
+
+- **Click Start** (🌐) to open the application menu
+- **Click windows** to focus them
+- **Drag windows** by their title bar
+- **Use window controls** (minimize, maximize, close)
+
+### Available Commands
+
+From the shell, type:
+
+```
+help          - Show all commands
+info          - System information
+memory        - Memory statistics
+processes     - Show running processes
+network       - Network status
+users         - List user accounts
+launch notepad     - Open Notepad
+launch paint       - Open Paint
+launch filemanager - Open File Manager
+vesa          - Graphics info
+input         - Input device status
+test          - Run test suite
+reboot        - Reboot system
+shutdown      - Shutdown system
+```
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Desktop Environment (HTML/CSS/JS)                      │
+│  ├── Login Screen                                       │
+│  ├── Window Manager                                     │
+│  └── 7 Applications                                     │
+├─────────────────────────────────────────────────────────┤
+│  System Services                                        │
+│  ├── User Management (SHA-256, Sessions)               │
+│  ├── Graphics (VESA Framebuffer)                       │
+│  └── Input (Keyboard, Mouse)                           │
+├─────────────────────────────────────────────────────────┤
+│  Network Stack                                          │
+│  ├── HTTP/HTTPS Client                                 │
+│  ├── TLS 1.3 (ChaCha20-Poly1305)                      │
+│  └── TCP/IP + Socket API                               │
+├─────────────────────────────────────────────────────────┤
+│  Kernel Core                                            │
+│  ├── Memory Management                                 │
+│  ├── Process Scheduler                                 │
+│  ├── VFS (EXT2, FAT32)                                │
+│  └── Interrupt Handling                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 📚 Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) - System design and components
+- [Features](docs/FEATURES.md) - Complete feature list
+- [Running](docs/RUNNING.md) - Detailed running instructions
+- [Build](docs/BUILD.md) - Build system documentation
+
+## 🛠️ Development
 
 ```bash
-# Install Rust nightly
-rustup install nightly-2025-01-15
-rustup default nightly-2025-01-15
+# Build kernel
+cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
-# Install targets
-rustup target add x86_64-unknown-none x86_64-unknown-uefi
-rustup component add rust-src
+# Build bootloader  
+cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
 
-# Build the project
-make all
+# Run with network
+.\scripts\run-qemu.ps1 -Network
 
-# Run in QEMU
-make run
+# Debug mode (with GDB)
+.\scripts\run-qemu.ps1 -Debug
 ```
 
-### Building on Windows
+## 📊 Specifications
 
-Option 1: Using Visual Studio Build Tools
-```powershell
-# Install Visual Studio Build Tools with C++ workload
-# Then build with cargo
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-cargo build --target x86_64-unknown-none
-```
+| Component | Specification |
+|-----------|---------------|
+| **Architecture** | x86_64 |
+| **Boot** | UEFI |
+| **Resolution** | 1024x768 (32-bit color) |
+| **Memory** | 512MB recommended |
+| **Storage** | 64MB disk image |
+| **Network** | VirtIO networking |
 
-Option 2: Using MinGW/LLVM
-```powershell
-# Install LLVM which includes lld-link
-# Set linker in .cargo/config.toml
-```
+## 🤝 Contributing
 
-## Architecture
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Space (Ring 3)                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Browser   │  │   Desktop   │  │  User Apps          │ │
-│  │   Engine    │  │  (HTML/JS)  │  │  (WASM/JS/HTML)     │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    System Call Interface
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                  Kernel Space (Ring 0)                      │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              System Call Handler                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Process   │  │    VFS      │  │   Network Stack     │ │
-│  │   Manager   │  │   Layer     │  │   (TCP/IP/TLS)      │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Memory    │  │   Device    │  │   File Systems      │ │
-│  │   Manager   │  │   Drivers   │  │   (WebbFS/FAT32)    │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │              Hardware Abstraction Layer (HAL)           ││
-│  │         (Paging, Interrupts, Timers, I/O)               ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-```
+## 📝 License
 
-### Boot Process
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-1. **UEFI Firmware** → Loads bootloader
-2. **Bootloader** → Sets up page tables, loads kernel
-3. **Kernel** → Initializes subsystems, starts shell
+## 🙏 Acknowledgments
 
-### Memory Layout
+- Rust programming language
+- QEMU for virtualization
+- Various open-source references and specifications
 
-```
-0x0000_0000_0000_0000 - 0x0000_7FFF_FFFF_FFFF  User space
-0x0000_8000_0000_0000 - 0xFFFF_7FFF_FFFF_FFFF  Non-canonical
-0xFFFF_8000_0000_0000 - 0xFFFF_FFFF_FFFF_FFFF  Kernel space
-  0xFFFF_8000_0010_0000  Kernel code/data
-  0xFFFF_8000_4000_0000  Kernel heap
-```
+---
 
-## Testing
+**WebbOS** - A web browser operating system for the modern era. 🌐✨
 
-```bash
-# Run unit tests
-make test
-
-# Run in QEMU with GDB debugging
-make debug
-
-# Generate coverage report
-make coverage
-```
-
-## Development Status
-
-| Component | Status |
-|-----------|--------|
-| Bootloader | ✅ Implemented |
-| Kernel Core | ✅ Implemented |
-| Memory Management | ✅ Implemented |
-| Interrupts | ✅ Implemented |
-| Console/VGA | ✅ Implemented |
-| Process Management | 🚧 Planned |
-| File System | 🚧 Planned |
-| Network Stack | 🚧 Planned |
-| Browser Engine | 🚧 Planned |
-| Desktop Environment | 🚧 Planned |
-| App Store | 🚧 Planned |
-
-## License
-
-This project is licensed under the MIT OR Apache-2.0 license.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Built with ❤️ and Rust.
