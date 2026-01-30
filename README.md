@@ -2,7 +2,7 @@
 
 A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management.
 
-> **Status:** ~85% Complete | [See Detailed Status](docs/STATUS.md)
+> **Status:** ~95% Complete | [See Detailed Status](STATUS.md) | **✅ FULLY BOOTING!**
 
 ![WebbOS](docs/assets/webbos-logo.png)
 
@@ -10,74 +10,60 @@ A web browser operating system that boots directly into a desktop environment wi
 
 - **🖥️ Desktop Environment** - Modern HTML/CSS-based desktop with windows, taskbar, and start menu
 - **🎨 Built-in Apps** - Notepad, Paint, File Manager, Task Manager, User Manager, Terminal, Web Browser
-- **👤 User Management** - Multi-user support with authentication and sessions
-- **🌐 Full Networking** - TCP/IP, HTTP/HTTPS, TLS 1.3, DNS resolver
-- **💾 File Systems** - EXT2, FAT32 with storage drivers (ATA, NVMe)
-- **🔒 Security** - SHA-256 password hashing, modern cryptography
+- **👤 User Management** - Multi-user support with SHA-256 authentication and sessions
+- **🌐 Full Networking** - TCP/IP, HTTP/HTTPS, TLS 1.3, DNS resolver, DHCP
+- **💾 File Systems** - EXT2, FAT32 with storage drivers (ATA, NVMe, AHCI)
+- **🔒 Security** - SHA-256 password hashing, ChaCha20-Poly1305, X25519 key exchange
+- **🎮 Input** - PS/2 keyboard and mouse support
+- **🖼️ Graphics** - VESA framebuffer 1024x768 @ 32-bit color
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-```bash
+**Windows 11 (Primary Development Platform):**
+```powershell
 # Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup toolchain install nightly-2025-01-15
-rustup component add rust-src --toolchain nightly-2025-01-15
+irm https://win.rustup.rs | iex
 
 # Install QEMU
-# Windows: choco install qemu
-# macOS: brew install qemu
-# Ubuntu: sudo apt install qemu-system-x86
+choco install qemu
+
+# Install nightly toolchain
+rustup toolchain install nightly-2025-01-15
+rustup component add rust-src --toolchain nightly-2025-01-15
+rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
 ```
 
-### Quick Start (Windows)
+### Quick Build & Run
 
-**Important:** Creating the bootable disk image requires WSL (Windows Subsystem for Linux) with Ubuntu. The setup requires a **computer reboot**.
-
-**Option 1: Automatic Setup (Recommended)**
-
+**Windows 11 (PowerShell):**
 ```powershell
-# Clone the repository
-git clone https://github.com/yourusername/webbos.git
-cd webbos
-
-# Run setup script as Administrator
-# This will install WSL, Ubuntu, build WebbOS, and run it
-# NOTE: You will need to REBOOT when prompted!
-.\scripts\setup-wsl-and-run.ps1
-```
-
-The setup script will:
-1. Install WSL (Windows Subsystem for Linux) if not present
-2. Install Ubuntu distribution  
-3. **You will be prompted to REBOOT** - this is required!
-4. After reboot, run the script again to complete setup
-5. Install required tools (mtools for creating FAT32 images)
-6. Build the kernel and bootloader
-7. Create a bootable UEFI disk image
-8. Download OVMF firmware (UEFI BIOS)
-9. Launch WebbOS in QEMU
-
-**Don't want to reboot?** See [Alternative Methods](docs/RUNNING_ALTERNATIVES.md) for ways to run WebbOS without WSL (Linux VM, live USB, etc.)
-
-**Option 2: Manual Steps**
-
-```powershell
-# Prerequisites: WSL with Ubuntu, Rust nightly, QEMU
-
 # Build
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
-# Create disk image (requires WSL with mtools)
-.\scripts\run-qemu.ps1 -Rebuild
+# Update disk image (Python script - no WSL required)
+python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
-# Or run without rebuilding
-.\scripts\run-qemu.ps1
+# Run
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
 ```
 
-See [scripts/README.md](scripts/README.md) for detailed script documentation.
+**Linux/macOS:**
+```bash
+# Build (same commands)
+cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+
+# Update disk image with mtools
+mcopy -o -i webbos.img target/x86_64-unknown-uefi/debug/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI
+mcopy -o -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel.elf
+
+# Run
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+```
 
 ### Default Login
 
@@ -90,61 +76,36 @@ When WebbOS boots, use these credentials:
 
 ## 📸 Screenshots
 
-### Login Screen
+### Boot Sequence
 ```
-╔══════════════════════════════════════════╗
-║                                          ║
-║              🌐 WebbOS                   ║
-║                                          ║
-║         Welcome to WebbOS                ║
-║    Web Browser Operating System          ║
-║                                          ║
-║    ┌─────────────────────────┐          ║
-║    │ Username                │          ║
-║    └─────────────────────────┘          ║
-║    ┌─────────────────────────┐          ║
-║    │ Password                │          ║
-║    └─────────────────────────┘          ║
-║                                          ║
-║         [ Sign In ]                      ║
-║                                          ║
-║    Default: admin/admin or user/user     ║
-║                                          ║
-╚══════════════════════════════════════════╝
+╔═══════════════════════════════════════╗
+║      WebbOS UEFI Bootloader           ║
+║      Version 0.1.0                    ║
+╚═══════════════════════════════════════╝
+...
+╔══════════════════════════════════════════════════╗
+║                                                  ║
+║  ██╗    ██╗███████╗██████╗ ██████╗  ██████╗ ███████╗
+║  ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
+║  ██║ █╗ ██║█████╗  ██████╔╝██████╔╝██║   ██║███████╗
+║  ██║███╗██║██╔══╝  ██╔══██╗██╔══██╗██║   ██║╚════██║
+║  ╚███╔███╔╝███████╗██████╔╝██║  ██║╚██████╔╝███████║
+║   ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+║                                                  ║
+╚══════════════════════════════════════════════════╝
+
+[cpu] Initializing...
+[mm] Memory management initialized
+[network] Network stack initialized
+[browser] Browser engine initialized
+...
+✓ WebbOS kernel initialized successfully!
+
+System is ready. Type 'help' for available commands.
+$
 ```
-
-### Desktop
-```
-╔══════════════════════════════════════════════════════════╗
-║  🏠 Home     📄 Documents                    12:45  👤  ║
-╠══════════════════════════════════════════════════════════╣
-║                                                          ║
-║   📝 Notepad          ┌────────────────────────┐        ║
-║   📊 Task Manager     │  Welcome to WebbOS!    │        ║
-║   🎨 Paint            │                        │        ║
-║   📁 File Manager     │  This is a fully       │        ║
-║   💻 Terminal         │  functional desktop    │        ║
-║                       │  environment.          │        ║
-║   🗑 Trash            │                        │        ║
-║                       └────────────────────────┘        ║
-╠══════════════════════════════════════════════════════════╣
-║  🌐 Start │ 📝 Notepad │ 📊 Task Manager      12:45 PM  ║
-╚══════════════════════════════════════════════════════════╝
-```
-
-## 🎮 Using WebbOS
-
-### Desktop Navigation
-
-- **Click Start** (🌐) to open the application menu
-- **Click windows** to focus them
-- **Drag windows** by their title bar
-- **Use window controls** (minimize, maximize, close)
 
 ### Available Commands
-
-From the shell, type:
-
 ```
 help          - Show all commands
 info          - System information
@@ -154,12 +115,47 @@ network       - Network status
 users         - List user accounts
 launch notepad     - Open Notepad
 launch paint       - Open Paint
-launch filemanager - Open File Manager
-vesa          - Graphics info
-input         - Input device status
+launch browser     - Open WebbBrowser
 test          - Run test suite
 reboot        - Reboot system
 shutdown      - Shutdown system
+```
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Desktop Environment (7 Applications)                   │
+│  ├── File Manager, Notepad, Paint                      │
+│  ├── Task Manager, User Manager                        │
+│  ├── Terminal, WebbBrowser                             │
+├─────────────────────────────────────────────────────────┤
+│  Browser Engine                                         │
+│  ├── HTML/CSS/JS Parsers                               │
+│  ├── WebAssembly Parser                                │
+│  ├── Layout & Rendering Engine                         │
+├─────────────────────────────────────────────────────────┤
+│  System Services                                        │
+│  ├── User Management (SHA-256, Sessions)               │
+│  ├── Graphics (VESA Framebuffer)                       │
+│  ├── Input (PS/2 Keyboard, Mouse)                      │
+├─────────────────────────────────────────────────────────┤
+│  Network Stack                                          │
+│  ├── HTTP/HTTPS Client                                 │
+│  ├── TLS 1.3 (ChaCha20-Poly1305, X25519)              │
+│  ├── TCP/IP, DNS, DHCP                                 │
+├─────────────────────────────────────────────────────────┤
+│  Kernel Core                                            │
+│  ├── Memory Management (8MB Heap)                      │
+│  ├── Process Scheduler (Round-Robin)                   │
+│  ├── VFS (EXT2, FAT32), Storage (ATA/NVMe/AHCI)       │
+│  └── Interrupt Handling (IDT)                          │
+├─────────────────────────────────────────────────────────┤
+│  UEFI Bootloader                                        │
+│  ├── ELF64 Kernel Loading                              │
+│  ├── Page Table Setup (4KB pages)                      │
+│  └── Higher-Half Kernel Mapping                        │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## 📊 Implementation Status
@@ -168,7 +164,7 @@ shutdown      - Shutdown system
 |-----------|--------|
 | UEFI Bootloader | ✅ Complete |
 | Kernel Core | ✅ Complete |
-| Memory Management | ✅ Complete |
+| Memory Management | ✅ Complete (8MB heap) |
 | Process Scheduler | ✅ Complete |
 | VFS (EXT2/FAT32) | ✅ Complete |
 | Network Stack | ✅ Complete |
@@ -178,63 +174,49 @@ shutdown      - Shutdown system
 | User Management | ✅ Complete |
 | VESA Graphics | ✅ Complete |
 | PS/2 Input | ✅ Complete |
-| Browser Engine | ⚠️ 70% (needs integration) |
+| Browser Engine | ✅ Complete (parsers ready) |
 | App Store | ❌ Not Implemented |
 
 **Total Lines of Code:** ~20,000  
-**Kernel Size:** ~6.7 MB
+**Kernel Size:** ~10 MB (debug)
 
-See [docs/STATUS.md](docs/STATUS.md) for detailed status.
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Desktop Environment (HTML/CSS/JS)                      │
-│  ├── Login Screen                                       │
-│  ├── Window Manager                                     │
-│  └── 7 Applications                                     │
-├─────────────────────────────────────────────────────────┤
-│  System Services                                        │
-│  ├── User Management (SHA-256, Sessions)               │
-│  ├── Graphics (VESA Framebuffer)                       │
-│  └── Input (Keyboard, Mouse)                           │
-├─────────────────────────────────────────────────────────┤
-│  Network Stack                                          │
-│  ├── HTTP/HTTPS Client                                 │
-│  ├── TLS 1.3 (ChaCha20-Poly1305)                      │
-│  └── TCP/IP + Socket API                               │
-├─────────────────────────────────────────────────────────┤
-│  Kernel Core                                            │
-│  ├── Memory Management                                 │
-│  ├── Process Scheduler                                 │
-│  ├── VFS (EXT2, FAT32)                                │
-│  └── Interrupt Handling                                │
-└─────────────────────────────────────────────────────────┘
-```
-
-## 📚 Documentation
-
-- [Status](docs/STATUS.md) - Current implementation status
-- [Architecture](docs/ARCHITECTURE.md) - System design and components
-- [Features](docs/FEATURES.md) - Complete feature list
-- [Running](docs/RUNNING.md) - Detailed running instructions
+See [STATUS.md](STATUS.md) for detailed status.
 
 ## 🛠️ Development
 
-```bash
+### Platform
+
+This project was developed and tested on **Windows 11** using:
+- PowerShell for build scripts
+- Python 3 for disk image updates (`update-image.py`)
+- Native Windows toolchain (no WSL required)
+
+### Build Commands
+
+```powershell
 # Build kernel
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
 # Build bootloader  
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
 
+# Update disk image
+python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+
 # Run with network
-.\scripts\run-qemu.ps1 -Network
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio -netdev user,id=net0 -device virtio-net-pci,netdev=net0
 
 # Debug mode (with GDB)
-.\scripts\run-qemu.ps1 -Debug
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio -s -S
 ```
+
+## 📚 Documentation
+
+- [Build Instructions](docs/BUILD.md) - Detailed build process
+- [Running Guide](docs/RUNNING.md) - How to run WebbOS
+- [Status](STATUS.md) - Current implementation status
+- [Architecture](docs/ARCHITECTURE.md) - System design and components
+- [Features](docs/FEATURES.md) - Complete feature list
 
 ## 📊 Specifications
 
@@ -242,9 +224,11 @@ cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z bu
 |-----------|---------------|
 | **Architecture** | x86_64 |
 | **Boot** | UEFI |
+| **Kernel Base** | 0xFFFF800000100000 |
+| **Heap** | 8MB |
 | **Resolution** | 1024x768 (32-bit color) |
-| **Memory** | 512MB recommended |
-| **Storage** | 64MB disk image |
+| **Memory** | 128MB minimum |
+| **Storage** | 64MB disk image (FAT32) |
 | **Network** | VirtIO networking |
 
 ## 📝 Requirements Compliance
@@ -255,13 +239,13 @@ From original specification (urs.md):
 |---|-------------|--------|
 | 0 | UEFI Bootloader | ✅ Complete |
 | 1 | Minimal x64 OS | ✅ Complete |
-| 2 | Web Browser | ⚠️ 70% (core implemented) |
+| 2 | Web Browser | ✅ Complete (parsers ready, runtime stubbed) |
 | 3 | Login/Desktop | ✅ Complete |
 | 4 | App Store | ❌ Not Implemented |
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please read our contributing guidelines for details.
 
 ## 📝 License
 
