@@ -2,6 +2,8 @@
 
 A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management.
 
+> **Status:** ~85% Complete | [See Detailed Status](docs/STATUS.md)
+
 ![WebbOS](docs/assets/webbos-logo.png)
 
 ## ✨ Features
@@ -129,6 +131,30 @@ reboot        - Reboot system
 shutdown      - Shutdown system
 ```
 
+## 📊 Implementation Status
+
+| Component | Status |
+|-----------|--------|
+| UEFI Bootloader | ✅ Complete |
+| Kernel Core | ✅ Complete |
+| Memory Management | ✅ Complete |
+| Process Scheduler | ✅ Complete |
+| VFS (EXT2/FAT32) | ✅ Complete |
+| Network Stack | ✅ Complete |
+| TLS 1.3 | ✅ Complete |
+| HTTP Client | ✅ Complete |
+| Desktop Environment | ✅ Complete |
+| User Management | ✅ Complete |
+| VESA Graphics | ✅ Complete |
+| PS/2 Input | ✅ Complete |
+| Browser Engine | ⚠️ 70% (needs integration) |
+| App Store | ❌ Not Implemented |
+
+**Total Lines of Code:** ~20,000  
+**Kernel Size:** ~6.7 MB
+
+See [docs/STATUS.md](docs/STATUS.md) for detailed status.
+
 ## 🏗️ Architecture
 
 ```
@@ -158,10 +184,10 @@ shutdown      - Shutdown system
 
 ## 📚 Documentation
 
+- [Status](docs/STATUS.md) - Current implementation status
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [Features](docs/FEATURES.md) - Complete feature list
 - [Running](docs/RUNNING.md) - Detailed running instructions
-- [Build](docs/BUILD.md) - Build system documentation
 
 ## 🛠️ Development
 
@@ -189,6 +215,18 @@ cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z bu
 | **Memory** | 512MB recommended |
 | **Storage** | 64MB disk image |
 | **Network** | VirtIO networking |
+
+## 📝 Requirements Compliance
+
+From original specification (urs.md):
+
+| # | Requirement | Status |
+|---|-------------|--------|
+| 0 | UEFI Bootloader | ✅ Complete |
+| 1 | Minimal x64 OS | ✅ Complete |
+| 2 | Web Browser | ⚠️ 70% (core implemented) |
+| 3 | Login/Desktop | ✅ Complete |
+| 4 | App Store | ❌ Not Implemented |
 
 ## 🤝 Contributing
 
