@@ -153,9 +153,17 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[graphics] Initializing graphics subsystem...");
     graphics::init();
 
+    // Initialize VESA framebuffer (using default 1024x768 for now)
+    println!("\n[vesa] Initializing VESA framebuffer...");
+    drivers::vesa::init(1024, 768, 32, 0xFD000000); // Default framebuffer address
+
     // Initialize user management
     println!("\n[users] Initializing user management...");
     users::init();
+
+    // Initialize input subsystem
+    println!("\n[input] Initializing input subsystem...");
+    drivers::input::init();
 
     // Initialize desktop environment
     println!("\n[desktop] Initializing desktop environment...");
@@ -233,6 +241,8 @@ fn process_command(cmd: &[u8]) {
             println!("  http       - HTTP client usage");
             println!("  fetch      - Fetch a URL (e.g., fetch http://example.com)");
             println!("  graphics   - Show graphics info");
+            println!("  vesa       - Show VESA framebuffer info");
+            println!("  input      - Show input status");
             println!("  test       - Run test suite");
             println!("  users      - List user accounts");
             println!("  sessions   - List active sessions");
@@ -311,6 +321,12 @@ fn process_command(cmd: &[u8]) {
         }
         "graphics" => {
             graphics::print_info();
+        }
+        "vesa" => {
+            drivers::vesa::print_info();
+        }
+        "input" => {
+            drivers::input::print_info();
         }
         "test" => {
             testing::run_tests();

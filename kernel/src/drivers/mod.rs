@@ -5,6 +5,8 @@
 pub mod timer;
 pub mod pci;
 pub mod storage;
+pub mod vesa;
+pub mod input;
 
 use crate::println;
 
