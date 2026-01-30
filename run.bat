@@ -1,0 +1,2 @@
+qemu-system-x86_64.exe -bios OVMF.fd -drive format=raw,file=webbos.img
+#qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -netdev user,id=net0 -device virtio-net-pci,netdev=net0

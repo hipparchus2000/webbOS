@@ -32,6 +32,9 @@ const KERNEL_LOAD_ADDR: PhysAddr = PhysAddr::new(0x100000); // 1MB mark
 /// Stack size for kernel
 const KERNEL_STACK_SIZE: u64 = 128 * 1024; // 128KB
 
+/// Kernel entry point (set during load_kernel)
+static mut KERNEL_ENTRY_POINT: u64 = 0;
+
 /// Bootloader entry point
 #[entry]
 fn main() -> Status {
@@ -141,12 +144,8 @@ fn main() -> Status {
         let _ = boot::exit_boot_services(MemoryType::LOADER_DATA);
     }
 
-    // Jump to kernel
-    // Use the entry point from the ELF header we read during load_kernel
-    // The kernel entry point is typically at 0xFFFF_8000_0012_xxxx (higher half)
-    const KERNEL_VIRT_BASE: u64 = 0xFFFF_8000_0000_0000;
-    const KERNEL_ENTRY_PHYS: u64 = 0x121840; // Current entry point (may change with rebuilds)
-    let kernel_entry_virt = KERNEL_VIRT_BASE + KERNEL_ENTRY_PHYS;
+    // Jump to kernel using the entry point from ELF header
+    let kernel_entry_virt = unsafe { KERNEL_ENTRY_POINT };
     
     println!("Jumping to kernel at {:#x}...", kernel_entry_virt);
     
@@ -258,6 +257,11 @@ fn load_kernel() -> uefi::Result<usize> {
     
     println!("ELF entry point: {:#x}", elf_header.e_entry);
     println!("Program headers: {} at offset {:#x}", elf_header.e_phnum, elf_header.e_phoff);
+    
+    // Store entry point for later use
+    unsafe {
+        KERNEL_ENTRY_POINT = elf_header.e_entry;
+    }
     
     // Load each program segment at the correct physical address
     let phdr_table = unsafe {

@@ -299,6 +299,14 @@ pub fn setup_kernel_paging(_kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
             )?;
         }
         
+        // Map framebuffer at 0x80000000 (2GB) - used by QEMU for VESA
+        // Map just one 2MB page for now
+        manager.map_large_page(
+            0xFFFF_8000_8000_0000u64,  // Virtual: 0xFFFF800080000000
+            PhysAddr::new(0x80000000),  // Physical: 0x80000000
+            flags::PRESENT | flags::WRITABLE,
+        )?;
+        
         Ok(manager.pml4_addr())
     }
 }

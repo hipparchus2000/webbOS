@@ -394,3 +394,5 @@ fn translate_addr_inner(addr: u64, physical_memory_offset: u64) -> Option<PhysAd
     // Calculate the physical address by adding the page offset
     Some(PhysAddr::new(frame_phys + (addr & 0xFFF)))
 }
+
+

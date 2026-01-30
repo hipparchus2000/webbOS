@@ -139,6 +139,11 @@ impl VesaDriver {
     
     /// Initialize with boot-provided framebuffer info
     pub fn init(&mut self, width: u32, height: u32, bpp: u8, phys_addr: u64) {
+        self.init_with_virt_addr(width, height, bpp, phys_addr, 0);
+    }
+    
+    /// Initialize with pre-mapped virtual address
+    pub fn init_with_virt_addr(&mut self, width: u32, height: u32, bpp: u8, phys_addr: u64, virt_addr: u64) {
         println!("[vesa] Initializing VESA framebuffer...");
         println!("[vesa] Resolution: {}x{} @ {}bpp", width, height, bpp);
         println!("[vesa] Physical address: 0x{:016x}", phys_addr);
@@ -169,8 +174,12 @@ impl VesaDriver {
             size,
         };
         
-        // Map framebuffer into virtual memory
-        self.fb_virt_addr = phys_to_virt(PhysAddr::new(phys_addr)).as_u64() as *mut u8;
+        // Use pre-mapped virtual address if provided, otherwise calculate
+        if virt_addr != 0 {
+            self.fb_virt_addr = virt_addr as *mut u8;
+        } else {
+            self.fb_virt_addr = phys_to_virt(PhysAddr::new(phys_addr)).as_u64() as *mut u8;
+        }
         
         println!("[vesa] Virtual address: {:p}", self.fb_virt_addr);
         println!("[vesa] Framebuffer size: {} KB", size / 1024);
@@ -379,6 +388,42 @@ impl VesaDriver {
         }
     }
     
+    /// Draw filled triangle using scanline fill
+    pub fn fill_triangle(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: u32) {
+        // Sort vertices by y-coordinate
+        let mut v1 = (x1, y1);
+        let mut v2 = (x2, y2);
+        let mut v3 = (x3, y3);
+        
+        if v2.1 < v1.1 { core::mem::swap(&mut v1, &mut v2); }
+        if v3.1 < v1.1 { core::mem::swap(&mut v1, &mut v3); }
+        if v3.1 < v2.1 { core::mem::swap(&mut v2, &mut v3); }
+        
+        let interpolate = |y: i32, ya: i32, yb: i32, xa: i32, xb: i32| -> i32 {
+            if ya == yb { xa } else { xa + (y - ya) * (xb - xa) / (yb - ya) }
+        };
+        
+        for y in v1.1..=v3.1 {
+            let (x_start, x_end) = if y < v2.1 {
+                let x_a = interpolate(y, v1.1, v2.1, v1.0, v2.0);
+                let x_b = interpolate(y, v1.1, v3.1, v1.0, v3.0);
+                (x_a.min(x_b), x_a.max(x_b))
+            } else {
+                let x_a = interpolate(y, v2.1, v3.1, v2.0, v3.0);
+                let x_b = interpolate(y, v1.1, v3.1, v1.0, v3.0);
+                (x_a.min(x_b), x_a.max(x_b))
+            };
+            self.draw_line(x_start, y, x_end, y, color);
+        }
+    }
+    
+    /// Draw triangle outline
+    pub fn draw_triangle(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: u32) {
+        self.draw_line(x1, y1, x2, y2, color);
+        self.draw_line(x2, y2, x3, y3, color);
+        self.draw_line(x3, y3, x1, y1, color);
+    }
+    
     /// Draw character using 8x8 font
     pub fn draw_char(&mut self, ch: char, x: i32, y: i32, color: u32, scale: u32) {
         let bitmap = get_char_bitmap(ch);
@@ -508,6 +553,11 @@ lazy_static! {
 /// Initialize VESA driver
 pub fn init(width: u32, height: u32, bpp: u8, phys_addr: u64) {
     VESA_DRIVER.lock().init(width, height, bpp, phys_addr);
+}
+
+/// Initialize VESA driver with pre-mapped virtual address
+pub fn init_with_virt_addr(width: u32, height: u32, bpp: u8, phys_addr: u64, virt_addr: u64) {
+    VESA_DRIVER.lock().init_with_virt_addr(width, height, bpp, phys_addr, virt_addr);
 }
 
 /// Get driver instance

@@ -158,10 +158,21 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     graphics::init();
     println!("[graphics] Graphics subsystem initialized");
 
-    // Initialize VESA framebuffer (using default 1024x768 for now)
+    // Initialize VESA framebuffer using boot info
     println!("\n[vesa] Initializing VESA framebuffer...");
-    drivers::vesa::init(1024, 768, 32, 0xFD000000); // Default framebuffer address
-    println!("[vesa] VESA framebuffer initialized");
+    let fb_info = &boot_info.framebuffer;
+    if fb_info.is_valid() {
+        // Use the pre-mapped virtual address for the framebuffer
+        // Bootloader mapped 0x80000000 -> 0xFFFF800080000000
+        let fb_virt_addr = 0xFFFF_8000_8000_0000u64;
+        drivers::vesa::init_with_virt_addr(fb_info.width, fb_info.height, fb_info.bpp as u8, fb_info.addr.as_u64(), fb_virt_addr);
+        println!("[vesa] VESA: {}x{} @ {:?} (virt: {:016X})", fb_info.width, fb_info.height, fb_info.addr, fb_virt_addr);
+        
+        // Draw boot triangle to VESA framebuffer
+        draw_vesa_triangle();
+    } else {
+        println!("[vesa] No valid framebuffer");
+    }
 
     // Initialize user management
     println!("\n[users] Initializing user management...");
@@ -183,6 +194,95 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
 
     // Main kernel loop
     kernel_main();
+}
+
+/// Draw a triangle to the VESA framebuffer
+fn draw_vesa_triangle() {
+    use crate::drivers::vesa::colors;
+    
+    let mut driver = drivers::vesa::driver().lock();
+    
+    if !driver.is_initialized() {
+        return;
+    }
+    
+    let info = driver.info();
+    let cx = (info.width / 2) as i32;
+    let cy = (info.height / 2) as i32;
+    
+    // Draw a filled triangle pointing up
+    let size = 100i32;
+    let x1 = cx;
+    let y1 = cy - size;
+    let x2 = cx - size;
+    let y2 = cy + size / 2;
+    let x3 = cx + size;
+    let y3 = cy + size / 2;
+    
+    // Fill with green, outline with white
+    driver.fill_triangle(x1, y1, x2, y2, x3, y3, colors::GREEN);
+    driver.draw_triangle(x1, y1, x2, y2, x3, y3, colors::WHITE);
+    
+    println!("[vesa] Triangle drawn at ({}, {})", cx, cy);
+}
+
+/// Draw a simple triangle using VGA text buffer with colored blocks (fallback)
+fn draw_boot_triangle() {
+    // VGA text buffer address (already mapped by bootloader)
+    let vga_buffer = 0xFFFF8000000B8000 as *mut u16;
+    
+    // Color attributes: high nibble = background, low nibble = foreground
+    // Green background (0x20), white foreground (0x0F) -> 0x2F
+    // Or use 0x2A for green background with green foreground (solid block)
+    let green_block: u16 = (0xDB as u16) | ((0x2A as u16) << 8); // Green block character
+    let white_block: u16 = (0xDB as u16) | ((0x0F as u16) << 8); // White block character
+    
+    // Draw a simple triangle in the center of the screen
+    // VGA text mode is 80x25 characters
+    let center_x = 40;
+    let center_y = 12;
+    
+    unsafe {
+        // Draw triangle pointing up
+        // Top point
+        let row = center_y - 4;
+        let col = center_x;
+        let offset = row * 80 + col;
+        core::ptr::write_volatile(vga_buffer.add(offset), white_block);
+        
+        // Second row (3 blocks wide)
+        let row = center_y - 3;
+        for i in -1..=1 {
+            let col = (center_x as i32 + i) as usize;
+            let offset = row * 80 + col;
+            core::ptr::write_volatile(vga_buffer.add(offset), green_block);
+        }
+        
+        // Third row (5 blocks wide)
+        let row = center_y - 2;
+        for i in -2..=2 {
+            let col = (center_x as i32 + i) as usize;
+            let offset = row * 80 + col;
+            core::ptr::write_volatile(vga_buffer.add(offset), green_block);
+        }
+        
+        // Bottom row (7 blocks wide) - base of triangle
+        let row = center_y - 1;
+        for i in -3..=3 {
+            let col = (center_x as i32 + i) as usize;
+            let offset = row * 80 + col;
+            core::ptr::write_volatile(vga_buffer.add(offset), green_block);
+        }
+        
+        // Draw white border at edges
+        let row = center_y - 1;
+        let left_col = (center_x as i32 - 3) as usize;
+        let right_col = (center_x as i32 + 3) as usize;
+        core::ptr::write_volatile(vga_buffer.add(row * 80 + left_col), white_block);
+        core::ptr::write_volatile(vga_buffer.add(row * 80 + right_col), white_block);
+    }
+    
+    println!("[boot] Triangle drawn to VGA buffer");
 }
 
 /// Main kernel loop

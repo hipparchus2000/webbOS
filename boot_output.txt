@@ -1,0 +1,177 @@
+[2J[001;001H[=3h[2J[001;001H[2J[001;001H[8;056;240t[2J[001;001H[2J[001;001H[=3h[2J[001;001H[2J[001;001H[8;042;160t[2J[001;001HBdsDxe: loading Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Primary,Master,0x0)
+BdsDxe: starting Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Primary,Master,0x0)
+╔═══════════════════════════════════════╗
+║      WebbOS UEFI Bootloader           ║
+║      Version 0.1.0                    ║
+╚═══════════════════════════════════════╝
+
+Kernel file size: 10864944 bytes
+ELF entry point: 0xffff800000121b30
+Program headers: 5 at offset 0x40
+Loading segment: src=0x1000 -> dest=0x100000 (phys), size=0x21b24/0x21b24
+Loading segment: src=0x22b30 -> dest=0x121b30 (phys), size=0x10aa1d/0x10aa1d
+Loading segment: src=0x12d54d -> dest=0x22c54d (phys), size=0xb/0x1cc4
+Kernel loaded: 2286097 bytes
+Memory map obtained: 114 entries
+Framebuffer: 1280x800 @ PhysAddr(2147483648)
+Kernel stack: top=VirtAddr(18446603336226570240)
+Page tables initialized
+Boot info prepared
+Exiting boot services and jumping to kernel...
+╔══════════════════════════════════════════════════╗
+║                                                  ║
+║  ██╗    ██╗███████╗██████╗ ██████╗  ██████╗ ███████╗
+║  ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
+║  ██║ █╗ ██║█████╗  ██████╔╝██████╔╝██║   ██║███████╗
+║  ██║███╗██║██╔══╝  ██╔══██╗██╔══██╗██║   ██║╚════██║
+║  ╚███╔███╔╝███████╗██████╔╝██║  ██║╚██████╔╝███████║
+║   ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+║                                                  ║
+║           Version 0.1.0 - x86_64                 ║
+╚══════════════════════════════════════════════════╝
+
+Boot Info:
+  Version: 1
+  Kernel: PhysAddr(1048576) (size: 2286097 bytes)
+  Stack: top=VirtAddr(18446603336226570240), size=128KB
+  Memory map: 114 entries
+  Bootloader: WebbOS Bootloader
+
+[cpu] Initializing...
+[cpu] CPU features detected
+
+[mm] Initializing memory management...
+  Memory map:
+    0000000000100000-0000000000800000      7 MB Available
+    0000000000900000-0000000001780000     14 MB Available
+    0000000001780000-0000000003B6C000     35 MB Available
+    0000000003B8C000-00000000054DE000     25 MB Available
+    00000000054DE000-0000000005F3B000     10 MB Bootloader
+    0000000005FC6000-000000000647E000      4 MB Available
+    00000000066EC000-0000000006800000      1 MB Reserved
+    0000000006800000-0000000006A02000      2 MB Available
+    0000000006A4E000-0000000006E4E000      4 MB Available
+    000000000701B000-00000000074ED000      4 MB Available
+    00000000074ED000-00000000075ED000      1 MB Reserved
+    00000000075ED000-00000000076ED000      1 MB Reserved
+    00000000077FF000-0000000007E00000      6 MB Available
+    000000FD00000000-0000010000000000  12288 MB Reserved
+  Total available memory: 110 MB
+  Heap initialized: 8192 KB at FFFF800040000000
+[mm] Memory management initialized
+
+[interrupts] Initializing IDT...
+[interrupts] IDT initialized
+Memory Statistics:
+  Heap: 0 KB used / 8192 KB total (8192 KB free)
+
+[fs] Initializing VFS...
+[vfs] Initializing virtual file system...
+[ext2] EXT2 filesystem driver initialized
+[fat32] FAT32 filesystem driver initialized
+[vfs] VFS initialized
+
+[process] Initializing...
+[process] Initializing process management...
+[scheduler] Initializing round-robin scheduler...
+[scheduler] Scheduler initialized
+[process] Process management initialized
+
+[syscall] Initializing...
+[syscall] Initializing system call interface...
+[syscall] System call interface initialized
+
+[drivers] Initializing...
+[drivers] Initializing device drivers...
+[timer] Initializing PIT timer at 1000Hz...
+[timer] PIT timer initialized
+[pci] Enumerating PCI bus...
+[pci] Found 8086:0000 at 00:00.0 - Unknown Device
+[pci] Found 8086:0000 at 00:01.0 - ISA Bridge
+[pci] Found 8086:0000 at 00:01.1 - IDE Controller
+[pci] Found 8086:0000 at 00:01.3 - Unknown Device
+[pci] Found 1234:0000 at 00:02.0 - VGA Controller
+[pci] Found 8086:0000 at 00:03.0 - Ethernet Controller
+[pci] Found 6 PCI devices
+[drivers] Device drivers initialized
+
+[storage] Initializing...
+[storage] Initializing storage subsystem...
+[nvme] Probing for NVMe controllers...
+[ahci] Probing for AHCI controllers...
+[ata] Probing for ATA drives...
+[storage] Storage subsystem initialized
+
+[net] Initializing network stack...
+[net] Initializing network stack...
+[net/drivers] Initializing network drivers...
+[net/drivers] Network drivers initialized
+[net] Network stack initialized
+
+[browser] Initializing browser engine...
+[browser] Initializing browser engine...
+[browser] Creating browser instance...
+[browser] Browser instance created, storing...
+[browser] Browser stored
+[browser] Init HTML...
+[html] HTML parser initialized
+[browser] Init CSS...
+[css] CSS engine initialized
+[browser] Init JS...
+[js] JavaScript engine initialized
+[browser] Init WASM...
+[wasm] WebAssembly engine initialized
+[browser] Init layout...
+[layout] Layout engine initialized
+[browser] Init render...
+[render] Rendering engine initialized
+[browser] Browser engine initialized
+[browser] Browser engine initialized
+
+[crypto] Initializing cryptographic subsystem...
+[crypto] Initializing cryptographic subsystem...
+[sha256] Self-test passed
+[sha384] SHA-384 initialized (stub)
+[aes] AES-GCM initialized (stub)
+[chacha20] Self-test passed
+[hkdf] HKDF initialized
+[x25519] X25519 initialized
+[crypto] Cryptographic subsystem initialized
+[crypto] Cryptographic subsystem initialized
+
+[tls] Initializing TLS 1.3...
+[tls] TLS 1.3 subsystem initialized
+[tls] Supported cipher suites:
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_AES_128_GCM_SHA256 (planned)
+      - TLS_AES_256_GCM_SHA384 (planned)
+[tls] Supported key exchange: X25519
+[tls] TLS 1.3 initialized
+
+[http] Initializing HTTP client...
+[http] HTTP/HTTPS client initialized
+[http] Supported: HTTP/1.1, HTTPS (TLS 1.3 partial)
+[http] HTTP client initialized
+
+[graphics] Initializing graphics subsystem...
+[graphics] Initializing graphics subsystem...
+[graphics] Graphics context created: 1024x768
+[graphics] Ready for rendering
+[graphics] Graphics subsystem initialized
+
+[vesa] Initializing VESA framebuffer...
+[vesa] Initializing VESA framebuffer...
+[vesa] Resolution: 1280x800 @ 32bpp
+[vesa] Physical address: 0x0000000080000000
+[vesa] Virtual address: 0xffff800080000000
+[vesa] Framebuffer size: 4000 KB
+[vesa] Initialization complete
+[vesa] VESA: 1280x800 @ PhysAddr(2147483648) (virt: FFFF800080000000)
+[2J[001;001H[=3h[2J[001;001H[2J[001;001H[8;056;240t[2J[001;001H[2J[001;001H[=3h[2J[001;001H[2J[001;001H[8;042;160t[2J[001;001HBdsDxe: loading Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Primary,Master,0x0)
+BdsDxe: starting Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Primary,Master,0x0)
+╔═══════════════════════════════════════╗
+║      WebbOS UEFI Bootloader           ║
+║      Version 0.1.0                    ║
+╚═══════════════════════════════════════╝
+
+Kernel file size: 10864944 bytes
