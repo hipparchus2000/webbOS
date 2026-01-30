@@ -146,7 +146,12 @@ fn main() -> Status {
     // This corresponds to physical address 0x1214f0 in the ELF
     const KERNEL_ENTRY_VIRT: u64 = 0xFFFF_8000_0012_14f0;
     
+    println!("Jumping to kernel at {:#x}...", KERNEL_ENTRY_VIRT);
+    
     unsafe {
+        // Disable interrupts during page table switch
+        core::arch::asm!("cli");
+        
         // Switch to the new page tables
         core::arch::asm!(
             "mov cr3, {0}",
@@ -154,6 +159,9 @@ fn main() -> Status {
         );
         
         // Jump to kernel at virtual address
+        // The kernel's _start function expects:
+        // - RDI = pointer to BootInfo
+        // - Stack at 0xFFFF_8000_0050_0000 (set up by kernel's _start)
         let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
             core::mem::transmute(KERNEL_ENTRY_VIRT as *const u8);
         kernel_entry(boot_info.as_ptr::<BootInfo>());
@@ -367,19 +375,31 @@ fn get_rsdp_addr() -> Option<PhysAddr> {
     None
 }
 
-/// Allocate kernel stack
+/// Allocate kernel stack at fixed physical address 0x500000
+/// 
+/// The kernel expects the stack at virtual address 0xFFFF_8000_0050_0000,
+/// so we allocate it at physical address 0x500000 to match.
 fn allocate_stack() -> uefi::Result<VirtAddr, ()> {
     let pages = ((KERNEL_STACK_SIZE as usize) + 0xFFF) / 0x1000;
+    
+    // Allocate at fixed address 0x500000 (5MB)
+    // This matches the virtual address 0xFFFF_8000_0050_0000 in higher half
     let stack_pages = allocate_pages(
-        AllocateType::AnyPages,
+        AllocateType::Address(0x500000),
         MemoryType::LOADER_DATA,
         pages,
     )?;
     
+    // Verify we got the address we requested
+    if stack_pages.as_ptr() as u64 != 0x500000 {
+        println!("WARNING: Stack allocated at unexpected address: {:p}", stack_pages);
+        // Continue anyway, but the stack might not work correctly
+    }
+    
     // Stack grows down, so return top of allocated region
-    Ok(VirtAddr::new(
-        (stack_pages.as_ptr() as u64) + (pages as u64 * 0x1000)
-    ))
+    // Virtual address is at 0xFFFF_8000_0000_0000 + 0x500000 + stack size
+    let stack_top_virt = 0xFFFF_8000_0000_0000u64 + 0x500000 + (pages as u64 * 0x1000);
+    Ok(VirtAddr::new(stack_top_virt))
 }
 
 /// Convert UEFI memory map to kernel format

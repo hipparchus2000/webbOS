@@ -361,7 +361,7 @@ fn translate_addr_inner(addr: u64, physical_memory_offset: u64) -> Option<PhysAd
     }
     
     let phys_addr = cr3 & 0x000F_FFFF_FFFF_F000;
-    let level_4_table_ptr = (phys_addr + physical_memory_offset) as *const PageTable;
+    let virt_addr = phys_addr + physical_memory_offset;
 
     let table_indexes = [
         ((addr >> 39) & 0x1FF) as usize,
@@ -370,10 +370,10 @@ fn translate_addr_inner(addr: u64, physical_memory_offset: u64) -> Option<PhysAd
         ((addr >> 12) & 0x1FF) as usize,
     ];
 
-    let mut frame_addr = phys_addr;
+    let mut table_virt_addr = virt_addr;
 
     for &index in &table_indexes {
-        let table = unsafe { &*(frame_addr as *const PageTable) };
+        let table = unsafe { &*(table_virt_addr as *const PageTable) };
         let entry = table.get_entry(index);
         
         if !entry.is_present() {
@@ -384,9 +384,13 @@ fn translate_addr_inner(addr: u64, physical_memory_offset: u64) -> Option<PhysAd
             panic!("huge pages not supported in translation");
         }
         
-        frame_addr = entry.addr().as_u64();
+        // Convert next table's physical address to virtual
+        let next_phys = entry.addr().as_u64();
+        table_virt_addr = next_phys + physical_memory_offset;
     }
 
+    // Get the physical address from the final frame
+    let frame_phys = table_virt_addr - physical_memory_offset;
     // Calculate the physical address by adding the page offset
-    Some(PhysAddr::new(frame_addr + (addr & 0xFFF)))
+    Some(PhysAddr::new(frame_phys + (addr & 0xFFF)))
 }

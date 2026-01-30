@@ -399,6 +399,10 @@ pub unsafe extern "C" fn _start() -> ! {
         // Save boot info pointer (in RDI from bootloader)
         "mov r12, rdi",
         
+        // Debug: Write 'K' to VGA buffer to show we got here
+        "mov byte ptr [0xFFFF8000000B8000], 0x4B",  // 'K'
+        "mov byte ptr [0xFFFF8000000B8001], 0x0F",  // White on black
+        
         // Set up kernel stack
         "mov rsp, {stack_top}",
         
@@ -415,7 +419,7 @@ pub unsafe extern "C" fn _start() -> ! {
         "hlt",
         "jmp 2b",
         
-        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x400000u64, // 4MB stack (above kernel)
+        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x500000u64, // Top of 2MB stack at 3MB
         kernel_entry = sym kernel_entry,
     );
 }

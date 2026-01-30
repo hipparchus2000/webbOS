@@ -210,7 +210,8 @@ fn allocate_page_table() -> uefi::Result<&'static mut PageTable, ()> {
 /// Setup kernel paging
 /// 
 /// This creates page tables that map:
-/// - Identity mapping for first 4GB (for bootloader transition)
+/// - Identity mapping for first 4MB (contains kernel and VGA)
+/// - Identity mapping for bootloader code region
 /// - Higher half mapping for kernel at 0xFFFF_8000_0000_0000
 /// 
 /// The kernel has three segments that need to be mapped:
@@ -219,40 +220,40 @@ fn allocate_page_table() -> uefi::Result<&'static mut PageTable, ()> {
 /// - 0xFFFF_8000_0022_a3dd -> 0x22a3dd (data)
 /// 
 /// We map the entire region from 0xFFFF_8000_0010_0000 to cover all segments
-pub fn setup_kernel_paging(kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
+pub fn setup_kernel_paging(_kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
     // Allocate PML4
     let pml4 = allocate_page_table()?;
     
     unsafe {
         let mut manager = PageTableManager::new(PhysAddr::new(pml4 as *mut _ as u64));
         
-        // Identity map first 4GB using large pages (2MB each)
-        for i in 0..2048u64 {
-            let phys = PhysAddr::new(i * 0x200000);
-            let virt = i * 0x200000;
+        // Map first 8MB at identity (0x000000-0x800000)
+        // This includes:
+        // - VGA buffer at 0xB8000
+        // - Kernel at 0x100000-0x300000
+        // - Stack at 0x500000
+        for i in 0..4u64 {
             manager.map_large_page(
-                virt,
-                phys,
+                i * 0x200000,
+                PhysAddr::new(i * 0x200000),
                 flags::PRESENT | flags::WRITABLE,
             )?;
         }
         
-        // Map kernel segments to higher half
-        // Base virtual address: 0xFFFF_8000_0010_0000
-        // We need to map this to the actual physical addresses in the ELF
-        // The ELF has physical addresses like 0x100000, 0x1214f0, 0x22a3dd
-        // We map the range 0xFFFF_8000_0010_0000 -> 0x100000 and so on
+        // Map VGA buffer at higher half (0xFFFF8000000B8000 -> 0xB8000)
+        // Use 4KB page since VGA buffer is not 2MB aligned
+        manager.map_page(
+            0xFFFF_8000_000B_8000,
+            PhysAddr::new(0xB8000),
+            flags::PRESENT | flags::WRITABLE,
+        )?;
         
-        // Find the highest physical address we need to map
-        let kernel_pages = (kernel_size + 0xFFF) / 0x1000;
-        
-        // Map from virtual 0xFFFF_8000_0010_0000 to physical 0x100000
-        // This covers all segments since they're within ~12MB of 0x100000
-        for i in 0..kernel_pages as u64 {
+        // Map higher half kernel region (0xFFFF800000100000 -> 0x100000)
+        // Kernel is at 0xFFFF800000100000, needs to be mapped with 4KB pages
+        // because it's not 2MB aligned. Map 4MB to cover the kernel.
+        for i in 0..1024u64 { // 1024 * 4KB = 4MB
             let phys_addr = 0x100000 + i * 0x1000;
             let virt_addr = 0xFFFF_8000_0010_0000 + i * 0x1000;
-            
-            // Map as present and writable (no NX so code can execute)
             manager.map_page(
                 virt_addr,
                 PhysAddr::new(phys_addr),
@@ -260,17 +261,40 @@ pub fn setup_kernel_paging(kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
             )?;
         }
         
-        // Map kernel stack at 0xFFFF_8000_0040_0000 (4MB in higher half)
-        // Stack is 128KB and grows DOWN from 0xFFFF_8000_0040_0000
-        // So we need to map from 0xFFFF_8000_003E_0000 to 0xFFFF_8000_0040_0000
-        const STACK_TOP_VIRT: u64 = 0xFFFF_8000_0000_0000 + 0x400000;
-        const STACK_PHYS_BASE: u64 = 0x400000 - 0x20000; // 4MB - 128KB
-        const STACK_PAGES: u64 = 32; // 128KB stack
-        
-        for i in 0..STACK_PAGES {
+        // Map kernel stack at 0xFFFF_8000_0050_0000 (5MB in higher half)
+        // The kernel expects the stack at this virtual address
+        // Stack is 128KB, map it with 4KB pages for flexibility
+        // Physical stack is allocated at 0x500000 (5MB physical)
+        for i in 0..32u64 { // 32 * 4KB = 128KB
+            let phys_addr = 0x500000 + i * 0x1000;
+            let virt_addr = 0xFFFF_8000_0050_0000 + i * 0x1000;
             manager.map_page(
-                STACK_TOP_VIRT - (STACK_PAGES - i) * 0x1000,
-                PhysAddr::new(STACK_PHYS_BASE + i * 0x1000),
+                virt_addr,
+                PhysAddr::new(phys_addr),
+                flags::PRESENT | flags::WRITABLE,
+            )?;
+        }
+        
+        // Map a large region of physical memory to higher half
+        // This covers 0-512MB mapped at 0xFFFF800000000000
+        // Use 2MB large pages for efficiency
+        for i in 0..256u64 { // 256 * 2MB = 512MB
+            let phys = i * 0x200000;
+            let virt = 0xFFFF_8000_0000_0000 + phys;
+            manager.map_large_page(
+                virt,
+                PhysAddr::new(phys),
+                flags::PRESENT | flags::WRITABLE,
+            )?;
+        }
+        
+        // Also identity map the same 512MB region
+        // This ensures the bootloader can continue executing after page table switch
+        for i in 0..256u64 {
+            let phys = i * 0x200000;
+            manager.map_large_page(
+                phys,
+                PhysAddr::new(phys),
                 flags::PRESENT | flags::WRITABLE,
             )?;
         }

@@ -226,7 +226,7 @@ pub fn read_config16(bus: u8, device: u8, function: u8, offset: u8) -> u16 {
             options(nomem, nostack)
         );
         
-        (val >> ((offset & 2) * 8)) as u16
+        (val as u32 >> ((offset & 2) as u32 * 8)) as u16
     }
 }
 
