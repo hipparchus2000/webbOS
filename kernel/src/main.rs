@@ -168,8 +168,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
         drivers::vesa::init_with_virt_addr(fb_info.width, fb_info.height, fb_info.bpp as u8, fb_info.addr.as_u64(), fb_virt_addr);
         println!("[vesa] VESA: {}x{} @ {:?} (virt: {:016X})", fb_info.width, fb_info.height, fb_info.addr, fb_virt_addr);
         
-        // Draw boot triangle to VESA framebuffer
-        draw_vesa_triangle();
+        // Boot triangle skipped - will draw shapes after login instead
     } else {
         println!("[vesa] No valid framebuffer");
     }
@@ -200,30 +199,22 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
 fn draw_vesa_triangle() {
     use crate::drivers::vesa::colors;
     
-    let mut driver = drivers::vesa::driver().lock();
+    // Get screen dimensions
+    let info = match drivers::vesa::info() {
+        Some(i) => i,
+        None => return,
+    };
     
-    if !driver.is_initialized() {
-        return;
-    }
-    
-    let info = driver.info();
     let cx = (info.width / 2) as i32;
     let cy = (info.height / 2) as i32;
     
-    // Draw a filled triangle pointing up
+    // Draw a simple filled rectangle as a placeholder for the triangle
+    // This tests that VESA drawing works without complex algorithms
     let size = 100i32;
-    let x1 = cx;
-    let y1 = cy - size;
-    let x2 = cx - size;
-    let y2 = cy + size / 2;
-    let x3 = cx + size;
-    let y3 = cy + size / 2;
+    drivers::vesa::fill_rect(cx - size, cy - size, 200, 200, colors::GREEN);
+    drivers::vesa::draw_rect(cx - size, cy - size, 200, 200, colors::WHITE);
     
-    // Fill with green, outline with white
-    driver.fill_triangle(x1, y1, x2, y2, x3, y3, colors::GREEN);
-    driver.draw_triangle(x1, y1, x2, y2, x3, y3, colors::WHITE);
-    
-    println!("[vesa] Triangle drawn at ({}, {})", cx, cy);
+    println!("[vesa] Triangle (rectangle) drawn at ({}, {})", cx, cy);
 }
 
 /// Draw a simple triangle using VGA text buffer with colored blocks (fallback)
@@ -287,6 +278,40 @@ fn draw_boot_triangle() {
 
 /// Main kernel loop
 fn kernel_main() -> ! {
+    // Show VESA login screen if available
+    let vesa_available = drivers::vesa::info().is_some();
+    
+    if vesa_available {
+        println!("[main] Showing VESA login screen...");
+        
+        // Show login screen on VESA
+        if let Some((session_id, username)) = desktop::vesa_login::show_login_screen() {
+            println!("[main] User '{}' logged in with session {}", username, session_id);
+            
+            // Clear screen and show welcome
+            desktop::vesa_login::show_welcome_message();
+            
+            // Draw post-login shape (circle)
+            desktop::vesa_login::draw_post_login_shape();
+            
+            // Wait a bit so user can see the result
+            println!("[main] Login complete - press any key to continue to console");
+            
+            // Wait for any key
+            loop {
+                if drivers::input::get_key().is_some() {
+                    break;
+                }
+                cpu::halt();
+            }
+            
+            // Clear to black for console
+            drivers::vesa::clear(drivers::vesa::colors::BLACK);
+            drivers::vesa::draw_text("WebbOS Console", 10, 10, drivers::vesa::colors::WHITE, 2);
+        }
+    }
+    
+    // Fall back to serial console
     let mut buffer = [0u8; 256];
     let mut pos = 0;
 

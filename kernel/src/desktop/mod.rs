@@ -12,6 +12,8 @@ use lazy_static::lazy_static;
 use crate::println;
 use crate::users::{self, User};
 
+pub mod vesa_login;
+
 /// Window ID
 pub type WindowId = u32;
 

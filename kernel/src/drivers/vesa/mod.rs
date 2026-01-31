@@ -575,14 +575,54 @@ pub fn set_pixel(x: u32, y: u32, color: u32) {
     VESA_DRIVER.lock().set_pixel(x, y, color);
 }
 
-/// Draw rectangle
+/// Draw rectangle outline
+pub fn draw_rect(x: i32, y: i32, w: u32, h: u32, color: u32) {
+    VESA_DRIVER.lock().draw_rect(x, y, w, h, color);
+}
+
+/// Draw line
+pub fn draw_line(x0: i32, y0: i32, x1: i32, y1: i32, color: u32) {
+    VESA_DRIVER.lock().draw_line(x0, y0, x1, y1, color);
+}
+
+/// Draw filled rectangle
 pub fn fill_rect(x: i32, y: i32, w: u32, h: u32, color: u32) {
     VESA_DRIVER.lock().fill_rect(x, y, w, h, color);
+}
+
+/// Draw triangle outline
+pub fn draw_triangle(x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: u32) {
+    VESA_DRIVER.lock().draw_triangle(x1, y1, x2, y2, x3, y3, color);
+}
+
+/// Draw filled triangle
+pub fn fill_triangle(x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: u32) {
+    VESA_DRIVER.lock().fill_triangle(x1, y1, x2, y2, x3, y3, color);
+}
+
+/// Draw circle outline
+pub fn draw_circle(cx: i32, cy: i32, r: i32, color: u32) {
+    VESA_DRIVER.lock().draw_circle(cx, cy, r, color);
+}
+
+/// Draw filled circle
+pub fn fill_circle(cx: i32, cy: i32, r: i32, color: u32) {
+    VESA_DRIVER.lock().fill_circle(cx, cy, r, color);
 }
 
 /// Draw text
 pub fn draw_text(text: &str, x: i32, y: i32, color: u32, scale: u32) {
     VESA_DRIVER.lock().draw_text(text, x, y, color, scale);
+}
+
+/// Get framebuffer info
+pub fn info() -> Option<FramebufferInfo> {
+    let driver = VESA_DRIVER.lock();
+    if driver.is_initialized() {
+        Some(*driver.info())
+    } else {
+        None
+    }
 }
 
 /// Print VESA info
