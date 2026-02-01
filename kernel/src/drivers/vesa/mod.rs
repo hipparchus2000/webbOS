@@ -144,12 +144,18 @@ impl VesaDriver {
     
     /// Initialize with pre-mapped virtual address
     pub fn init_with_virt_addr(&mut self, width: u32, height: u32, bpp: u8, phys_addr: u64, virt_addr: u64) {
+        self.init_with_pitch(width, height, bpp, 0, phys_addr, virt_addr);
+    }
+    
+    /// Initialize with pitch and virtual address
+    pub fn init_with_pitch(&mut self, width: u32, height: u32, bpp: u8, pitch: u32, phys_addr: u64, virt_addr: u64) {
         println!("[vesa] Initializing VESA framebuffer...");
         println!("[vesa] Resolution: {}x{} @ {}bpp", width, height, bpp);
         println!("[vesa] Physical address: 0x{:016x}", phys_addr);
         
         let bytes_per_pixel = (bpp + 7) / 8;
-        let pitch = width * bytes_per_pixel as u32;
+        // Use provided pitch or calculate from width
+        let pitch = if pitch > 0 { pitch } else { width * bytes_per_pixel as u32 };
         let size = (pitch * height) as usize;
         
         // Calculate color masks based on bpp
@@ -207,8 +213,11 @@ impl VesaDriver {
             return;
         }
         
+        crate::println!("[vesa] clear() - calculating count...");
         let pixel = self.color_to_pixel(color);
         let count = (self.info.pitch * self.info.height) as usize / self.info.bytes_per_pixel as usize;
+        
+        crate::println!("[vesa] clear() - clearing {} pixels at {:p}", count, self.fb_virt_addr);
         
         unsafe {
             let fb = self.fb_virt_addr as *mut u32;
@@ -216,6 +225,8 @@ impl VesaDriver {
                 write_volatile(fb.add(i), pixel);
             }
         }
+        
+        crate::println!("[vesa] clear() - done");
     }
     
     /// Set pixel at (x, y) with color

@@ -4,8 +4,8 @@
 //! and the kernel heap allocator.
 
 use webbos_shared::bootinfo::BootInfo;
-use webbos_shared::types::{MemoryRegionType, PhysAddr, VirtAddr, KERNEL_BASE};
-use crate::arch::paging::BootInfoFrameAllocator;
+use webbos_shared::types::{MemoryRegionType, PhysAddr, VirtAddr, PAGE_SIZE, KERNEL_BASE};
+use crate::arch::paging::{BootInfoFrameAllocator, Page, PhysFrame, PageTableFlags, OffsetPageTable};
 use crate::println;
 
 pub mod allocator;
@@ -81,6 +81,53 @@ pub unsafe fn init(boot_info: &'static BootInfo) {
         HEAP_SIZE / 1024, 
         HEAP_START
     );
+    
+    // Map framebuffer region if present
+    map_framebuffer(&mut mapper, &mut frame_allocator, &boot_info.framebuffer);
+}
+
+/// Map the framebuffer region in page tables
+/// 
+/// This ensures the framebuffer is accessible at its expected virtual address
+unsafe fn map_framebuffer(
+    mapper: &mut OffsetPageTable,
+    frame_allocator: &mut BootInfoFrameAllocator,
+    fb_info: &webbos_shared::bootinfo::FramebufferInfo,
+) {
+    if !fb_info.is_valid() {
+        println!("  No valid framebuffer to map");
+        return;
+    }
+    
+    let phys_start = fb_info.addr.as_u64();
+    let size = fb_info.size() as u64;
+    let virt_start = phys_start + PHYSICAL_MEMORY_OFFSET;
+    
+    println!("  Mapping framebuffer: {:016X} -> {:016X} ({} KB)",
+        phys_start, virt_start, size / 1024);
+    
+    // Map each page of the framebuffer
+    let page_size = PAGE_SIZE as u64;
+    let num_pages = ((size + page_size - 1) / page_size) as usize;
+    
+    for i in 0..num_pages {
+        let phys_addr = PhysAddr::new(phys_start + (i as u64) * page_size);
+        let virt_addr = virt_start + (i as u64) * page_size;
+        
+        let page = Page::containing_address(virt_addr);
+        let frame = PhysFrame::containing_address(phys_addr);
+        
+        // Map with write-through and no-cache flags for MMIO
+        let flags = PageTableFlags::PRESENT 
+            | PageTableFlags::WRITABLE
+            | PageTableFlags::WRITE_THROUGH
+            | PageTableFlags::NO_CACHE;
+        
+        // Ignore errors - the page might already be mapped by bootloader
+        let _ = mapper.map_to(page, frame, flags, frame_allocator);
+    }
+    
+    println!("  Framebuffer mapped: {} pages", num_pages);
 }
 
 /// Print memory statistics

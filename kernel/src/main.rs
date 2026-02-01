@@ -32,6 +32,7 @@ mod graphics;
 mod testing;
 mod users;
 mod desktop;
+mod login_screen;
 
 use arch::cpu;
 use arch::interrupts;
@@ -124,6 +125,10 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Initialize device drivers
     println!("\n[drivers] Initializing...");
     drivers::init();
+    
+    // Note: Interrupts are disabled for now due to stability issues
+    // The system will use busy-wait for delays instead of timer interrupts
+    println!("[kernel] Interrupts remain disabled for stability");
 
     // Initialize storage subsystem
     println!("\n[storage] Initializing...");
@@ -162,13 +167,33 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[vesa] Initializing VESA framebuffer...");
     let fb_info = &boot_info.framebuffer;
     if fb_info.is_valid() {
-        // Use the pre-mapped virtual address for the framebuffer
-        // Bootloader mapped 0x80000000 -> 0xFFFF800080000000
-        let fb_virt_addr = 0xFFFF_8000_8000_0000u64;
-        drivers::vesa::init_with_virt_addr(fb_info.width, fb_info.height, fb_info.bpp as u8, fb_info.addr.as_u64(), fb_virt_addr);
-        println!("[vesa] VESA: {}x{} @ {:?} (virt: {:016X})", fb_info.width, fb_info.height, fb_info.addr, fb_virt_addr);
+        // Use the pre-mapped virtual address from bootloader if available
+        let fb_virt_addr = if let Some(vaddr) = fb_info.virt_addr {
+            vaddr.as_u64()
+        } else {
+            // Fallback to hardcoded mapping
+            0xFFFF_8000_8000_0000u64
+        };
+        println!("[vesa] Using framebuffer virt addr: {:016X}", fb_virt_addr);
         
-        // Draw boot triangle to VESA framebuffer
+        // Initialize VESA and keep the lock to test if mutex is the issue
+        {
+            let mut driver = drivers::vesa::driver().lock();
+            driver.init_with_pitch(
+                fb_info.width, 
+                fb_info.height, 
+                fb_info.bpp as u8, 
+                fb_info.pitch,
+                fb_info.addr.as_u64(), 
+                fb_virt_addr
+            );
+            println!("[vesa] VESA: {}x{} @ {:?}", fb_info.width, fb_info.height, fb_info.addr);
+            
+            // Drawing test disabled - see LOGIN_SCREEN_NOTES.md
+            println!("[vesa] Driver ready for drawing from kernel_main");
+        }
+        
+        // Draw boot indicator to VESA framebuffer
         draw_vesa_triangle();
     } else {
         println!("[vesa] No valid framebuffer");
@@ -188,6 +213,10 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[desktop] Initializing desktop environment...");
     desktop::init();
     println!("[desktop] Desktop environment initialized");
+    
+    // Initialize login screen module
+    println!("\n[login_screen] Initializing login screen...");
+    login_screen::init();
 
     println!("\n✓ WebbOS kernel initialized successfully!");
     println!("\nSystem is ready. Type 'help' for available commands.");
@@ -196,34 +225,11 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     kernel_main();
 }
 
-/// Draw a triangle to the VESA framebuffer
+/// Draw the login screen to the VESA framebuffer
 fn draw_vesa_triangle() {
-    use crate::drivers::vesa::colors;
-    
-    let mut driver = drivers::vesa::driver().lock();
-    
-    if !driver.is_initialized() {
-        return;
-    }
-    
-    let info = driver.info();
-    let cx = (info.width / 2) as i32;
-    let cy = (info.height / 2) as i32;
-    
-    // Draw a filled triangle pointing up
-    let size = 100i32;
-    let x1 = cx;
-    let y1 = cy - size;
-    let x2 = cx - size;
-    let y2 = cy + size / 2;
-    let x3 = cx + size;
-    let y3 = cy + size / 2;
-    
-    // Fill with green, outline with white
-    driver.fill_triangle(x1, y1, x2, y2, x3, y3, colors::GREEN);
-    driver.draw_triangle(x1, y1, x2, y2, x3, y3, colors::WHITE);
-    
-    println!("[vesa] Triangle drawn at ({}, {})", cx, cy);
+    // Temporarily disabled - drawing causes crashes
+    // The login screen will be shown by login_screen::show() instead
+    println!("[vesa] Skipping boot drawing (login screen will be shown later)");
 }
 
 /// Draw a simple triangle using VGA text buffer with colored blocks (fallback)
@@ -289,13 +295,48 @@ fn draw_boot_triangle() {
 fn kernel_main() -> ! {
     let mut buffer = [0u8; 256];
     let mut pos = 0;
+    let mut first_boot = true;
 
     loop {
-        print!("$ ");
+        // Show login screen on first boot after a short delay
+        if first_boot {
+            first_boot = false;
+            println!("[boot] Starting...");
+            // Use simple delay loop instead of timer sleep (timer not working yet)
+            println!("[boot] Waiting...");
+            for _ in 0..10000000 {
+                core::hint::spin_loop();
+            }
+            println!("[boot] Wait complete");
+            println!("[boot] Calling login_screen::show()...");
+            login_screen::show();
+            println!("[boot] login_screen::show() returned");
+        }
+        
+        // Only show prompt if login screen is not visible
+        if !login_screen::is_visible() {
+            print!("$ ");
+        }
         
         // Simple command loop
         loop {
             if let Some(c) = console::getchar() {
+                // If login screen is visible, route input to it
+                if login_screen::is_visible() {
+                    match login_screen::handle_key(c) {
+                        login_screen::LoginAction::LoginSuccess => {
+                            // Login successful, break to show prompt
+                            println!("\nWelcome to WebbOS!");
+                            break;
+                        }
+                        login_screen::LoginAction::LoginFailed => {
+                            // Login failed, stay on login screen
+                        }
+                        login_screen::LoginAction::None => {}
+                    }
+                    continue;
+                }
+                
                 match c {
                     b'\n' | b'\r' => {
                         println!();

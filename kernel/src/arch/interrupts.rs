@@ -61,10 +61,67 @@ pub struct InterruptStackFrame {
     pub stack_segment: u64,
 }
 
+/// Small delay for I/O operations
+unsafe fn io_delay() {
+    for _ in 0..100 {
+        core::arch::asm!("nop", options(nomem, nostack));
+    }
+}
+
+/// Initialize the PIC (Programmable Interrupt Controller)
+/// 
+/// Remaps the PIC so that IRQs don't conflict with CPU exceptions.
+/// Master PIC: IRQ 0-7 -> IDT entries 32-39 (0x20-0x27)
+/// Slave PIC: IRQ 8-15 -> IDT entries 40-47 (0x28-0x2F)
+unsafe fn init_pic() {
+    // ICW1: Start initialization, expect ICW4
+    outb(0x20, 0x11); // Master
+    io_delay();
+    outb(0xA0, 0x11); // Slave
+    io_delay();
+    
+    // ICW2: Vector offset
+    outb(0x21, 0x20); // Master: 0x20 (32)
+    io_delay();
+    outb(0xA1, 0x28); // Slave: 0x28 (40)
+    io_delay();
+    
+    // ICW3: Tell master about slave at IRQ2
+    outb(0x21, 0x04); // Master: Slave at IRQ2 (bit 2)
+    io_delay();
+    outb(0xA1, 0x02); // Slave: Cascade identity 2
+    io_delay();
+    
+    // ICW4: 8086 mode, normal EOI
+    outb(0x21, 0x01);
+    io_delay();
+    outb(0xA1, 0x01);
+    io_delay();
+    
+    // OCW1: Mask all interrupts except timer (IRQ0)
+    // 0xFE = 11111110b - only IRQ0 (timer) is unmasked
+    outb(0x21, 0xFE); // Master: mask all except IRQ0
+    io_delay();
+    outb(0xA1, 0xFF); // Slave: mask all
+}
+
+/// Output byte to I/O port
+unsafe fn outb(port: u16, value: u8) {
+    core::arch::asm!(
+        "out dx, al",
+        in("dx") port,
+        in("al") value,
+        options(nomem, nostack)
+    );
+}
+
 /// Initialize interrupt handling
 pub fn init() {
     unsafe {
-        // Set up exception handlers
+        // Initialize PIC first
+        init_pic();
+        
+        // Set up exception handlers (entries 0-31)
         IDT[0].set_handler(divide_error as u64);
         IDT[1].set_handler(debug as u64);
         IDT[2].set_handler(nmi as u64);
@@ -86,6 +143,9 @@ pub fn init() {
         IDT[20].set_handler(virtualization as u64);
         IDT[30].set_handler(security_exception as u64);
         
+        // Set up timer interrupt handler (IRQ0 -> IDT entry 32)
+        IDT[32].set_handler(timer_interrupt_handler as u64);
+        
         // Load IDT
         let idt_ptr = IdtPointer {
             limit: ((256 * core::mem::size_of::<IdtEntry>()) - 1) as u16,
@@ -99,8 +159,9 @@ pub fn init() {
         );
     }
     
-    // Enable interrupts
-    super::cpu::enable_interrupts();
+    // Note: We don't enable interrupts here because IRQ handlers 
+    // haven't been registered yet. Call enable() after setting up handlers.
+    println!("[interrupts] IDT loaded, interrupts disabled until handlers are ready");
 }
 
 /// Disable interrupts
@@ -116,6 +177,56 @@ pub fn enable() {
 /// Check if interrupts are enabled
 pub fn are_enabled() -> bool {
     super::cpu::interrupts_enabled()
+}
+
+/// Set an IRQ handler (IRQ 0-15 map to IDT entries 32-47)
+/// 
+/// # Safety
+/// The handler must be a valid interrupt handler function
+pub unsafe fn set_irq_handler(irq: u8, handler: extern "x86-interrupt" fn(InterruptStackFrame)) {
+    let idt_index = 32 + irq as usize;
+    if idt_index < IDT_ENTRIES {
+        IDT[idt_index].set_handler(handler as u64);
+    }
+}
+
+/// Send End of Interrupt (EOI) to PIC
+pub fn send_eoi(irq: u8) {
+    unsafe {
+        // If IRQ >= 8, send EOI to slave PIC
+        if irq >= 8 {
+            core::arch::asm!(
+                "mov al, 0x20",
+                "out 0xA0, al",
+                options(nomem, nostack)
+            );
+        }
+        // Send EOI to master PIC
+        core::arch::asm!(
+            "mov al, 0x20",
+            "out 0x20, al",
+            options(nomem, nostack)
+        );
+    }
+}
+
+// Timer interrupt handler (IRQ0)
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        // Increment tick count
+        TIMER_TICKS += 1;
+        
+        // Send EOI to PIC
+        send_eoi(0);
+    }
+}
+
+/// Timer tick counter (accessible from timer module)
+static mut TIMER_TICKS: u64 = 0;
+
+/// Get the current timer tick count
+pub fn get_timer_ticks() -> u64 {
+    unsafe { TIMER_TICKS }
 }
 
 // Exception handlers

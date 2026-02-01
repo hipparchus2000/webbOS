@@ -9,14 +9,14 @@ const PIT_FREQUENCY: u32 = 1193182;
 /// Desired timer frequency (Hz) - 1000Hz = 1ms ticks
 const TIMER_FREQUENCY: u32 = 1000;
 
-/// Number of ticks since boot
-static mut TICKS: u64 = 0;
-
 /// Initialize the timer
 pub fn init() {
     println!("[timer] Initializing PIT timer at {}Hz...", TIMER_FREQUENCY);
 
     unsafe {
+        // Timer handler is now registered in interrupts::init()
+        crate::println!("[timer] Timer handler already registered in interrupts module");
+        
         // Calculate PIT divisor
         let divisor = PIT_FREQUENCY / TIMER_FREQUENCY;
         
@@ -50,17 +50,17 @@ pub fn init() {
 
 /// Get current tick count
 pub fn ticks() -> u64 {
-    unsafe { TICKS }
+    crate::arch::interrupts::get_timer_ticks()
 }
 
 /// Get elapsed time in milliseconds
 pub fn elapsed_ms() -> u64 {
-    unsafe { TICKS * 1000 / TIMER_FREQUENCY as u64 }
+    ticks() * 1000 / TIMER_FREQUENCY as u64
 }
 
 /// Get elapsed time in seconds
 pub fn elapsed_sec() -> u64 {
-    unsafe { TICKS / TIMER_FREQUENCY as u64 }
+    ticks() / TIMER_FREQUENCY as u64
 }
 
 /// Sleep for a number of milliseconds (busy wait)
@@ -76,13 +76,13 @@ pub fn sleep_sec(sec: u64) {
     sleep_ms(sec * 1000);
 }
 
-/// Timer interrupt handler
+/// Timer interrupt handler - called from interrupts.rs
 ///
 /// # Safety
 /// This is called from interrupt context.
 pub unsafe fn timer_interrupt() {
-    TICKS += 1;
-    
+    // Tick counting is now done in interrupts.rs
+    // This function is kept for compatibility
     // Call scheduler tick
     crate::process::scheduler::timer_tick();
 }
