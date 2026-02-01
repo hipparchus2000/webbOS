@@ -320,7 +320,10 @@ fn kernel_main() -> ! {
         
         // Simple command loop
         loop {
-            if let Some(c) = console::getchar() {
+            // Check for input (serial only since interrupts are disabled)
+            let key_opt = console::getchar();
+            
+            if let Some(c) = key_opt {
                 // If login screen is visible, route input to it
                 if login_screen::is_visible() {
                     match login_screen::handle_key(c) {

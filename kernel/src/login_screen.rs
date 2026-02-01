@@ -132,14 +132,50 @@ impl LoginScreen {
         let instr = "Use: admin/admin or user/user";
         driver.draw_text(instr, rect_x + 20, rect_y + 80, palette::TEXT_SECONDARY, 1);
         
-        // Draw username
-        driver.draw_text("Username:", rect_x + 20, rect_y + 130, palette::TEXT_PRIMARY, 1);
-        driver.draw_text(&self.username, rect_x + 120, rect_y + 130, palette::TEXT_PRIMARY, 1);
+        // Input field dimensions
+        let input_x = rect_x + 120;
+        let input_w = 240;
+        let input_h = 24;
         
-        // Draw password (masked)
-        driver.draw_text("Password:", rect_x + 20, rect_y + 160, palette::TEXT_PRIMARY, 1);
+        // Draw username field
+        driver.draw_text("Username:", rect_x + 20, rect_y + 130, palette::TEXT_PRIMARY, 1);
+        let username_bg = if self.focused_field == Field::Username { palette::INPUT_BORDER_FOCUS } else { palette::INPUT_BORDER };
+        driver.fill_rect(input_x, rect_y + 125, input_w, input_h, colors::WHITE);
+        driver.draw_rect(input_x, rect_y + 125, input_w, input_h, username_bg);
+        driver.draw_text(&self.username, input_x + 8, rect_y + 132, palette::TEXT_PRIMARY, 1);
+        // Draw cursor if focused
+        if self.focused_field == Field::Username {
+            let cursor_x = input_x + 8 + (self.username.len() as i32 * 8);
+            driver.fill_rect(cursor_x, rect_y + 128, 2, 18, palette::TEXT_PRIMARY);
+        }
+        
+        // Draw password field
+        driver.draw_text("Password:", rect_x + 20, rect_y + 170, palette::TEXT_PRIMARY, 1);
+        let password_bg = if self.focused_field == Field::Password { palette::INPUT_BORDER_FOCUS } else { palette::INPUT_BORDER };
+        driver.fill_rect(input_x, rect_y + 165, input_w, input_h, colors::WHITE);
+        driver.draw_rect(input_x, rect_y + 165, input_w, input_h, password_bg);
         let stars: alloc::string::String = (0..self.password.len()).map(|_| '*').collect();
-        driver.draw_text(&stars, rect_x + 120, rect_y + 160, palette::TEXT_PRIMARY, 1);
+        driver.draw_text(&stars, input_x + 8, rect_y + 172, palette::TEXT_PRIMARY, 1);
+        // Draw cursor if focused
+        if self.focused_field == Field::Password {
+            let cursor_x = input_x + 8 + (self.password.len() as i32 * 8);
+            driver.fill_rect(cursor_x, rect_y + 168, 2, 18, palette::TEXT_PRIMARY);
+        }
+        
+        // Draw Login button
+        let btn_x = rect_x + 150;
+        let btn_y = rect_y + 210;
+        let btn_w = 100;
+        let btn_h = 32;
+        let btn_color = if self.focused_field == Field::Button { palette::BUTTON_HOVER } else { palette::BUTTON_BG };
+        driver.fill_rect(btn_x, btn_y, btn_w, btn_h, btn_color);
+        driver.draw_rect(btn_x, btn_y, btn_w, btn_h, palette::INPUT_BORDER);
+        driver.draw_text("LOGIN", btn_x + 25, btn_y + 10, palette::BUTTON_TEXT, 1);
+        
+        // Draw hint box
+        driver.fill_rect(rect_x + 20, rect_y + 260, 360, 24, palette::HINT_BG);
+        driver.draw_rect(rect_x + 20, rect_y + 260, 360, 24, palette::HINT_BORDER);
+        driver.draw_text("Tab: switch field  |  Enter: submit", rect_x + 30, rect_y + 267, palette::TEXT_SECONDARY, 1);
         
         println!("[login_screen] Drawing complete");
     }
@@ -259,6 +295,7 @@ impl LoginScreen {
         match key {
             b'\t' => {
                 // Tab - move to next field
+                println!("[login_screen] Tab pressed, switching field");
                 self.focused_field = match self.focused_field {
                     Field::Username => Field::Password,
                     Field::Password => Field::Button,
@@ -269,6 +306,7 @@ impl LoginScreen {
             }
             b'\n' | b'\r' => {
                 // Enter - submit or move to next
+                println!("[login_screen] Enter pressed, focused: {:?}", self.focused_field);
                 match self.focused_field {
                     Field::Username => {
                         self.focused_field = Field::Password;
@@ -319,15 +357,18 @@ impl LoginScreen {
             }
             c if c >= 32 && c <= 126 => {
                 // Printable character
+                println!("[login_screen] Key pressed: '{}'", c as char);
                 match self.focused_field {
                     Field::Username => {
                         if self.username.len() < 32 {
                             self.username.push(c as char);
+                            println!("[login_screen] Username now: '{}'", self.username);
                         }
                     }
                     Field::Password => {
                         if self.password.len() < 32 {
                             self.password.push(c as char);
+                            println!("[login_screen] Password len now: {}", self.password.len());
                         }
                     }
                     Field::Button => {}

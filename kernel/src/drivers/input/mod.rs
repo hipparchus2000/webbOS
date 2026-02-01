@@ -408,6 +408,27 @@ pub fn poll_event() -> Option<InputEvent> { INPUT_MANAGER.lock().poll_event() }
 pub fn has_events() -> bool { INPUT_MANAGER.lock().has_events() }
 pub fn mouse_position() -> (i32, i32) { INPUT_MANAGER.lock().mouse_position() }
 
+/// Poll keyboard for input (non-interrupt mode)
+pub fn poll_keyboard() -> Option<InputEvent> {
+    // First check if there are any pending events
+    if let Some(event) = poll_event() {
+        return Some(event);
+    }
+    
+    // Poll the keyboard hardware directly
+    unsafe {
+        // Check if data is available (status port 0x64, bit 0)
+        if (inb(0x64) & 0x01) != 0 {
+            // Process through keyboard driver's interrupt handler
+            // (which just reads and processes the scancode)
+            let mut manager = INPUT_MANAGER.lock();
+            manager.keyboard.handle_interrupt()
+        } else {
+            None
+        }
+    }
+}
+
 pub fn wait_key() -> InputEvent {
     loop {
         if let Some(event) = poll_event() {

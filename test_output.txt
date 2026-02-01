@@ -7,12 +7,12 @@ BdsDxe: starting Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x
 ╚═══════════════════════════════════════╝
 
 Kernel file size: 10864944 bytes
-ELF entry point: 0xffff8000001228d0
+ELF entry point: 0xffff800000122df0
 Program headers: 5 at offset 0x40
-Loading segment: src=0x1000 -> dest=0x100000 (phys), size=0x228c4/0x228c4
-Loading segment: src=0x238d0 -> dest=0x1228d0 (phys), size=0x115a9d/0x115a9d
-Loading segment: src=0x13936d -> dest=0x23836d (phys), size=0xb/0x1d1c
-Kernel loaded: 2334857 bytes
+Loading segment: src=0x1000 -> dest=0x100000 (phys), size=0x22de4/0x22de4
+Loading segment: src=0x23df0 -> dest=0x122df0 (phys), size=0x117c2d/0x117c2d
+Loading segment: src=0x13ba1d -> dest=0x23aa1d (phys), size=0xb/0x1d1c
+Kernel loaded: 2344761 bytes
 Memory map obtained: 114 entries
 Framebuffer: 1280x800 @ PhysAddr(2147483648)
 Kernel stack: top=VirtAddr(18446603336226570240)
@@ -33,7 +33,7 @@ Exiting boot services and jumping to kernel...
 
 Boot Info:
   Version: 1
-  Kernel: PhysAddr(1048576) (size: 2334857 bytes)
+  Kernel: PhysAddr(1048576) (size: 2344761 bytes)
   Stack: top=VirtAddr(18446603336226570240), size=128KB
   Memory map: 114 entries
   Bootloader: WebbOS Bootloader
