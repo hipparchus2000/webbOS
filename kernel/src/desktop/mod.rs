@@ -2,6 +2,8 @@
 //!
 //! HTML-based desktop with window manager, taskbar, and applications.
 
+pub mod ui;
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::format;

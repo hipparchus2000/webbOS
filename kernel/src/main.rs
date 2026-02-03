@@ -336,27 +336,15 @@ fn kernel_main() -> ! {
                 if login_screen::is_visible() {
                     match login_screen::handle_key(c) {
                         login_screen::LoginAction::LoginSuccess => {
-                            // Login successful - launch desktop/browser
+                            // Login successful - show graphical desktop
                             println!("\n[desktop] Login successful, launching desktop...");
 
-                            // Clear the screen first
-                            {
-                                let mut vesa = drivers::vesa::driver().lock();
-                                if vesa.is_initialized() {
-                                    vesa.clear(0xFF2B5B84); // Nice blue background
-                                }
-                            }
+                            // Show the macOS-style graphical desktop
+                            desktop::ui::DesktopUI::show();
 
-                            // Launch the browser with desktop
-                            if let Some(_window_id) = desktop::launch_app("browser") {
-                                println!("[desktop] Browser/desktop launched successfully");
-                                // The browser should now be running in full screen with desktop
-                                // Stay in this loop to handle any further input
-                            } else {
-                                println!("[desktop] Failed to launch browser, falling back to shell");
-                                println!("\nWelcome to WebbOS!");
-                                break;
-                            }
+                            println!("[desktop] Desktop shown, entering desktop mode...");
+                            // Stay in this loop to handle mouse clicks and other input
+                            // TODO: Implement mouse click handling for desktop icons
                         }
                         login_screen::LoginAction::LoginFailed => {
                             // Login failed, stay on login screen

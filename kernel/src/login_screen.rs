@@ -148,8 +148,9 @@ impl LoginScreen {
         let password_bg = if self.focused_field == Field::Password { palette::INPUT_BORDER_FOCUS } else { palette::INPUT_BORDER };
         driver.fill_rect(input_x, rect_y + 165, input_w, input_h, colors::WHITE);
         driver.draw_rect(input_x, rect_y + 165, input_w, input_h, password_bg);
-        let stars: alloc::string::String = (0..self.password.len()).map(|_| '*').collect();
-        driver.draw_text(&stars, input_x + 8, rect_y + 172, palette::TEXT_PRIMARY, 1);
+        // Use bullets for password display
+        let bullets: alloc::string::String = (0..self.password.len()).map(|_| '•').collect();
+        driver.draw_text(&bullets, input_x + 8, rect_y + 172, palette::TEXT_PRIMARY, 1);
         // Draw cursor if focused
         if self.focused_field == Field::Password {
             let cursor_x = input_x + 8 + (self.password.len() as i32 * 8);
@@ -213,8 +214,9 @@ impl LoginScreen {
         let password_bg = if self.focused_field == Field::Password { palette::INPUT_BORDER_FOCUS } else { palette::INPUT_BORDER };
         driver.fill_rect(input_x, rect_y + 165, input_w, input_h, colors::WHITE);
         driver.draw_rect(input_x, rect_y + 165, input_w, input_h, password_bg);
-        let stars: alloc::string::String = (0..self.password.len()).map(|_| '*').collect();
-        driver.draw_text(&stars, input_x + 8, rect_y + 172, palette::TEXT_PRIMARY, 1);
+        // Use bullets for password display
+        let bullets: alloc::string::String = (0..self.password.len()).map(|_| '•').collect();
+        driver.draw_text(&bullets, input_x + 8, rect_y + 172, palette::TEXT_PRIMARY, 1);
         if self.focused_field == Field::Password {
             let cursor_x = input_x + 8 + (self.password.len() as i32 * 8);
             driver.fill_rect(cursor_x, rect_y + 168, 2, 18, palette::TEXT_PRIMARY);
