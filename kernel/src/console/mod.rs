@@ -58,8 +58,16 @@ pub fn getchar() -> Option<u8> {
     if let Some(c) = serial::try_receive() {
         return Some(c);
     }
-    
-    // TODO: Add PS/2 keyboard support
+
+    // Check keyboard input via interrupt-driven input system
+    if let Some(event) = crate::drivers::input::poll_event() {
+        if event.event_type == crate::drivers::input::EventType::KeyPress {
+            if event.ascii != 0 {
+                return Some(event.ascii);
+            }
+        }
+    }
+
     None
 }
 
