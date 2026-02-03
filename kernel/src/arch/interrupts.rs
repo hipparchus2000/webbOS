@@ -74,35 +74,44 @@ unsafe fn io_delay() {
 /// Master PIC: IRQ 0-7 -> IDT entries 32-39 (0x20-0x27)
 /// Slave PIC: IRQ 8-15 -> IDT entries 40-47 (0x28-0x2F)
 unsafe fn init_pic() {
+    println!("[pic] Initializing PIC...");
+    
     // ICW1: Start initialization, expect ICW4
+    println!("[pic] Sending ICW1...");
     outb(0x20, 0x11); // Master
     io_delay();
     outb(0xA0, 0x11); // Slave
     io_delay();
     
     // ICW2: Vector offset
+    println!("[pic] Sending ICW2 (vector offsets)...");
     outb(0x21, 0x20); // Master: 0x20 (32)
     io_delay();
     outb(0xA1, 0x28); // Slave: 0x28 (40)
     io_delay();
     
     // ICW3: Tell master about slave at IRQ2
+    println!("[pic] Sending ICW3 (cascade)...");
     outb(0x21, 0x04); // Master: Slave at IRQ2 (bit 2)
     io_delay();
     outb(0xA1, 0x02); // Slave: Cascade identity 2
     io_delay();
     
     // ICW4: 8086 mode, normal EOI
+    println!("[pic] Sending ICW4 (mode)...");
     outb(0x21, 0x01);
     io_delay();
     outb(0xA1, 0x01);
     io_delay();
     
-    // OCW1: Mask all interrupts except timer (IRQ0)
-    // 0xFE = 11111110b - only IRQ0 (timer) is unmasked
-    outb(0x21, 0xFE); // Master: mask all except IRQ0
+    // OCW1: Mask all interrupts initially
+    // We'll unmask specific ones after handlers are set up
+    println!("[pic] Masking all interrupts...");
+    outb(0x21, 0xFF); // Master: mask all
     io_delay();
     outb(0xA1, 0xFF); // Slave: mask all
+    
+    println!("[pic] PIC initialized");
 }
 
 /// Output byte to I/O port
@@ -144,7 +153,18 @@ pub fn init() {
         IDT[30].set_handler(security_exception as u64);
         
         // Set up timer interrupt handler (IRQ0 -> IDT entry 32)
+        println!("[interrupts] Setting up timer handler at IDT[32]...");
         IDT[32].set_handler(timer_interrupt_handler as u64);
+
+        // Set up keyboard interrupt handler (IRQ1 -> IDT entry 33)
+        println!("[interrupts] Setting up keyboard handler at IDT[33]...");
+        IDT[33].set_handler(keyboard_interrupt_handler as u64);
+
+        // Set up mouse interrupt handler (IRQ12 -> IDT entry 44)
+        println!("[interrupts] Setting up mouse handler at IDT[44]...");
+        IDT[44].set_handler(mouse_interrupt_handler as u64);
+
+        println!("[interrupts] IRQ handlers registered (timer, keyboard, mouse)");
         
         // Load IDT
         let idt_ptr = IdtPointer {
@@ -190,6 +210,34 @@ pub unsafe fn set_irq_handler(irq: u8, handler: extern "x86-interrupt" fn(Interr
     }
 }
 
+/// Unmask a specific IRQ
+/// 
+/// # Safety
+/// Should only be called after the handler is registered
+pub unsafe fn unmask_irq(irq: u8) {
+    if irq < 8 {
+        // Master PIC
+        let mask = inb(0x21);
+        outb(0x21, mask & !(1 << irq));
+    } else {
+        // Slave PIC
+        let mask = inb(0xA1);
+        outb(0xA1, mask & !(1 << (irq - 8)));
+    }
+}
+
+/// Read from I/O port
+unsafe fn inb(port: u16) -> u8 {
+    let result: u8;
+    core::arch::asm!(
+        "in al, dx",
+        in("dx") port,
+        out("al") result,
+        options(nomem, nostack)
+    );
+    result
+}
+
 /// Send End of Interrupt (EOI) to PIC
 pub fn send_eoi(irq: u8) {
     unsafe {
@@ -218,6 +266,28 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
         
         // Send EOI to PIC
         send_eoi(0);
+    }
+}
+
+// Keyboard interrupt handler (IRQ1)
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        // Handle keyboard input
+        crate::drivers::input::handle_keyboard_interrupt();
+
+        // Send EOI to PIC
+        send_eoi(1);
+    }
+}
+
+// Mouse interrupt handler (IRQ12)
+extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        // Handle mouse input
+        crate::drivers::input::handle_mouse_interrupt();
+
+        // Send EOI to PIC
+        send_eoi(12);
     }
 }
 

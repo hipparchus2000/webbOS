@@ -116,18 +116,21 @@ impl KeyboardDriver {
     
     pub fn init(&mut self) {
         println!("[input] Initializing keyboard...");
-        
+
         unsafe {
             let ctrl = inb(0x61);
             outb(0x61, ctrl | 0x80);
             outb(0x61, ctrl & 0x7F);
-            
+
             while inb(0x64) & 0x01 != 0 {
                 inb(0x60);
             }
+
+            // Unmask IRQ1 (keyboard interrupt)
+            crate::arch::interrupts::unmask_irq(1);
         }
-        
-        println!("[input] Keyboard initialized");
+
+        println!("[input] Keyboard initialized and IRQ1 unmasked");
     }
     
     pub fn handle_interrupt(&mut self) -> Option<InputEvent> {
@@ -237,29 +240,33 @@ impl MouseDriver {
     
     pub fn init(&mut self) {
         println!("[input] Initializing mouse...");
-        
+
         unsafe {
             self.wait_write();
             outb(0x64, 0xA8);
-            
+
             self.wait_write();
             outb(0x64, 0x20);
             self.wait_read();
             let status = (inb(0x60) | 2) & 0xDF;
-            
+
             self.wait_write();
             outb(0x64, 0x60);
             self.wait_write();
             outb(0x60, status);
-            
+
             self.write(0xF6);
             self.read();
-            
+
             self.write(0xF4);
             self.read();
+
+            // Unmask IRQ2 (cascade from slave PIC) and IRQ12 (mouse)
+            crate::arch::interrupts::unmask_irq(2);
+            crate::arch::interrupts::unmask_irq(12);
         }
-        
-        println!("[input] Mouse initialized");
+
+        println!("[input] Mouse initialized and IRQ12 unmasked");
     }
     
     pub fn handle_interrupt(&mut self) -> Option<InputEvent> {

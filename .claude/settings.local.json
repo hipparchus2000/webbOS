@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo +nightly-2025-01-15 build:*)",
+      "Bash(python update-image.py:*)",
+      "Bash(timeout 90 qemu-system-x86_64:*)",
+      "Bash(tee:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 60 qemu-system-x86_64:*)"
+    ]
+  }
+}

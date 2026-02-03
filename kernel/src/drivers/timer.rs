@@ -43,9 +43,12 @@ pub fn init() {
             in("al") high,
             options(nomem, nostack)
         );
+
+        // Unmask IRQ0 (timer interrupt)
+        crate::arch::interrupts::unmask_irq(0);
     }
 
-    println!("[timer] PIT timer initialized");
+    println!("[timer] PIT timer initialized and IRQ0 unmasked");
 }
 
 /// Get current tick count

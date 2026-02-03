@@ -144,12 +144,12 @@ impl Tss {
     }
 }
 
-/// GDT with 6 entries (null, kernel code, kernel data, user code32, user data, user code64)
-static mut GDT: [GdtEntry; 6] = [GdtEntry::new(); 6];
-/// Number of GDT entries
-const GDT_ENTRIES: usize = 6;
+/// GDT with 8 entries (null, kernel code, kernel data, user code32, user data, user code64, TSS low, TSS high)
+/// Note: TSS takes 2 entries in 64-bit mode (16 bytes)
+static mut GDT: [u64; 8] = [0; 8];
+/// Number of GDT entries for GDT pointer (bytes)
+const GDT_SIZE_BYTES: usize = 8 * 8;  // 8 entries * 8 bytes each
 static mut TSS: Tss = Tss::new();
-static mut TSS_ENTRY: TssEntry = TssEntry::new();
 
 /// GDT pointer for LGDT instruction
 #[repr(C, packed)]
@@ -175,41 +175,56 @@ pub const TSS_SELECTOR: u16 = 0x30;
 pub fn init() {
     unsafe {
         // Null descriptor (index 0)
-        GDT[0].set(0, 0, 0, 0);
-        
-        // Kernel code segment (index 1)
-        // Base: 0, Limit: 4GB, Access: Present, Ring 0, Code, Execute/Read
-        GDT[1].set(0, 0xFFFFFFFF, 0x9A, 0xAF);
-        
+        GDT[0] = 0;
+
+        // Kernel code segment (index 1) - 64-bit code segment
+        // Base: 0, Limit: ignored, Long mode (L=1), Present, Ring 0, Code, Readable
+        GDT[1] = 0x00AF9A000000FFFF;
+
         // Kernel data segment (index 2)
-        // Base: 0, Limit: 4GB, Access: Present, Ring 0, Data, Read/Write
-        GDT[2].set(0, 0xFFFFFFFF, 0x92, 0xCF);
-        
+        // Base: 0, Limit: 4GB, Present, Ring 0, Data, Writable
+        GDT[2] = 0x00CF92000000FFFF;
+
         // User code segment 32-bit (index 3)
-        GDT[3].set(0, 0xFFFFFFFF, 0xFA, 0xCF);
-        
+        GDT[3] = 0x00CFFA000000FFFF;
+
         // User data segment (index 4)
-        GDT[4].set(0, 0xFFFFFFFF, 0xF2, 0xCF);
-        
+        GDT[4] = 0x00CFF2000000FFFF;
+
         // User code segment 64-bit (index 5)
-        GDT[5].set(0, 0xFFFFFFFF, 0xFA, 0xAF);
-        
-        // Set up TSS entry
+        GDT[5] = 0x00AFFA000000FFFF;
+
+        // TSS entry (indices 6 and 7) - Takes 16 bytes (2 u64s) in 64-bit mode
         let tss_addr = &TSS as *const _ as u64;
-        TSS_ENTRY.set(tss_addr, size_of::<Tss>() as u32 - 1);
-        
+        let tss_limit = (size_of::<Tss>() - 1) as u64;
+
+        // TSS low part (index 6)
+        let tss_low =
+            (tss_limit & 0xFFFF) |                          // Limit 15:0
+            ((tss_addr & 0xFFFF) << 16) |                   // Base 15:0
+            (((tss_addr >> 16) & 0xFF) << 32) |             // Base 23:16
+            (0x89u64 << 40) |                               // Type (TSS) and Present bit
+            (((tss_limit >> 16) & 0xF) << 48) |             // Limit 19:16
+            (((tss_addr >> 24) & 0xFF) << 56);              // Base 31:24
+
+        // TSS high part (index 7) - Base 63:32
+        let tss_high = tss_addr >> 32;
+
+        GDT[6] = tss_low;
+        GDT[7] = tss_high;
+
         // Load GDT
         let gdt_ptr = GdtPointer {
-            limit: ((GDT_ENTRIES * size_of::<GdtEntry>()) - 1) as u16,
+            limit: (GDT_SIZE_BYTES - 1) as u16,
             base: GDT.as_ptr() as u64,
         };
-        
+
         core::arch::asm!(
             "lgdt [{}]",
             in(reg) &gdt_ptr,
             options(nostack)
         );
-        
+
         // Reload segment registers
         core::arch::asm!(
             "mov ax, {0:x}",
@@ -219,7 +234,7 @@ pub fn init() {
             "mov gs, ax",
             "mov ss, ax",
             "push {1:r}",
-            "lea rax, [2f]",
+            "lea rax, [rip + 2f]",
             "push rax",
             "retfq",
             "2:",
@@ -227,7 +242,7 @@ pub fn init() {
             in(reg) KERNEL_CODE_SELECTOR,
             options(nostack)
         );
-        
+
         // Load TSS
         core::arch::asm!(
             "ltr {0:x}",

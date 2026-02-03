@@ -7,12 +7,12 @@ BdsDxe: starting Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x
 ╚═══════════════════════════════════════╝
 
 Kernel file size: 10864944 bytes
-ELF entry point: 0xffff800000123090
+ELF entry point: 0xffff800000123220
 Program headers: 5 at offset 0x40
-Loading segment: src=0x1000 -> dest=0x100000 (phys), size=0x23084/0x23084
-Loading segment: src=0x24090 -> dest=0x123090 (phys), size=0x1191dd/0x1191dd
-Loading segment: src=0x13d26d -> dest=0x23c26d (phys), size=0xb/0x1d1c
-Kernel loaded: 2350985 bytes
+Loading segment: src=0x1000 -> dest=0x100000 (phys), size=0x2321c/0x2321c
+Loading segment: src=0x24220 -> dest=0x123220 (phys), size=0x11932d/0x11932d
+Loading segment: src=0x13d54d -> dest=0x23c54d (phys), size=0x73/0x1dc4
+Kernel loaded: 2351889 bytes
 Memory map obtained: 114 entries
 Framebuffer: 1280x800 @ PhysAddr(2147483648)
 Kernel stack: top=VirtAddr(18446603336226570240)
@@ -33,13 +33,16 @@ Exiting boot services and jumping to kernel...
 
 Boot Info:
   Version: 1
-  Kernel: PhysAddr(1048576) (size: 2350985 bytes)
+  Kernel: PhysAddr(1048576) (size: 2351889 bytes)
   Stack: top=VirtAddr(18446603336226570240), size=128KB
   Memory map: 114 entries
   Bootloader: WebbOS Bootloader
 
 [cpu] Initializing...
 [cpu] CPU features detected
+
+[gdt] Initializing GDT and TSS...
+[gdt] GDT and TSS initialized
 
 [mm] Initializing memory management...
   Memory map:
@@ -73,7 +76,8 @@ Boot Info:
 [pic] PIC initialized
 [interrupts] Setting up timer handler at IDT[32]...
 [interrupts] Setting up keyboard handler at IDT[33]...
-[interrupts] IRQ handlers registered
+[interrupts] Setting up mouse handler at IDT[44]...
+[interrupts] IRQ handlers registered (timer, keyboard, mouse)
 [interrupts] IDT loaded, interrupts disabled until handlers are ready
 [interrupts] IDT initialized
 Memory Statistics:
@@ -99,7 +103,7 @@ Memory Statistics:
 [drivers] Initializing device drivers...
 [timer] Initializing PIT timer at 1000Hz...
 [timer] Timer handler already registered in interrupts module
-[timer] PIT timer initialized
+[timer] PIT timer initialized and IRQ0 unmasked
 [pci] Enumerating PCI bus...
 [pci] Found 8086:0000 at 00:00.0 - Unknown Device
 [pci] Found 8086:0000 at 00:01.0 - ISA Bridge
@@ -109,7 +113,6 @@ Memory Statistics:
 [pci] Found 8086:0000 at 00:03.0 - Ethernet Controller
 [pci] Found 6 PCI devices
 [drivers] Device drivers initialized
-[kernel] Interrupts disabled - using polling mode for keyboard
 
 [storage] Initializing...
 [storage] Initializing storage subsystem...
@@ -197,9 +200,9 @@ Memory Statistics:
 [input] Initializing input subsystem...
 [input] Initializing input subsystem...
 [input] Initializing keyboard...
-[input] Keyboard initialized
+[input] Keyboard initialized and IRQ1 unmasked
 [input] Initializing mouse...
-[input] Mouse initialized
+[input] Mouse initialized and IRQ12 unmasked
 [input] Input subsystem ready
 [input] Input subsystem initialized
 
@@ -220,8 +223,25 @@ Memory Statistics:
 [login_screen] Initializing login screen...
 [login_screen] Login screen module initialized
 
+[interrupts] Enabling interrupts...
+[interrupts] Interrupts enabled (timer, keyboard, mouse)
+
 ✓ WebbOS kernel initialized successfully!
 
 System is ready. Type 'help' for available commands.
 [boot] Starting...
 [boot] Waiting...
+[boot] Wait complete
+[boot] Calling login_screen::show()...
+[login_screen] Showing login screen
+[login_screen] Drawing login screen...
+[login_screen] Acquiring VESA driver lock...
+[login_screen] VESA driver lock acquired
+[login_screen] Screen size: 1280x800
+[login_screen] Clearing screen...
+[vesa] clear() - calculating count...
+[vesa] clear() - clearing 1024000 pixels at 0xffff800080000000
+[vesa] clear() - done
+[login_screen] Screen cleared
+[login_screen] Drawing complete
+[boot] login_screen::show() returned

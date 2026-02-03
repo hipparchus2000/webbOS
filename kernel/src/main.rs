@@ -89,6 +89,13 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     cpu::init();
     println!("[cpu] CPU features detected");
 
+    // Initialize GDT and TSS
+    println!("\n[gdt] Initializing GDT and TSS...");
+    arch::gdt::init();
+    // Set kernel stack in TSS (use current stack top from boot info)
+    arch::gdt::set_kernel_stack(boot_info.stack_top.as_u64());
+    println!("[gdt] GDT and TSS initialized");
+
     // Initialize memory management
     println!("\n[mm] Initializing memory management...");
     unsafe {
@@ -125,10 +132,6 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Initialize device drivers
     println!("\n[drivers] Initializing...");
     drivers::init();
-    
-    // Note: Interrupts are disabled for now due to stability issues
-    // The system will use busy-wait for delays instead of timer interrupts
-    println!("[kernel] Interrupts remain disabled for stability");
 
     // Initialize storage subsystem
     println!("\n[storage] Initializing...");
@@ -213,10 +216,15 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[desktop] Initializing desktop environment...");
     desktop::init();
     println!("[desktop] Desktop environment initialized");
-    
+
     // Initialize login screen module
     println!("\n[login_screen] Initializing login screen...");
     login_screen::init();
+
+    // Enable interrupts now that all drivers are initialized
+    println!("\n[interrupts] Enabling interrupts...");
+    interrupts::enable();
+    println!("[interrupts] Interrupts enabled (timer, keyboard, mouse)");
 
     println!("\n✓ WebbOS kernel initialized successfully!");
     println!("\nSystem is ready. Type 'help' for available commands.");
@@ -320,7 +328,7 @@ fn kernel_main() -> ! {
         
         // Simple command loop
         loop {
-            // Check for input (serial only since interrupts are disabled)
+            // Check for input
             let key_opt = console::getchar();
             
             if let Some(c) = key_opt {
