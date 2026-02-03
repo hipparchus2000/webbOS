@@ -40,22 +40,29 @@
 
 | Component | Status | What's Missing |
 |-----------|--------|----------------|
-| **Web Browser Engine** | 70% Complete | Render to screen integration, interactive JS execution |
+| **Web Browser Engine** | 90% Complete | Needs testing with real web pages |
 | **HTTP Live Requests** | 80% Complete | Needs testing with real network, response handling |
 | **Filesystem Persistence** | 60% Complete | Drivers exist but need more testing with real hardware |
+| **Desktop Mouse Input** | 70% Complete | Mouse refresh bug - causes complete screen refresh on movement |
 
 ### ❌ Not Implemented
 
 | Component | Priority | Notes |
 |-----------|----------|-------|
+| **Mouse Refresh Bug** | CRITICAL 🔥 | Mouse movement causes complete screen refresh |
 | **App Store** | High | Requirement #4 from urs.md - download/persist apps |
-| **WebAssembly Runtime** | Medium | Parser exists, execution engine needed |
+| **FAT32 Desktop Integration** | High | Show `/Desktop` folder, enable file saving |
 | **Audio Subsystem** | Low | No audio drivers or subsystem |
 | **USB Support** | Medium | No USB HID (uses PS/2) or mass storage |
 | **IPv6** | Low | IPv4 only currently |
 | **SMP/Multi-core** | Medium | Single core only |
 | **ACPI** | Low | Basic poweroff, no full ACPI |
 | **Hardware Acceleration** | Low | No GPU acceleration |
+
+### Deferred to Future Work
+| Component | Notes |
+|-----------|-------|
+| **WebAssembly Runtime** | Parser exists, execution engine not needed for this phase |
 
 ## 📈 Statistics
 
@@ -79,27 +86,35 @@
 
 ## 🎯 Next Steps (Priority Order)
 
-1. **App Store Implementation** (Required by urs.md)
+1. **Fix Mouse Refresh Bug** 🔥 CRITICAL
+   - Implement dirty rectangle tracking or double buffering
+   - Only redraw changed screen regions
+   - Fix mouse cursor rendering
+
+2. **Test Browser**
+   - Launch browser from desktop
+   - Verify web page rendering
+   - Test navigation (back/forward, URL bar)
+   - Fix any issues found
+
+3. **FAT32 Desktop Integration**
+   - Mount FAT32 filesystem
+   - Show `/Desktop` folder contents on desktop
+   - Enable file saving from browser/apps to Desktop
+   - Support Desktop subfolders
+
+4. **App Store Implementation** (Required by urs.md)
    - Package format definition
    - Download mechanism (HTTP client ready)
    - Installation/persistence logic
    - 2-3 demo apps
 
-2. **Browser Rendering Integration**
-   - Connect render.rs to VESA framebuffer
-   - Test with actual web pages
-   - Fix layout/rendering issues
-
-3. **WebAssembly Execution**
-   - Complete WASM runtime
-   - Integrate with JS interpreter
-
-4. **Real Hardware Testing**
+5. **Real Hardware Testing**
    - Test on actual PC hardware
-   - USB keyboard/mouse support
+   - USB keyboard/mouse support (if needed)
    - NVMe/SSD testing
 
-5. **Performance Optimization**
+6. **Performance Optimization**
    - Profile and optimize hot paths
    - Implement caching
    - Optimize memory usage
@@ -109,8 +124,8 @@
 ### Must Have (from urs.md)
 - ✅ Bootloader - Custom UEFI implementation
 - ✅ x64 OS - Full kernel implementation
-- ⚠️ Web Browser - Core exists, needs integration
-- ✅ Login/Desktop - Fully functional
+- ⚠️ Web Browser - Core exists, needs testing
+- ✅ Login/Desktop - Functional (mouse refresh bug exists)
 - ❌ App Store - Not implemented
 
 ### Should Have
@@ -120,10 +135,12 @@
 - ✅ Network Stack - TCP/IP/HTTP/DNS
 
 ### Nice to Have
-- ⚠️ WebAssembly - Parser exists
 - ❌ Audio - Not implemented
 - ❌ USB - Not implemented
 - ❌ Multi-monitor - Not implemented
+
+### Deferred
+- WebAssembly execution - Parser exists, not needed for this phase
 
 ## 📝 Notes
 
@@ -131,7 +148,11 @@
 
 2. **Browser Engine**: The browser has parsers for HTML, CSS, and JS, plus a layout engine and renderer. However, the full pipeline from URL to rendered pixels needs integration testing.
 
-3. **App Store**: This was requirement #4 in urs.md but was not implemented. It would require:
+3. **Mouse Refresh Bug**: The most critical issue blocking desktop usability. Mouse movement causes the entire screen to refresh, making interaction difficult. Needs dirty rectangle tracking or double buffering.
+
+4. **FAT32 Desktop Integration**: Next priority after mouse fix. Need to show the `/Desktop` folder from the FAT32 image as the actual desktop, and enable file saving from browser/apps.
+
+5. **App Store**: This was requirement #4 in urs.md but was not implemented. It would require:
    - App packaging format (likely zip or tar)
    - HTTP download using existing client
    - Filesystem persistence

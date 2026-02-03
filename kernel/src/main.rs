@@ -299,6 +299,40 @@ fn draw_boot_triangle() {
     println!("[boot] Triangle drawn to VGA buffer");
 }
 
+/// Desktop event loop - handles mouse and keyboard input for desktop
+fn desktop_event_loop() {
+    println!("[desktop] Entering desktop event loop");
+
+    loop {
+        // Check for input events
+        if let Some(event) = drivers::input::poll_event() {
+            match event.event_type {
+                drivers::input::EventType::MouseMove => {
+                    // Update mouse position
+                    desktop::ui::update_mouse(event.x, event.y);
+                }
+                drivers::input::EventType::MouseButtonPress => {
+                    // Handle mouse click
+                    if event.button == 0 { // Left click
+                        desktop::ui::handle_click(event.x, event.y);
+                    }
+                }
+                drivers::input::EventType::KeyPress => {
+                    // Check for escape key to exit desktop
+                    if event.ascii == 27 { // ESC
+                        println!("[desktop] ESC pressed, exiting desktop mode");
+                        return;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Halt CPU to save power
+        cpu::halt();
+    }
+}
+
 /// Main kernel loop
 fn kernel_main() -> ! {
     let mut buffer = [0u8; 256];
@@ -340,11 +374,14 @@ fn kernel_main() -> ! {
                             println!("\n[desktop] Login successful, launching desktop...");
 
                             // Show the macOS-style graphical desktop
-                            desktop::ui::DesktopUI::show();
+                            desktop::ui::show();
 
                             println!("[desktop] Desktop shown, entering desktop mode...");
-                            // Stay in this loop to handle mouse clicks and other input
-                            // TODO: Implement mouse click handling for desktop icons
+                            // Enter desktop event loop
+                            desktop_event_loop();
+                            // If we exit desktop loop, go back to command prompt
+                            println!("\nExited desktop mode");
+                            break;
                         }
                         login_screen::LoginAction::LoginFailed => {
                             // Login failed, stay on login screen

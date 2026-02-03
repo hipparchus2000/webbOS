@@ -6,7 +6,8 @@
       "Bash(timeout 90 qemu-system-x86_64:*)",
       "Bash(tee:*)",
       "Bash(taskkill:*)",
-      "Bash(timeout 60 qemu-system-x86_64:*)"
+      "Bash(timeout 60 qemu-system-x86_64:*)",
+      "Bash(qemu-system-x86_64:*)"
     ]
   }
 }

@@ -165,11 +165,13 @@ webbOs/
 - Storage drivers (ATA, AHCI, NVMe)
 
 ### ⚠️ Partially Complete
-- **Web Browser Engine**: HTML/CSS/JS parsers, layout engine, and renderer all implemented. Needs integration to render to screen.
-- **WebAssembly**: Parser exists, execution runtime needed.
+- **Web Browser Engine**: HTML/CSS/JS parsers, layout engine, and renderer all implemented. Needs testing.
 
 ### ❌ Not Implemented (from requirements)
 - **App Store**: Requirement #4 from urs.md - download/persist apps and demo apps
+
+### 🔮 Deferred to Future Work
+- **WebAssembly Execution**: Parser exists, execution runtime not needed for this project phase
 
 ### 🔮 Future Enhancements (Beyond Original Requirements)
 - [ ] USB HID support (keyboards, mice)
@@ -179,8 +181,11 @@ webbOs/
 - [ ] ACPI power management
 - [ ] SMP (multi-core) support
 
+### Known Issues
+- **Mouse refresh bug** 🔥: Mouse movement causes complete screen refresh (needs dirty rectangle tracking or double buffering)
+
 ### Known Limitations
-- Single display resolution (1024x768)
+- Single display resolution (1024x768+, VESA dependent)
 - No hardware acceleration
 - Limited USB device support (PS/2 only)
 - No suspend/resume
@@ -193,7 +198,7 @@ From original specification (urs.md):
 |---|-------------|--------|
 | 0 | UEFI Bootloader | ✅ Complete |
 | 1 | Minimal x64 OS | ✅ Complete |
-| 2 | Web Browser | ⚠️ 70% Complete (core implemented) |
+| 2 | Web Browser | ⚠️ Core Complete (needs testing) |
 | 3 | Login/Desktop | ✅ Complete |
 | 4 | App Store | ❌ Not Implemented |
 

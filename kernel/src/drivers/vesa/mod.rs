@@ -234,10 +234,25 @@ impl VesaDriver {
         if !self.initialized || x >= self.info.width || y >= self.info.height {
             return;
         }
-        
-        let offset = (y * self.info.pitch + x * self.info.bytes_per_pixel as u32) as usize;
+
+        // Use checked arithmetic to prevent overflow
+        let y_offset = match (y as usize).checked_mul(self.info.pitch as usize) {
+            Some(v) => v,
+            None => return, // Overflow, bail out
+        };
+
+        let x_offset = match (x as usize).checked_mul(self.info.bytes_per_pixel as usize) {
+            Some(v) => v,
+            None => return, // Overflow, bail out
+        };
+
+        let offset = match y_offset.checked_add(x_offset) {
+            Some(v) => v,
+            None => return, // Overflow, bail out
+        };
+
         let pixel = self.color_to_pixel(color);
-        
+
         unsafe {
             match self.info.bytes_per_pixel {
                 4 => {
@@ -264,9 +279,23 @@ impl VesaDriver {
         if !self.initialized || x >= self.info.width || y >= self.info.height {
             return 0;
         }
-        
-        let offset = (y * self.info.pitch + x * self.info.bytes_per_pixel as u32) as usize;
-        
+
+        // Use checked arithmetic to prevent overflow
+        let y_offset = match (y as usize).checked_mul(self.info.pitch as usize) {
+            Some(v) => v,
+            None => return 0, // Overflow, bail out
+        };
+
+        let x_offset = match (x as usize).checked_mul(self.info.bytes_per_pixel as usize) {
+            Some(v) => v,
+            None => return 0, // Overflow, bail out
+        };
+
+        let offset = match y_offset.checked_add(x_offset) {
+            Some(v) => v,
+            None => return 0, // Overflow, bail out
+        };
+
         unsafe {
             match self.info.bytes_per_pixel {
                 4 => {

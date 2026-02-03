@@ -30,12 +30,14 @@ WebbOS is a from-scratch operating system written in Rust that provides a comple
 - PS/2 keyboard and mouse drivers
 - Storage drivers (ATA, AHCI, NVMe)
 
-⚠️ **Implemented but Needs Integration:**
-- Browser engine components (HTML/CSS/JS parsers, layout, renderer exist but need integration to display web pages)
-- WebAssembly parser (execution runtime needed)
+⚠️ **Implemented but Needs Testing:**
+- Browser engine components (HTML/CSS/JS parsers, layout, renderer exist but need testing)
 
 ❌ **Not Implemented (Required by urs.md #4):**
 - App Store with downloadable apps and persistence
+
+**Deferred to Future:**
+- WebAssembly execution runtime (parser exists, execution not needed for this phase)
 
 ---
 

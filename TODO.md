@@ -1,17 +1,35 @@
 # WebbOS TODO List
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-03
 
 ---
 
-## Active Decisions to Make
+## Critical Issues (Must Fix First)
 
-- [ ] **WebAssembly Runtime** - Parser exists but execution is stubbed
-  - Option A: Implement full WASM VM (complex, large effort)
-  - Option B: Remove WASM, focus on JavaScript only
-  - **Decision needed:** Do we need WASM for a browser OS?
+- [x] **Mouse Pointer Refresh Issue** 🔥 FIXED!
+  - ~~Mouse movement causes complete screen refresh~~
+  - ~~This blocks desktop usability~~
+  - Implemented cursor-only redrawing with background save/restore
+  - Performance: ~4,551x improvement (1,024,000 pixels → 225 pixels per movement)
+  - Status: COMPLETED 2026-02-03
 
-- [ ] **App Store Architecture** 
+---
+
+## High Priority
+
+- [ ] **FAT32 Desktop Integration**
+  - [ ] Show `/Desktop` folder from FAT32 image as the desktop
+  - [ ] Display files and folders from `/Desktop` on desktop
+  - [ ] Enable file creation/saving to Desktop from apps
+  - [ ] Enable saving to Desktop subfolders
+
+- [ ] **Browser Testing & Verification**
+  - [ ] Test browser launch from desktop
+  - [ ] Verify browser can display web pages
+  - [ ] Test navigation (back/forward, URL bar)
+  - [ ] Test saving downloaded files to Desktop
+
+- [ ] **App Store Architecture**
   - Current thought: Progressive Web Apps (PWA) instead of native packages
   - PWA manifest parsing (JSON)
   - Service worker support (simplified)
@@ -19,24 +37,13 @@
 
 ---
 
-## High Priority
-
-- [ ] **App Store - PWA Support**
-  - [ ] Parse PWA manifest files
-  - [ ] Install web apps to desktop
-  - [ ] Add installed PWAs to start menu
-  - [ ] Basic offline caching (simplified)
-  - [ ] Command: `pwa install <url>`
-
-- [ ] **Browser Integration**
-  - [ ] Connect browser engine to desktop
-  - [ ] Launch browser from desktop icon
-  - [ ] Navigate to URLs from command line
-  - [ ] Render basic HTML pages
-
----
-
 ## Medium Priority
+
+- [ ] **File Manager Integration**
+  - [ ] Browse FAT32 filesystem
+  - [ ] Create/delete/rename files and folders
+  - [ ] Copy/paste/move operations
+  - [ ] File properties dialog
 
 - [ ] **Code Cleanup**
   - [ ] Fix duplicate initialization messages (browser, crypto print twice)
@@ -45,7 +52,6 @@
   - [ ] Consistent logging format across modules
 
 - [ ] **Desktop Polish**
-  - [ ] Login screen actually requires credentials
   - [ ] Window manager improvements (dragging, resizing)
   - [ ] Better app launching feedback
   - [ ] Desktop wallpaper/background
@@ -59,15 +65,16 @@
 
 ## Low Priority / Nice to Have
 
+- [ ] **Performance Optimizations**
+  - [ ] Reduce binary size
+  - [ ] Faster heap allocation
+  - [ ] Optimize graphics rendering (dirty rectangle tracking)
+  - [ ] Implement double buffering for smoother rendering
+
 - [ ] **Real Hardware Testing**
   - [ ] Boot on actual hardware
   - [ ] USB boot instructions
   - [ ] Hardware compatibility testing
-
-- [ ] **Performance Optimizations**
-  - [ ] Reduce binary size
-  - [ ] Faster heap allocation
-  - [ ] Optimize graphics rendering
 
 - [ ] **Additional Features**
   - [ ] Sound support (PC speaker or Intel HD Audio)
@@ -90,13 +97,21 @@
 - [x] Input (keyboard, mouse)
 - [x] Build system (Windows 11 native)
 - [x] Disk image update script (Python, no WSL)
+- [x] Login screen working
+- [x] Mouse pointer refresh fix (2026-02-03)
+
+---
+
+## Out of Scope / Deferred
+
+- **WebAssembly Runtime** - Not needed for this project phase. Parser exists but execution engine is deferred to future work.
 
 ---
 
 ## Questions / Research
 
 1. Should we support service workers for PWAs? (Complex)
-2. Do we need a real JavaScript engine or just parsing? (Currently just parsing)
+2. How to implement efficient dirty rectangle tracking for mouse cursor?
 3. Should browser tabs be separate processes? (Currently single-process)
 4. Network security - certificate validation? (TLS 1.3 implemented but basic)
 
@@ -104,4 +119,4 @@
 
 ## Blocked / Waiting
 
-- None currently
+- None - Mouse refresh issue resolved!

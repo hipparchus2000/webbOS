@@ -177,10 +177,13 @@ shutdown      - Shutdown system
 | Browser Engine | ✅ Complete (parsers ready) |
 | App Store | ❌ Not Implemented |
 
-**Total Lines of Code:** ~20,000  
+**Total Lines of Code:** ~20,000
 **Kernel Size:** ~10 MB (debug)
 
-See [STATUS.md](STATUS.md) for detailed status.
+### Known Issues
+- **Mouse Refresh**: Mouse movement causes complete screen refresh (needs dirty rectangle tracking)
+
+See [STATUS.md](STATUS.md) for detailed status and [TODO.md](TODO.md) for planned work.
 
 ## 🛠️ Development
 
@@ -239,9 +242,11 @@ From original specification (urs.md):
 |---|-------------|--------|
 | 0 | UEFI Bootloader | ✅ Complete |
 | 1 | Minimal x64 OS | ✅ Complete |
-| 2 | Web Browser | ✅ Complete (parsers ready, runtime stubbed) |
+| 2 | Web Browser | ⚠️ Core Complete (needs testing) |
 | 3 | Login/Desktop | ✅ Complete |
 | 4 | App Store | ❌ Not Implemented |
+
+**Note:** WebAssembly execution is deferred to future work (parser exists).
 
 ## 🤝 Contributing
 

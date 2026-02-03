@@ -167,15 +167,24 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
 
 ---
 
-## Known Issues
+## Recently Fixed
 
-1. **Kernel Entry Point Changes** - The entry point address changes with each build and must be updated in `bootloader/src/main.rs`
+1. **Mouse Pointer Refresh** ✅ FIXED (2026-02-03)
+   - Was causing complete screen refresh on every mouse movement
+   - Fixed with cursor-only redrawing and background save/restore
+   - Performance improvement: ~4,551x fewer pixels drawn per movement
 
-2. **Large Allocations Deferred** - Browser framebuffer (3MB) and graphics pixel buffer (3MB) use lazy initialization to avoid allocation failures at boot
+## Current Issues
 
-3. **WASM Runtime** - Parser complete, but execution engine not yet implemented
+2. **Kernel Entry Point Changes** - The entry point address changes with each build and must be updated in `bootloader/src/main.rs`
 
-4. **App Store** - Not yet implemented (requirement #4 from urs.md)
+3. **Large Allocations Deferred** - Browser framebuffer (3MB) and graphics pixel buffer (3MB) use lazy initialization to avoid allocation failures at boot
+
+## Deferred Features
+
+1. **WebAssembly Runtime** - Parser complete, but execution engine not needed for this project phase
+
+2. **App Store** - Not yet implemented (requirement #4 from urs.md)
 
 ---
 
@@ -194,11 +203,12 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
 
 ## Next Steps
 
-1. **App Store Implementation** - Final requirement from urs.md
-2. **WebAssembly Runtime** - Execute WASM modules
-3. **Real Hardware Testing** - Test on physical machines
-4. **Performance Optimization** - Profile and optimize hot paths
-5. **Bug Fixes** - Address any issues found during use
+1. **Fix Mouse Refresh Issue** 🔥 CRITICAL - Implement dirty rectangle tracking or double buffering
+2. **Test Browser** - Verify browser works and can display web pages
+3. **FAT32 Desktop Integration** - Show `/Desktop` folder as desktop, enable file saving
+4. **App Store Implementation** - Final requirement from urs.md
+5. **Real Hardware Testing** - Test on physical machines
+6. **Performance Optimization** - Profile and optimize hot paths
 
 ---
 
@@ -218,4 +228,4 @@ From original specification (urs.md):
 
 ---
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-03
