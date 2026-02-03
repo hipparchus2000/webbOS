@@ -301,15 +301,17 @@ impl MouseDriver {
         let flags = self.packet[0];
         let x_movement = self.packet[1] as i8 as i16;
         let y_movement = self.packet[2] as i8 as i16;
-        
+
         let x_delta = x_movement as i32;
         let y_delta = y_movement as i32;
-        
+
         self.x += x_delta;
         self.y -= y_delta;
-        
-        self.x = self.x.max(0).min(1023);
-        self.y = self.y.max(0).min(767);
+
+        // Use hardcoded screen dimensions (1280x800) to avoid locking in interrupt handler
+        // IMPORTANT: Do NOT lock mutexes in interrupt handlers - causes deadlock!
+        self.x = self.x.max(0).min(1279);
+        self.y = self.y.max(0).min(799);
         
         let new_buttons = flags & 0x07;
         let button_change = self.buttons ^ new_buttons;

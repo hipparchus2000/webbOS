@@ -96,6 +96,7 @@ impl DesktopUI {
     pub fn update_mouse(&mut self, x: i32, y: i32) {
         self.old_mouse_x = self.mouse_x;
         self.old_mouse_y = self.mouse_y;
+        // Trust that coordinates from mouse driver are already clamped
         self.mouse_x = x;
         self.mouse_y = y;
     }
@@ -264,6 +265,11 @@ impl DesktopUI {
 
     /// Get the color that should be at a given position (based on desktop layout)
     fn get_background_color(&self, x: i32, y: i32, screen_w: u32, screen_h: u32) -> u32 {
+        // Bounds check first
+        if x < 0 || y < 0 || x >= screen_w as i32 || y >= screen_h as i32 {
+            return palette::DESKTOP_BG; // Return default for out of bounds
+        }
+
         // Menu bar area
         if y < self.menu_bar_height as i32 {
             return palette::MENU_BAR_BG;
@@ -564,6 +570,12 @@ pub fn update_mouse(x: i32, y: i32) {
     let dy = (y - old_y).abs();
     if dx < 2 && dy < 2 {
         return; // Ignore tiny movements
+    }
+
+    // Bounds check to prevent drawing outside screen
+    let info = driver.info();
+    if x < 0 || y < 0 || x >= info.width as i32 || y >= info.height as i32 {
+        return; // Mouse coordinates out of bounds, skip update
     }
 
     // Update mouse position first
