@@ -296,6 +296,7 @@ lazy_static! {
 /// File type
 pub mod ext2;
 pub mod fat32;
+pub mod boot_disk;
 
 /// Initialize VFS
 pub fn init() {

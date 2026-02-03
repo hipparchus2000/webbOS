@@ -6,16 +6,25 @@
 
 ## Critical Issues (Must Fix First)
 
-- [x] **Mouse Pointer Refresh Issue** 🔥 FIXED!
-  - ~~Mouse movement causes complete screen refresh~~
-  - ~~This blocks desktop usability~~
-  - Implemented cursor-only redrawing with background save/restore
-  - Performance: ~4,551x improvement (1,024,000 pixels → 225 pixels per movement)
-  - Status: COMPLETED 2026-02-03
+- [ ] **Mouse Cursor Freezing** 🔥 CRITICAL
+  - Mouse works but freezes after extended movement
+  - Multiple fix attempts made (redraw optimization, bounds checking, simplified drawing)
+  - Likely related to lock contention or interrupt handler timing
+  - Temporarily deferred - needs deeper investigation
+  - Status: IN PROGRESS
 
 ---
 
 ## High Priority
+
+- [ ] **PNG Icon Display**
+  - [x] Icons added to FAT32 image (system/icons/*.png) - 8 files
+  - [x] Icon paths configured in desktop UI code
+  - [x] Created add-files-to-image.py script
+  - [ ] Implement PNG decoder (no_std compatible)
+  - [ ] Load icon files from FAT32 filesystem
+  - [ ] Render PNG icons in icon drawing functions
+  - Currently using character fallback display
 
 - [ ] **FAT32 Desktop Integration**
   - [ ] Show `/Desktop` folder from FAT32 image as the desktop
@@ -98,7 +107,8 @@
 - [x] Build system (Windows 11 native)
 - [x] Disk image update script (Python, no WSL)
 - [x] Login screen working
-- [x] Mouse pointer refresh fix (2026-02-03)
+- [x] Icon infrastructure (FAT32 storage, icon paths in code) (2026-02-03)
+- [x] Add-files-to-image.py script for FAT32 file additions (2026-02-03)
 
 ---
 

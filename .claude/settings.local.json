@@ -7,7 +7,10 @@
       "Bash(tee:*)",
       "Bash(taskkill:*)",
       "Bash(timeout 60 qemu-system-x86_64:*)",
-      "Bash(qemu-system-x86_64:*)"
+      "Bash(qemu-system-x86_64:*)",
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(find:*)"
     ]
   }
 }

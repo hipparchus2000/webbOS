@@ -3,6 +3,7 @@
 //! HTML-based desktop with window manager, taskbar, and applications.
 
 pub mod ui;
+pub mod embedded_icons;
 
 use alloc::string::String;
 use alloc::vec::Vec;

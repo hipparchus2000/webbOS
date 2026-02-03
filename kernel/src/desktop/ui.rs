@@ -38,6 +38,7 @@ pub struct Icon {
     pub height: u32,
     pub label: String,
     pub icon_char: char,
+    pub icon_path: Option<String>, // Path to PNG icon file
     pub action: IconAction,
 }
 
@@ -121,6 +122,7 @@ impl DesktopUI {
                 height: self.dock_icon_size,
                 label: "Browser".to_string(),
                 icon_char: 'B',
+                icon_path: Some("system/icons/globe_icon_64.png".to_string()),
                 action: IconAction::LaunchApp("browser".to_string()),
             },
             Icon {
@@ -130,6 +132,7 @@ impl DesktopUI {
                 height: self.dock_icon_size,
                 label: "App Store".to_string(),
                 icon_char: 'A',
+                icon_path: None, // No icon for app store yet
                 action: IconAction::LaunchApp("appstore".to_string()),
             },
             Icon {
@@ -139,6 +142,7 @@ impl DesktopUI {
                 height: self.dock_icon_size,
                 label: "Files".to_string(),
                 icon_char: 'F',
+                icon_path: Some("system/icons/filemanager_icon_64.png".to_string()),
                 action: IconAction::LaunchApp("filemanager".to_string()),
             },
         ];
@@ -154,6 +158,7 @@ impl DesktopUI {
                 height: 80,
                 label: "Documents".to_string(),
                 icon_char: 'D',
+                icon_path: Some("system/icons/folder_icon_64.png".to_string()),
                 action: IconAction::OpenFolder("/home/user/documents".to_string()),
             },
             Icon {
@@ -163,6 +168,7 @@ impl DesktopUI {
                 height: 80,
                 label: "Downloads".to_string(),
                 icon_char: 'L',
+                icon_path: Some("system/icons/folder_icon_64.png".to_string()),
                 action: IconAction::OpenFolder("/home/user/downloads".to_string()),
             },
         ];
@@ -433,6 +439,8 @@ impl DesktopUI {
     }
 
     fn draw_dock_icon(&self, driver: &mut VesaDriver, icon: &Icon) {
+        use crate::desktop::embedded_icons;
+
         // Icon background
         driver.fill_rect(
             icon.x,
@@ -451,17 +459,66 @@ impl DesktopUI {
             palette::DOCK_BORDER
         );
 
-        // Icon character (centered)
-        let char_x = icon.x + (icon.width as i32 / 2) - 8;
-        let char_y = icon.y + (icon.height as i32 / 2) - 8;
-        driver.draw_char(icon.icon_char, char_x, char_y, palette::TEXT_BLACK, 2);
+        // Draw embedded icon if available based on icon_path
+        let icon_drawn = if let Some(ref path) = icon.icon_path {
+            if path.contains("globe") {
+                self.draw_rgba_icon(driver, icon.x, icon.y,
+                    embedded_icons::GLOBE_ICON_DATA,
+                    embedded_icons::GLOBE_ICON_WIDTH,
+                    embedded_icons::GLOBE_ICON_HEIGHT);
+                true
+            } else if path.contains("filemanager") {
+                self.draw_rgba_icon(driver, icon.x, icon.y,
+                    embedded_icons::FILEMANAGER_ICON_DATA,
+                    embedded_icons::FILEMANAGER_ICON_WIDTH,
+                    embedded_icons::FILEMANAGER_ICON_HEIGHT);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // Fallback to character display if no icon was drawn
+        if !icon_drawn {
+            let char_x = icon.x + (icon.width as i32 / 2) - 8;
+            let char_y = icon.y + (icon.height as i32 / 2) - 8;
+            driver.draw_char(icon.icon_char, char_x, char_y, palette::TEXT_BLACK, 2);
+        }
 
         // Label (below icon)
         let label_x = icon.x + (icon.width as i32 / 2) - ((icon.label.len() as i32 * 4));
         driver.draw_text(&icon.label, label_x, icon.y + icon.height as i32 + 4, palette::TEXT_WHITE, 1);
     }
 
+    /// Draw an RGBA icon from embedded data
+    fn draw_rgba_icon(&self, driver: &mut VesaDriver, x: i32, y: i32, data: &[u8], width: u32, height: u32) {
+        // Data is in RGBA format (4 bytes per pixel)
+        for py in 0..height {
+            for px in 0..width {
+                let idx = ((py * width + px) * 4) as usize;
+                if idx + 3 >= data.len() {
+                    continue;
+                }
+
+                let r = data[idx];
+                let g = data[idx + 1];
+                let b = data[idx + 2];
+                let a = data[idx + 3];
+
+                // Simple alpha blending (alpha > 128 = opaque)
+                if a > 128 {
+                    let color = ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+                    driver.set_pixel((x + px as i32) as u32, (y + py as i32) as u32, color | 0xFF000000);
+                }
+            }
+        }
+    }
+
     fn draw_desktop_icon(&self, driver: &mut VesaDriver, icon: &Icon) {
+        use crate::desktop::embedded_icons;
+
         // Icon background (slightly rounded)
         driver.fill_rect(
             icon.x,
@@ -471,10 +528,27 @@ impl DesktopUI {
             palette::ICON_BG
         );
 
-        // Icon character (centered)
-        let char_x = icon.x + (icon.width as i32 / 2) - 16;
-        let char_y = icon.y + 12;
-        driver.draw_char(icon.icon_char, char_x, char_y, palette::TEXT_BLACK, 4);
+        // Draw embedded icon if available based on icon_path
+        let icon_drawn = if let Some(ref path) = icon.icon_path {
+            if path.contains("folder") {
+                self.draw_rgba_icon(driver, icon.x, icon.y,
+                    embedded_icons::FOLDER_ICON_DATA,
+                    embedded_icons::FOLDER_ICON_WIDTH,
+                    embedded_icons::FOLDER_ICON_HEIGHT);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // Fallback to character display if no icon was drawn
+        if !icon_drawn {
+            let char_x = icon.x + (icon.width as i32 / 2) - 16;
+            let char_y = icon.y + 12;
+            driver.draw_char(icon.icon_char, char_x, char_y, palette::TEXT_BLACK, 4);
+        }
 
         // Label (below icon)
         let label_x = icon.x + (icon.width as i32 / 2) - ((icon.label.len() as i32 * 4));

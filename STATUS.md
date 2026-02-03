@@ -167,14 +167,22 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
 
 ---
 
-## Recently Fixed
+## Recently Completed
 
-1. **Mouse Pointer Refresh** ✅ FIXED (2026-02-03)
-   - Was causing complete screen refresh on every mouse movement
-   - Fixed with cursor-only redrawing and background save/restore
-   - Performance improvement: ~4,551x fewer pixels drawn per movement
+1. **Icon Infrastructure** ✅ ADDED (2026-02-03)
+   - Added 8 PNG icon files to FAT32 image in `system/icons/` folder
+   - Updated Icon struct to support icon_path field
+   - Browser, File Manager, and folder icons configured with PNG paths
+   - Character-based fallback display still in use (PNG decoding not yet implemented)
+   - Created `add-files-to-image.py` script for adding files to FAT32
 
 ## Current Issues
+
+1. **Mouse Cursor Freezing** 🔥 CRITICAL - Mouse works but freezes after extended movement
+   - Multiple approaches attempted (redraw, save/restore, bounds checking)
+   - Simplified cursor drawing reduces frequency but doesn't eliminate freezing
+   - May be related to lock contention or interrupt handler issues
+   - Temporarily deferred for other work
 
 2. **Kernel Entry Point Changes** - The entry point address changes with each build and must be updated in `bootloader/src/main.rs`
 
@@ -195,18 +203,30 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
 | Bootloader | 3 | ~800 |
 | Kernel | 50+ | ~15,000 |
 | Shared | 3 | ~500 |
-| Scripts | 5 | ~1,000 |
+| Scripts | 6 | ~1,400 |
 | Docs | 10 | ~3,000 |
-| **Total** | **70+** | **~20,000** |
+| Icons | 8 PNG | - |
+| **Total** | **80+** | **~20,700** |
 
 ---
 
 ## Next Steps
 
-1. **Fix Mouse Refresh Issue** 🔥 CRITICAL - Implement dirty rectangle tracking or double buffering
-2. **Test Browser** - Verify browser works and can display web pages
-3. **FAT32 Desktop Integration** - Show `/Desktop` folder as desktop, enable file saving
-4. **App Store Implementation** - Final requirement from urs.md
+1. **PNG Icon Decoding** - Implement PNG decoder to display actual icons instead of characters
+   - Add no_std compatible PNG decoder library
+   - Load icon files from FAT32 filesystem
+   - Render decoded pixels in icon drawing functions
+
+2. **Fix Mouse Cursor Freezing** 🔥 CRITICAL - Resolve mouse freezing issue
+   - Investigate interrupt handler timing
+   - Consider alternative cursor rendering approaches
+   - May need to reduce update frequency or use hardware cursor
+
+3. **Test Browser** - Verify browser works and can display web pages
+
+4. **FAT32 Desktop Integration** - Show `/Desktop` folder as desktop, enable file saving
+
+5. **App Store Implementation** - Final requirement from urs.md
 5. **Real Hardware Testing** - Test on physical machines
 6. **Performance Optimization** - Profile and optimize hot paths
 
