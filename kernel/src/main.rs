@@ -336,12 +336,31 @@ fn kernel_main() -> ! {
                 if login_screen::is_visible() {
                     match login_screen::handle_key(c) {
                         login_screen::LoginAction::LoginSuccess => {
-                            // Login successful, break to show prompt
-                            println!("\nWelcome to WebbOS!");
-                            break;
+                            // Login successful - launch desktop/browser
+                            println!("\n[desktop] Login successful, launching desktop...");
+
+                            // Clear the screen first
+                            {
+                                let mut vesa = drivers::vesa::driver().lock();
+                                if vesa.is_initialized() {
+                                    vesa.clear(0xFF2B5B84); // Nice blue background
+                                }
+                            }
+
+                            // Launch the browser with desktop
+                            if let Some(_window_id) = desktop::launch_app("browser") {
+                                println!("[desktop] Browser/desktop launched successfully");
+                                // The browser should now be running in full screen with desktop
+                                // Stay in this loop to handle any further input
+                            } else {
+                                println!("[desktop] Failed to launch browser, falling back to shell");
+                                println!("\nWelcome to WebbOS!");
+                                break;
+                            }
                         }
                         login_screen::LoginAction::LoginFailed => {
                             // Login failed, stay on login screen
+                            println!("[login] Authentication failed");
                         }
                         login_screen::LoginAction::None => {}
                     }
