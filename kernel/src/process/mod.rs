@@ -81,9 +81,9 @@ pub struct Thread {
     pub pid: Pid,
     /// Thread state
     pub state: ThreadState,
-    /// Stack memory ownership
-    pub stack: Vec<u8>,
-    /// Kernel stack pointer (RSP)
+    /// CPU context (registers)
+    pub context: Context,
+    /// Kernel stack pointer
     pub kernel_stack: u64,
     /// Thread priority
     pub priority: Priority,
@@ -96,27 +96,12 @@ pub struct Thread {
 impl Thread {
     /// Create a new thread
     pub fn new(tid: Tid, pid: Pid, priority: Priority) -> Self {
-        // Allocate kernel stack using vector
-        let mut stack = alloc::vec![0u8; KERNEL_STACK_SIZE];
-        
-        // Calculate stack top (high address), 16-byte aligned
-        let stack_top = unsafe {
-            let top = stack.as_ptr().add(KERNEL_STACK_SIZE) as u64;
-            top & !0xF
-        };
-
-        // Initialize stack with context
-        let kernel_stack = unsafe {
-            // Default entry point that just loops/exits
-            context::init_kernel_stack(stack_top, thread_start_wrapper)
-        };
-
         Self {
             tid,
             pid,
             state: ThreadState::Ready,
-            stack, // Ownership
-            kernel_stack, // Pointer for switching
+            context: Context::new(),
+            kernel_stack: 0,
             priority,
             cpu_affinity: 0,
             time_slice: 0,
@@ -353,20 +338,4 @@ pub enum ProcessError {
     ThreadNotFound,
     /// Invalid operation
     InvalidOperation,
-}
-
-/// Entry point wrapper for new threads
-fn thread_start_wrapper() -> ! {
-    // This function runs when a new thread is first scheduled
-    unsafe {
-        // Enable interrupts in new thread
-        crate::arch::interrupts::enable();
-    }
-    
-    // For now, just loop. Ideally we'd pop a function pointer from stack or struct
-    println!("[thread] New thread started!");
-    
-    loop {
-        unsafe { crate::arch::cpu::halt(); }
-    }
 }

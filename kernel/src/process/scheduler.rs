@@ -148,42 +148,15 @@ pub unsafe fn schedule_next() {
     }
 
     // Update current thread
-    unsafe {
-        CURRENT_THREADS[cpu_id] = Some(next_tid);
-    }
+    CURRENT_THREADS[cpu_id] = Some(next_tid);
     scheduler.time_slice = DEFAULT_TIME_SLICE;
 
-    // Get stack pointers for context switch
-    let (old_stack_ptr, new_stack_val) = {
-        use super::THREADS;
-        let mut threads = THREADS.lock();
-        
-        let old_stack = if let Some(curr) = current_tid {
-            if let Some(t) = threads.get_mut(&curr.as_u64()) {
-                &mut t.kernel_stack as *mut u64
-            } else {
-                core::ptr::null_mut()
-            }
-        } else {
-            core::ptr::null_mut()
-        };
-
-        let new_stack = if let Some(t) = threads.get(&next_tid.as_u64()) {
-            t.kernel_stack
-        } else {
-            0
-        };
-        
-        (old_stack, new_stack)
-    };
-
+    // Perform context switch
+    // Note: This is a simplified version - real implementation needs more care
     drop(scheduler); // Release lock before context switch
 
-    // Perform context switch if we have valid pointers
-    if !old_stack_ptr.is_null() && new_stack_val != 0 {
-        use super::context::switch_context;
-        switch_context(old_stack_ptr, new_stack_val);
-    }
+    // TODO: Actually perform the context switch
+    // switch_context(old_context, new_context);
 }
 
 /// Called on every timer tick

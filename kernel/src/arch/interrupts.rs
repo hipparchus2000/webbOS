@@ -264,9 +264,6 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
         // Increment tick count
         TIMER_TICKS += 1;
         
-        // Notify scheduler
-        crate::process::scheduler::timer_tick();
-        
         // Send EOI to PIC
         send_eoi(0);
     }
