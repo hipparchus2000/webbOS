@@ -61,6 +61,7 @@ pub struct DesktopUI {
     mouse_y: i32,
     old_mouse_x: i32,
     old_mouse_y: i32,
+    cursor_buffer: Vec<u32>, // Backing store for cursor area
     browser_open: bool,
 }
 
@@ -82,7 +83,9 @@ impl DesktopUI {
             mouse_x: 640,
             mouse_y: 400,
             old_mouse_x: 640,
+            old_mouse_x: 640,
             old_mouse_y: 400,
+            cursor_buffer: vec![palette::DESKTOP_BG; 20 * 20],
             browser_open: false,
         };
 
@@ -200,11 +203,15 @@ impl DesktopUI {
         self.draw_dock(driver, screen_w, screen_h);
 
         // Draw mouse cursor (always on top)
+        // Note: draw_mouse_cursor now saves background first
         self.draw_mouse_cursor(driver);
     }
 
     /// Draw mouse cursor
-    fn draw_mouse_cursor(&self, driver: &mut VesaDriver) {
+    fn draw_mouse_cursor(&mut self, driver: &mut VesaDriver) {
+        // Save background first!
+        self.save_cursor_background(driver);
+
         // Simple arrow cursor (11x16 pixels)
         let cursor_data: &[(i32, i32)] = &[
             // Arrow shape (x, y) offsets
@@ -240,31 +247,57 @@ impl DesktopUI {
                 }
             }
         }
+        }
     }
 
-    /// Redraw the area where the old cursor was (to erase it)
-    fn redraw_cursor_area(&self, driver: &mut VesaDriver, x: i32, y: i32) {
-        // Redraw a small 20x20 rectangle where the cursor was
+    /// Save the area under the cursor to the buffer
+    fn save_cursor_background(&mut self, driver: &VesaDriver) {
         let cursor_size = 20;
-
-        // Copy values from info before the loop to avoid holding immutable borrow
-        let (screen_w, screen_h) = {
-            let info = driver.info();
-            (info.width, info.height)
-        };
+        let (screen_w, screen_h) = (driver.info.width as i32, driver.info.height as i32);
+        
+        let start_x = self.mouse_x - 2;
+        let start_y = self.mouse_y - 2;
 
         for cy in 0..cursor_size {
             for cx in 0..cursor_size {
-                let px = x + cx - 2; // Offset to cover cursor properly
-                let py = y + cy - 2;
-
-                if px < 0 || py < 0 || px >= screen_w as i32 || py >= screen_h as i32 {
-                    continue;
+                let px = start_x + cx;
+                let py = start_y + cy;
+                
+                // Read pixel from screen (safely)
+                let color = if px >= 0 && py >= 0 && px < screen_w && py < screen_h {
+                    driver.get_pixel(px as u32, py as u32)
+                } else {
+                    palette::DESKTOP_BG
+                };
+                
+                // Store in buffer
+                let idx = (cy * cursor_size + cx) as usize;
+                if idx < self.cursor_buffer.len() {
+                    self.cursor_buffer[idx] = color;
                 }
+            }
+        }
+    }
 
-                // Redraw this pixel based on what should be there
-                let color = self.get_background_color(px, py, screen_w, screen_h);
-                driver.set_pixel(px as u32, py as u32, color);
+    /// Restore the area under the cursor from the buffer
+    fn restore_cursor_background(&self, driver: &mut VesaDriver) {
+        let cursor_size = 20;
+        let (screen_w, screen_h) = (driver.info.width as i32, driver.info.height as i32);
+        
+        let start_x = self.old_mouse_x - 2;
+        let start_y = self.old_mouse_y - 2;
+
+        for cy in 0..cursor_size {
+            for cx in 0..cursor_size {
+                let px = start_x + cx;
+                let py = start_y + cy;
+                
+                if px >= 0 && py >= 0 && px < screen_w && py < screen_h {
+                    let idx = (cy * cursor_size + cx) as usize;
+                    if idx < self.cursor_buffer.len() {
+                        driver.set_pixel(px as u32, py as u32, self.cursor_buffer[idx]);
+                    }
+                }
             }
         }
     }
@@ -655,9 +688,9 @@ pub fn update_mouse(x: i32, y: i32) {
     // Update mouse position first
     desktop.update_mouse(x, y);
 
-    // Simple approach: just redraw small areas
+    // Use simpler approach: redraw small areas
     // This is less efficient but more reliable than save/restore
-    desktop.redraw_cursor_area(&mut driver, old_x, old_y);
+    desktop.restore_cursor_background(&mut driver);
     desktop.draw_mouse_cursor(&mut driver);
 }
 

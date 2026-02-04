@@ -4,25 +4,8 @@ This directory contains helper scripts for building and running WebbOS.
 
 ## Quick Start
 
-### First Time Setup (One-time only)
-
-**Option A: Batch File (Recommended for Windows)**
-```batch
-:: Right-click on setup-wsl-and-run.bat and select "Run as administrator"
-scripts\setup-wsl-and-run.bat
-```
-
-**Option B: PowerShell (Recommended)**
-```powershell
-# Right-click on setup-wsl-and-run.ps1 and select "Run with PowerShell"
-# Or from elevated PowerShell:
-.\scripts\setup-wsl-and-run.ps1
-```
 
 This will:
-1. Install WSL (Windows Subsystem for Linux) if not present
-2. Install Ubuntu distribution
-3. Install required tools (mtools)
 4. Build the kernel and bootloader
 5. Create a bootable disk image
 6. Download OVMF firmware

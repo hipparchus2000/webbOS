@@ -228,6 +228,7 @@ fn scancode_to_ascii(scancode: u8, shift: bool, caps: bool) -> u8 {
 /// Mouse driver
 pub struct MouseDriver {
     x: i32, y: i32,
+    width: i32, height: i32,
     buttons: u8,
     cycle: u8,
     packet: [u8; 4],
@@ -235,7 +236,19 @@ pub struct MouseDriver {
 
 impl MouseDriver {
     const fn new() -> Self {
-        Self { x: 400, y: 300, buttons: 0, cycle: 0, packet: [0; 4] }
+        Self { 
+            x: 512, y: 384, // Center of 1024x768
+            width: 1024, height: 768, 
+            buttons: 0, cycle: 0, packet: [0; 4] 
+        }
+    }
+    
+    pub fn set_resolution(&mut self, width: i32, height: i32) {
+        self.width = width;
+        self.height = height;
+        // Clamp existing position
+        self.x = self.x.max(0).min(self.width - 1);
+        self.y = self.y.max(0).min(self.height - 1);
     }
     
     pub fn init(&mut self) {
@@ -267,6 +280,12 @@ impl MouseDriver {
         }
 
         println!("[input] Mouse initialized and IRQ12 unmasked");
+        
+        // Try to update resolution from graphics
+        if let Some(ctx) = crate::graphics::context() {
+            self.set_resolution(ctx.width() as i32, ctx.height() as i32);
+            println!("[input] Mouse resolution set to {}x{}", self.width, self.height);
+        }
     }
     
     pub fn handle_interrupt(&mut self) -> Option<InputEvent> {
@@ -310,8 +329,8 @@ impl MouseDriver {
 
         // Use hardcoded screen dimensions (1280x800) to avoid locking in interrupt handler
         // IMPORTANT: Do NOT lock mutexes in interrupt handlers - causes deadlock!
-        self.x = self.x.max(0).min(1279);
-        self.y = self.y.max(0).min(799);
+        self.x = self.x.max(0).min(self.width - 1);
+        self.y = self.y.max(0).min(self.height - 1);
         
         let new_buttons = flags & 0x07;
         let button_change = self.buttons ^ new_buttons;
