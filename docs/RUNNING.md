@@ -71,8 +71,8 @@ cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z bu
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
 # Update disk image
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 ```
 
 ### Detailed Build Process
@@ -109,16 +109,17 @@ The disk image (`webbos.img`) is a pre-formatted FAT32 image containing:
 - `/EFI/BOOT/BOOTX64.EFI` - The bootloader
 - `/kernel.elf` - The kernel binary
 
-**On Windows (using Python script):**
+**On Windows (using Python script - Recommended):**
 ```powershell
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 ```
 
 The `update-image.py` script:
 - Parses the FAT32 filesystem structure
 - Locates files by their 8.3 directory entry names
 - Overwrites file content in-place
+- **Automatically allocates new clusters when files grow**
 - Does NOT require WSL, mtools, or mounting
 
 **On Linux (using mtools):**
@@ -128,13 +129,15 @@ mcopy -o -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel.elf
 ```
 
 **Creating a new disk image (if needed):**
-```bash
-# Using WSL or Linux
-dd if=/dev/zero of=webbos.img bs=1M count=64
-mkfs.fat -F 32 webbos.img
+```powershell
+# Using Python script (Windows/Linux/macOS)
+python scripts/create-image.py
 
-# Create directory structure and copy files...
+# Or create with custom size
+python scripts/create-image.py --size 128
 ```
+
+See `docs/DISK_IMAGE.md` for complete disk image management documentation.
 
 ## Running WebbOS
 
@@ -295,7 +298,7 @@ qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 
 ### One-Line Build and Run
 
 ```powershell
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc; python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel; qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc; python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel; qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
 ```
 
 ## Troubleshooting
@@ -351,7 +354,17 @@ The script looks for files by their 8.3 FAT32 names:
 - `EFI/BOOT/BOOTX64.EFI` → looks for `BOOTX64 EFI`
 - `kernel.elf` → looks for `KERNEL  ELF`
 
-Ensure the disk image has these files already present (the script updates existing files, doesn't create new ones).
+If the files don't exist in the image yet, create a new image:
+```powershell
+python scripts/create-image.py
+```
+
+Or add new files using:
+```powershell
+python scripts/add-files-to-image.py webbos.img path/in/image.txt source.txt
+```
+
+See `docs/DISK_IMAGE.md` for complete documentation.
 
 ## Performance Tips
 

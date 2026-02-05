@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""Verify the contents of the FAT32 disk image"""
+"""
+Verify and inspect the contents of a FAT32 disk image.
+
+This tool displays detailed information about:
+- MBR partition table
+- GPT structure (if present)
+- FAT32 boot sector parameters
+- FAT table entries
+- Directory structure and files
+
+Usage:
+    python verify-image.py <image_path>
+    
+Example:
+    python tools/verify-image.py webbos.img
+"""
 
 import struct
 import sys

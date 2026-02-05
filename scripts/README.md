@@ -1,61 +1,20 @@
 # WebbOS Scripts
 
-This directory contains helper scripts for building and running WebbOS.
+This directory contains helper scripts for running WebbOS.
 
-## Quick Start
-
-### First Time Setup (One-time only)
-
-**Option A: Batch File (Recommended for Windows)**
-```batch
-:: Right-click on setup-wsl-and-run.bat and select "Run as administrator"
-scripts\setup-wsl-and-run.bat
-```
-
-**Option B: PowerShell (Recommended)**
-```powershell
-# Right-click on setup-wsl-and-run.ps1 and select "Run with PowerShell"
-# Or from elevated PowerShell:
-.\scripts\setup-wsl-and-run.ps1
-```
-
-This will:
-1. Install WSL (Windows Subsystem for Linux) if not present
-2. Install Ubuntu distribution
-3. Install required tools (mtools)
-4. Build the kernel and bootloader
-5. Create a bootable disk image
-6. Download OVMF firmware
-7. Launch WebbOS in QEMU
-
-### Subsequent Runs
-
-Once setup is complete, you can simply run:
-
-```powershell
-.\scripts\run-qemu.ps1
-```
-
-Or if you prefer batch:
-```batch
-scripts\run-qemu.ps1
-```
+> **Note:** These scripts are optional. The primary build and run workflow uses Python scripts in the root directory and direct QEMU commands. See `docs/DISK_IMAGE.md` and `docs/RUNNING.md` for the main documentation.
 
 ## Available Scripts
 
-### setup-wsl-and-run.bat
-**Purpose:** Complete first-time setup including WSL installation  
-**Requires:** Administrator privileges  
-**Usage:** Right-click → "Run as administrator"
+### `run-qemu.ps1`
 
-### setup-wsl-and-run.ps1
-**Purpose:** PowerShell version of setup with better feedback  
-**Requires:** Administrator privileges  
-**Usage:** Right-click → "Run with PowerShell" or from elevated PowerShell
+Runs WebbOS in QEMU with various options.
 
-### run-qemu.ps1
-**Purpose:** Run WebbOS after initial setup  
-**Requires:** WSL with Ubuntu and mtools  
+**Usage:**
+```powershell
+.\scripts\run-qemu.ps1 [-Network] [-Debug] [-Release] [-Rebuild] [-NoGraphic]
+```
+
 **Parameters:**
 - `-Network` - Enable network with port forwarding (8080 → 80)
 - `-Debug` - Enable GDB server on port 1234
@@ -79,30 +38,53 @@ scripts\run-qemu.ps1
 
 # Release mode
 .\scripts\run-qemu.ps1 -Release
+
+# Serial only (no GUI window)
+.\scripts\run-qemu.ps1 -NoGraphic
 ```
 
-### create-image.ps1
-**Purpose:** Create bootable disk image  
-**Usage:** Usually called by run-qemu.ps1, but can be run standalone
+## Primary Workflow (Python Scripts)
 
-### make-fat32-image.ps1
-**Purpose:** Attempt to create FAT32 image using PowerShell (experimental)  
-**Note:** The WSL-based image creation is more reliable
+The main build and test workflow uses Python scripts that don't require WSL:
+
+```powershell
+# 1. Create disk image (if needed)
+python scripts/create-image.py
+
+# 2. Build bootloader
+cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+
+# 3. Build kernel
+cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+
+# 4. Update disk image
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+
+# 5. Run
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+```
+
+Or as a one-liner:
+```powershell
+cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc; cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc; python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi; python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel; qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+```
 
 ## Prerequisites
 
-1. **Windows 10 version 2004+ or Windows 11** (for WSL2)
-2. **Administrator access** (for WSL setup)
-3. **Rust** with nightly toolchain
-4. **QEMU** for x86_64
+1. **Windows 10/11** (primary development platform)
+2. **Rust** with nightly toolchain
+3. **QEMU** for x86_64
+4. **Python 3** (for disk image management)
 
-### Installing Prerequisites Manually
+### Installing Prerequisites
 
 **Rust:**
 ```powershell
 irm https://win.rustup.rs | iex
 rustup toolchain install nightly-2025-01-15
 rustup component add rust-src --toolchain nightly-2025-01-15
+rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
 ```
 
 **QEMU:**
@@ -113,20 +95,29 @@ choco install qemu
 # Or download from https://www.qemu.org/download/#windows
 ```
 
+**Python 3:**
+Usually pre-installed on Windows 11. Verify with:
+```powershell
+python --version
+```
+
+## Disk Image Management
+
+See `docs/DISK_IMAGE.md` for complete documentation on:
+- Creating disk images with `create-image.py`
+- Updating files with `update-image.py`
+- Adding new files with `add-files-to-image.py`
+
+## Tools
+
+The `tools/` directory contains utility scripts:
+
+- **`verify-image.py`** - Verify and inspect FAT32 disk image contents
+  ```powershell
+  python tools/verify-image.py webbos.img
+  ```
+
 ## Troubleshooting
-
-### "WSL is not installed"
-Run the setup script as Administrator:
-```powershell
-.\scripts\setup-wsl-and-run.ps1
-```
-
-### "mtools not found"
-Install mtools in WSL:
-```powershell
-wsl -d Ubuntu -e sudo apt update
-wsl -d Ubuntu -e sudo apt install mtools
-```
 
 ### "QEMU not found"
 Install QEMU or add it to your PATH:
@@ -138,56 +129,39 @@ where.exe qemu-system-x86_64
 ```
 
 ### "OVMF.fd not found"
-The script will download this automatically. If it fails, download manually:
+The `OVMF.fd` file is included in the repository. If missing, download from:
 - URL: https://github.com/retrage/edk2-nightly/raw/master/bin/RELEASEX64_OVMF.fd
 - Save as: `OVMF.fd` in the webbOs directory
 
-### "Disk image creation failed"
-Make sure WSL Ubuntu is properly set up:
+### "cargo not found"
 ```powershell
-wsl --list --verbose
-wsl -d Ubuntu
-# In Ubuntu:
-sudo apt update && sudo apt install mtools
-exit
+# Ensure Rust is installed and in PATH
+$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+# Or restart your terminal
 ```
 
-## Manual Steps (if scripts fail)
-
-If the scripts don't work, you can do it manually:
-
-### 1. Install WSL
+### "target not found"
 ```powershell
-wsl --install -d Ubuntu
-# Restart computer when prompted, then set up Ubuntu username/password
+# Install the target
+rustup target add x86_64-unknown-none --toolchain nightly-2025-01-15
+rustup target add x86_64-unknown-uefi --toolchain nightly-2025-01-15
 ```
 
-### 2. Install mtools in WSL
-```bash
-sudo apt update
-sudo apt install mtools
-```
-
-### 3. Build WebbOS
+### Kernel crashes immediately after boot
+Check that the entry point in `bootloader/src/main.rs` matches the actual kernel entry point:
 ```powershell
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+python -c "import struct; f=open('target/x86_64-unknown-none/debug/kernel','rb'); f.seek(0x18); print(f'Entry: {struct.unpack('<Q', f.read(8))[0]:#x}')"
 ```
 
-### 4. Create Disk Image (in WSL)
-```bash
-cd /mnt/c/Users/$USERNAME/src/webbOs
-dd if=/dev/zero of=webbos.img bs=1M count=64
-mkfs.fat -F 32 webbos.img
-mmd -i webbos.img ::/EFI
-mmd -i webbos.img ::/EFI/BOOT
-mcopy -i webbos.img target/x86_64-unknown-uefi/debug/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI
-mcopy -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel
+Update in `bootloader/src/main.rs`:
+```rust
+const KERNEL_ENTRY_PHYS: u64 = 0xXXXXXX; // Use the printed address
 ```
 
-### 5. Run
+### QEMU "cannot set up guest memory"
+Kill existing QEMU processes:
 ```powershell
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img,if=virtio -vga std -m 512M -serial stdio
+taskkill /F /IM qemu-system-x86_64.exe
 ```
 
 ## Default Login Credentials
@@ -200,6 +174,9 @@ Or:
 - **Username:** `user`
 - **Password:** `user`
 
-## Support
+## Documentation
 
-For issues, check the main [README.md](../README.md) or [RUNNING.md](../docs/RUNNING.md).
+- `docs/DISK_IMAGE.md` - Disk image management
+- `docs/RUNNING.md` - Running WebbOS
+- `docs/BUILD.md` - Build instructions
+- `docs/ARCHITECTURE.md` - System architecture

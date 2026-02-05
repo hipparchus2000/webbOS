@@ -58,7 +58,14 @@ python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-u
 python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 ```
 
-> **Note:** The `update-image.py` script locates files by name in the FAT32 image and overwrites them. No WSL or `mtools` required.
+> **Note:** The `update-image.py` script locates files by name in the FAT32 image and overwrites them. It automatically handles file growth by allocating new clusters. No WSL or `mtools` required.
+
+> **First time?** If you don't have `webbos.img`, create it with:
+> ```powershell
+> python scripts/create-image.py
+> ```
+
+See [docs/DISK_IMAGE.md](DISK_IMAGE.md) for complete disk image management documentation.
 
 ### 4. Run in QEMU
 
@@ -76,8 +83,8 @@ cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z bu
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
 # Update disk image
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
 # Run
 qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio

@@ -1,11 +1,30 @@
 #!/usr/bin/env python3
 """
-Add files and directories to a FAT32 disk image.
+Add new files and directories to a FAT32 disk image.
+
+This is different from update-image.py - this script adds NEW files that don't
+exist yet, while update-image.py updates EXISTING files (and handles file growth).
+
+Usage:
+    python add-files-to-image.py <image> <dest_path> <source_file>
+    
+Examples:
+    # Add a new file to the system directory
+    python add-files-to-image.py webbos.img system/config.txt config.txt
+    
+    # Add an icon
+    python add-files-to-image.py webbos.img system/icons/browser.png icons/browser.png
+    
+    # Add a directory (creates empty directory)
+    python add-files-to-image.py webbos.img apps/myapp/ myapp_files/
+
+Note: For updating existing files (like kernel.elf or BOOTX64.EFI), use update-image.py
 """
 
 import sys
 import struct
 import os
+
 
 def parse_fat32_bpb(f):
     """Parse FAT32 BIOS Parameter Block."""
@@ -33,11 +52,13 @@ def parse_fat32_bpb(f):
         'root_cluster': root_cluster,
     }
 
+
 def cluster_to_offset(cluster, bpb):
     """Convert cluster number to byte offset."""
     first_data_sector = bpb['reserved_sectors'] + (bpb['num_fats'] * bpb['sectors_per_fat'])
     sector = first_data_sector + ((cluster - 2) * bpb['sectors_per_cluster'])
     return sector * bpb['bytes_per_sector']
+
 
 def read_cluster(f, cluster, bpb):
     """Read a cluster from the filesystem."""
@@ -46,17 +67,18 @@ def read_cluster(f, cluster, bpb):
     f.seek(offset)
     return f.read(size)
 
+
 def write_cluster(f, cluster, bpb, data):
     """Write data to a cluster."""
     offset = cluster_to_offset(cluster, bpb)
     cluster_size = bpb['sectors_per_cluster'] * bpb['bytes_per_sector']
 
-    # Pad data to cluster size
     if len(data) < cluster_size:
         data = data + b'\x00' * (cluster_size - len(data))
 
     f.seek(offset)
     f.write(data[:cluster_size])
+
 
 def read_fat(f, bpb):
     """Read the FAT table."""
@@ -70,6 +92,7 @@ def read_fat(f, bpb):
         entries.append(entry)
     return entries, fat_data
 
+
 def write_fat(f, bpb, fat_data):
     """Write the FAT table to all FAT copies."""
     fat_size = bpb['sectors_per_fat'] * bpb['bytes_per_sector']
@@ -78,6 +101,7 @@ def write_fat(f, bpb, fat_data):
         offset = (bpb['reserved_sectors'] + fat_num * bpb['sectors_per_fat']) * bpb['bytes_per_sector']
         f.seek(offset)
         f.write(fat_data)
+
 
 def allocate_cluster(fat_entries, fat_data):
     """Find and allocate a free cluster."""
@@ -89,6 +113,7 @@ def allocate_cluster(fat_entries, fat_data):
             struct.pack_into('<I', fat_data, i * 4, new_value)
             return i
     raise ValueError("No free clusters available")
+
 
 def get_cluster_chain(fat, start_cluster):
     """Get the chain of clusters."""
@@ -105,6 +130,7 @@ def get_cluster_chain(fat, start_cluster):
         current = next_cluster
 
     return chain
+
 
 def parse_directory_entry(data, offset):
     """Parse a single directory entry."""
@@ -132,6 +158,7 @@ def parse_directory_entry(data, offset):
         'offset': offset
     }, 'file'
 
+
 def create_dir_entry(name, ext, attr, start_cluster, size):
     """Create a directory entry."""
     entry = bytearray(32)
@@ -152,6 +179,7 @@ def create_dir_entry(name, ext, attr, start_cluster, size):
 
     return bytes(entry)
 
+
 def list_directory(f, bpb, start_cluster):
     """List all entries in a directory."""
     fat_entries, _ = read_fat(f, bpb)
@@ -168,6 +196,7 @@ def list_directory(f, bpb, start_cluster):
                 entries.append(entry)
 
     return entries, clusters[-1], 0
+
 
 def add_directory_entry(f, bpb, dir_cluster, name, ext, attr, start_cluster, size):
     """Add a new entry to a directory."""
@@ -204,6 +233,7 @@ def add_directory_entry(f, bpb, dir_cluster, name, ext, attr, start_cluster, siz
 
     return True
 
+
 def find_directory(f, bpb, parent_cluster, dirname):
     """Find a subdirectory by name."""
     entries, _, _ = list_directory(f, bpb, parent_cluster)
@@ -213,6 +243,7 @@ def find_directory(f, bpb, parent_cluster, dirname):
         if entry['name'].upper() == dirname_83 and entry['attr'] & 0x10:
             return entry['start_cluster']
     return None
+
 
 def create_directory(f, bpb, parent_cluster, dirname):
     """Create a new directory."""
@@ -230,6 +261,7 @@ def create_directory(f, bpb, parent_cluster, dirname):
     add_directory_entry(f, bpb, parent_cluster, dirname, '', 0x10, new_cluster, 0)
 
     return new_cluster
+
 
 def add_file_to_image(image_path, dest_path, source_file):
     """Add a file to the FAT32 image."""
@@ -296,10 +328,13 @@ def add_file_to_image(image_path, dest_path, source_file):
 
         print(f"Added {dest_path} ({file_size} bytes)")
 
+
 def main():
     if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} <image> <dest_path> <source_file>")
         print(f"Example: {sys.argv[0]} webbos.img system/icons/browser.png icons/browser.png")
+        print()
+        print("Note: For updating existing files (kernel.elf, BOOTX64.EFI), use update-image.py")
         sys.exit(1)
 
     image_path = sys.argv[1]
@@ -307,6 +342,7 @@ def main():
     source_file = sys.argv[3]
 
     add_file_to_image(image_path, dest_path, source_file)
+
 
 if __name__ == '__main__':
     main()

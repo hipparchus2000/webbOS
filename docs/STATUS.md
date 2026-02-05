@@ -159,6 +159,6 @@
    - App registry/management
    - 2-3 demo apps to prove the system
 
-4. **Build System**: Fully functional. Use `cargo +nightly-2025-01-15 build` for both kernel and bootloader.
+6. **Build System**: Fully functional. Use `cargo +nightly-2025-01-15 build` for both kernel and bootloader.
 
-5. **Running**: Use `scripts/run-qemu.ps1` or manual QEMU commands. See docs/RUNNING.md for details.
+7. **Running**: Use Python scripts and QEMU commands. See `docs/DISK_IMAGE.md` and `docs/RUNNING.md` for details.

@@ -1,13 +1,13 @@
 #!/usr/bin/env pwsh
-# WebbOS QEMU Runner Script (WSL version)
-# Usage: .\run-qemu.ps1 [-Network] [-Debug] [-Release] [-Rebuild]
+# WebbOS QEMU Runner Script
+# Usage: .\scripts\run-qemu.ps1 [-Network] [-Debug] [-Release] [-Rebuild] [-NoGraphic]
 #
 # Prerequisites:
-#   1. WSL with Ubuntu installed
-#   2. mtools installed in WSL: sudo apt install mtools
-#   3. WebbOS built: cargo build -p kernel --target x86_64-unknown-none ...
+#   1. Rust with nightly toolchain
+#   2. QEMU for x86_64
+#   3. Python 3 (for disk image management)
 #
-# First time setup: Run .\setup-wsl-and-run.ps1 as Administrator
+# Quick start: python create-image.py (if you don't have webbos.img yet)
 
 param(
     [switch]$Network,
@@ -23,7 +23,6 @@ $ErrorActionPreference = "Stop"
 $QEMU = "qemu-system-x86_64"
 $OVMF = "OVMF.fd"
 $ImageFile = "webbos.img"
-$Username = $env:USERNAME
 
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "           WebbOS QEMU Launcher             " -ForegroundColor Cyan
@@ -33,33 +32,6 @@ Write-Host ""
 # Check if running from correct directory
 if (-not (Test-Path "Cargo.toml")) {
     Write-Error "Please run this script from the webbOs root directory"
-    exit 1
-}
-
-# Check if WSL is available
-try {
-    $wslCheck = wsl --list --quiet 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "WSL not available"
-    }
-} catch {
-    Write-Error "WSL is not installed or not available"
-    Write-Host ""
-    Write-Host "Please run the setup script first as Administrator:" -ForegroundColor Yellow
-    Write-Host "  .\scripts\setup-wsl-and-run.ps1" -ForegroundColor White
-    Write-Host ""
-    exit 1
-}
-
-# Check if Ubuntu is installed
-$distrosRaw = wsl --list --quiet 2>&1
-$distros = ($distrosRaw -join '').Replace("`0", '')
-if ($distros -notmatch "Ubuntu") {
-    Write-Error "Ubuntu is not installed in WSL"
-    Write-Host ""
-    Write-Host "Please run the setup script first as Administrator:" -ForegroundColor Yellow
-    Write-Host "  .\scripts\setup-wsl-and-run.ps1" -ForegroundColor White
-    Write-Host ""
     exit 1
 }
 
@@ -92,41 +64,39 @@ if ($Rebuild -or -not (Test-Path $KernelTarget) -or -not (Test-Path $BootloaderT
     Write-Host "  Use -Rebuild to force rebuild" -ForegroundColor DarkGray
 }
 
-# Create disk image if needed or requested
+# Create or update disk image
 if ($Rebuild -or -not (Test-Path $ImageFile)) {
     Write-Host ""
     Write-Host "Creating bootable disk image..." -ForegroundColor Yellow
     
-    # Remove old image
-    Remove-Item -Force $ImageFile -ErrorAction SilentlyContinue
-    
-    # Create disk image using WSL - build command as string
-    $wslCommand = "cd /mnt/c/Users/$Username/src/webbOs && " +
-                 "rm -f webbos.img && " +
-                 "echo 'Creating 64MB disk image...' && " +
-                 "dd if=/dev/zero of=webbos.img bs=1M count=64 && " +
-                 "echo 'Formatting as FAT32...' && " +
-                 "mkfs.fat -F 32 webbos.img && " +
-                 "echo 'Creating directory structure...' && " +
-                 "mmd -i webbos.img ::/EFI && " +
-                 "mmd -i webbos.img ::/EFI/BOOT && " +
-                 "echo 'Copying bootloader...' && " +
-                 "mcopy -i webbos.img target/x86_64-unknown-uefi/$BuildType/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI && " +
-                 "echo 'Copying kernel...' && " +
-                 "mcopy -i webbos.img target/x86_64-unknown-none/$BuildType/kernel ::/kernel && " +
-                 "echo 'Done! Image contents:' && " +
-                 "mdir -i webbos.img -s ::"
-    
-    wsl -d Ubuntu -e bash -c $wslCommand
+    # Create new image using Python script
+    python scripts/create-image.py --output $ImageFile --size 64
     
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to create disk image"
-        Write-Host "Make sure mtools is installed in WSL:" -ForegroundColor Yellow
-        Write-Host "  wsl -d Ubuntu -e sudo apt install mtools" -ForegroundColor White
         exit 1
     }
     
     Write-Host "Disk image created" -ForegroundColor Green
+} else {
+    Write-Host ""
+    Write-Host "Updating disk image..." -ForegroundColor Yellow
+    
+    # Update bootloader
+    python scripts/update-image.py $ImageFile "EFI/BOOT/BOOTX64.EFI" $BootloaderTarget
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to update bootloader"
+        exit 1
+    }
+    
+    # Update kernel
+    python scripts/update-image.py $ImageFile "kernel.elf" $KernelTarget
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to update kernel"
+        exit 1
+    }
+    
+    Write-Host "Disk image updated" -ForegroundColor Green
 }
 
 # Download OVMF if needed

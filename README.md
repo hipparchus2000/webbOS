@@ -39,13 +39,16 @@ rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-20
 
 **Windows 11 (PowerShell):**
 ```powershell
+# First time: Create disk image
+python scripts/create-image.py
+
 # Build
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
 # Update disk image (Python script - no WSL required)
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
 # Run
 qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
@@ -53,13 +56,16 @@ qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 
 
 **Linux/macOS:**
 ```bash
+# First time: Create disk image
+python3 create-image.py
+
 # Build (same commands)
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
-# Update disk image with mtools
-mcopy -o -i webbos.img target/x86_64-unknown-uefi/debug/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI
-mcopy -o -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel.elf
+# Update disk image with Python (or use mtools if preferred)
+python3 update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python3 update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
 # Run
 qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio

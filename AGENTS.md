@@ -17,8 +17,8 @@ cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z bu
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
 # Update disk image
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
 # Run
 qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
@@ -26,7 +26,7 @@ qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 
 
 **One-liner:**
 ```powershell
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc; cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc; python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi; python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel; qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc; cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc; python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi; python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel; qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
 ```
 
 ---
@@ -81,9 +81,12 @@ webbOs/
 │   └── src/
 │       ├── types.rs     # PhysAddr, VirtAddr
 │       └── bootinfo.rs  # Boot protocol
+├── scripts/             # Build and utility scripts
+│   ├── create-image.py  # Create disk image
+│   ├── update-image.py  # Update disk image
+│   └── run-qemu.ps1     # QEMU launcher
 ├── webbos.img           # Boot disk (FAT32)
-├── OVMF.fd              # UEFI firmware
-└── update-image.py      # Disk image updater
+└── OVMF.fd              # UEFI firmware
 ```
 
 ---
@@ -106,11 +109,23 @@ cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-
 The disk image `webbos.img` is a FAT32 filesystem. Use the Python script:
 
 ```powershell
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 ```
 
-**Note:** This script locates files by their 8.3 FAT32 names and overwrites them. It does NOT require WSL, mtools, or mounting.
+**Features:**
+- Locates files by their 8.3 FAT32 names and overwrites them
+- **Automatically allocates new clusters when files grow** (kernel getting larger)
+- Frees excess clusters when files shrink
+- Updates file size in directory entry
+- Does NOT require WSL, mtools, or mounting
+
+**First time setup:** If `webbos.img` doesn't exist, create it:
+```powershell
+python scripts/create-image.py
+```
+
+See `docs/DISK_IMAGE.md` for complete documentation.
 
 ### 4. Run in QEMU
 ```powershell
@@ -210,6 +225,7 @@ $
 | Browser | `kernel/src/browser/` |
 | Desktop | `kernel/src/desktop/` |
 | Build config | `.cargo/config.toml`, `rust-toolchain.toml` |
+| **Disk image** | `scripts/create-image.py`, `scripts/update-image.py`, `docs/DISK_IMAGE.md` |
 
 ---
 
