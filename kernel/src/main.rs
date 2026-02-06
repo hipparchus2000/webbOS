@@ -192,6 +192,10 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
             );
             println!("[vesa] VESA: {}x{} @ {:?}", fb_info.width, fb_info.height, fb_info.addr);
             
+            // Set mouse screen dimensions to match framebuffer
+            drivers::input::set_mouse_screen_dimensions(fb_info.width as i32, fb_info.height as i32);
+            println!("[input] Mouse screen dimensions set to {}x{}", fb_info.width, fb_info.height);
+            
             // Drawing test disabled - see LOGIN_SCREEN_NOTES.md
             println!("[vesa] Driver ready for drawing from kernel_main");
         }
@@ -300,54 +304,67 @@ fn draw_boot_triangle() {
 }
 
 /// Desktop event loop - handles mouse and keyboard input for desktop
+/// Uses timer-based polling (20Hz) instead of IRQ-driven events
 fn desktop_event_loop() {
     use core::sync::atomic::{AtomicU64, Ordering};
     
-    println!("[desktop] Entering desktop event loop");
+    println!("[desktop] Entering desktop event loop (timer-based)");
+    
+    // Print screen resolution for debugging
+    {
+        let driver = drivers::vesa::driver().lock();
+        if driver.is_initialized() {
+            let info = driver.info();
+            println!("[desktop] Screen resolution: {}x{}", info.width, info.height);
+        }
+    }
     
     // Heartbeat counter to detect freezes
     static LOOP_COUNT: AtomicU64 = AtomicU64::new(0);
     static LAST_PRINT: AtomicU64 = AtomicU64::new(0);
     static EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
+    static LAST_TIMER_TICK: AtomicU64 = AtomicU64::new(0);
 
     loop {
         let loop_num = LOOP_COUNT.fetch_add(1, Ordering::Relaxed);
         
-        // Print heartbeat every 500 timer ticks (about 0.5 seconds)
-        let current = crate::arch::interrupts::get_timer_ticks();
-        let last = LAST_PRINT.load(Ordering::Relaxed);
-        if current > last + 50 {
-            let events = EVENT_COUNT.load(Ordering::Relaxed);
-            let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
-            println!("[desktop-heartbeat] loops={}, events={}, queue={}, kb_irq={}, mouse_irq={}", 
-                loop_num, events, drivers::input::event_queue_len(), kb_irq, mouse_irq);
-            LAST_PRINT.store(current, Ordering::Relaxed);
+        // Timer-based polling at ~20Hz (every 5 timer ticks)
+        let current_tick = crate::arch::interrupts::get_timer_ticks();
+        let last_timer = LAST_TIMER_TICK.load(Ordering::Relaxed);
+        
+        if current_tick >= last_timer + 5 {
+            LAST_TIMER_TICK.store(current_tick, Ordering::Relaxed);
+            
+            // Poll mouse from timer (reads atomic position, generates events)
+            if let Some(event) = drivers::input::poll_mouse_from_timer() {
+                EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
+                desktop::ui::update_mouse(event.x, event.y);
+            }
+            
+            // Poll keyboard
+            if let Some(event) = drivers::input::poll_keyboard_from_timer() {
+                EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
+                match event.event_type {
+                    drivers::input::EventType::KeyPress => {
+                        if event.ascii == 27 { // ESC
+                            println!("[desktop] ESC pressed, exiting desktop mode");
+                            return;
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
         
-        // Check for input events
-        if let Some(event) = drivers::input::poll_event() {
-            EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
-            
-            match event.event_type {
-                drivers::input::EventType::MouseMove => {
-                    // Update mouse position
-                    desktop::ui::update_mouse(event.x, event.y);
-                }
-                drivers::input::EventType::MouseButtonPress => {
-                    // Handle mouse click
-                    if event.button == 0 { // Left click
-                        desktop::ui::handle_click(event.x, event.y);
-                    }
-                }
-                drivers::input::EventType::KeyPress => {
-                    // Check for escape key to exit desktop
-                    if event.ascii == 27 { // ESC
-                        println!("[desktop] ESC pressed, exiting desktop mode");
-                        return;
-                    }
-                }
-                _ => {}
-            }
+        // Print heartbeat every ~0.5 seconds
+        let last_print = LAST_PRINT.load(Ordering::Relaxed);
+        if current_tick >= last_print + 50 {
+            let events = EVENT_COUNT.load(Ordering::Relaxed);
+            let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
+            let (mx, my) = drivers::input::mouse_position();
+            println!("[hb] loops={} evt={} irq(m)={} mouse=({},{})", 
+                loop_num, events, mouse_irq, mx, my);
+            LAST_PRINT.store(current_tick, Ordering::Relaxed);
         }
 
         // Halt CPU to save power

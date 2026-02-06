@@ -1,10 +1,16 @@
 //! Input Subsystem
 //!
 //! Handles keyboard and mouse input for WebbOS.
+//! 
+//! ARCHITECTURE:
+//! - Mouse IRQ: Minimal - just updates atomic X/Y position
+//! - Timer (20Hz): Polls mouse position, generates events, handles printing
+//! This avoids mutex contention and deadlock in IRQ handlers.
 
 use spin::Mutex;
 use lazy_static::lazy_static;
 use alloc::collections::VecDeque;
+use core::sync::atomic::{AtomicU64, AtomicI32, Ordering};
 
 use crate::println;
 // Port I/O functions
@@ -52,8 +58,30 @@ pub unsafe fn outw(port: u16, value: u16) {
     );
 }
 
-/// Maximum event queue size (increased from 256 to handle burst events)
-const MAX_EVENTS: usize = 512;
+/// Maximum event queue size
+const MAX_EVENTS: usize = 64;
+
+// =============================================================================
+// ATOMIC MOUSE STATE - Updated by IRQ handler, read by timer
+// =============================================================================
+
+/// Atomic mouse X position (updated by IRQ, read by timer)
+static MOUSE_X: AtomicI32 = AtomicI32::new(400);
+/// Atomic mouse Y position (updated by IRQ, read by timer)
+static MOUSE_Y: AtomicI32 = AtomicI32::new(300);
+/// Atomic mouse buttons state
+static MOUSE_BTNS: AtomicU64 = AtomicU64::new(0);
+/// Mouse IRQ counter (for diagnostics)
+static MOUSE_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
+/// Keyboard IRQ counter (for diagnostics)
+static KEYBOARD_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
+/// Last reported X (for delta calculation)
+static LAST_MOUSE_X: AtomicI32 = AtomicI32::new(400);
+/// Last reported Y (for delta calculation)
+static LAST_MOUSE_Y: AtomicI32 = AtomicI32::new(300);
+/// Screen dimensions for clamping
+static SCREEN_WIDTH: AtomicI32 = AtomicI32::new(1280);
+static SCREEN_HEIGHT: AtomicI32 = AtomicI32::new(800);
 
 /// Input event types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +265,8 @@ pub struct MouseDriver {
     resync_attempts: u8,     // Track resync attempts
     diagnostic_mode: bool,   // Enable diagnostic logging
     diagnostic_packets_remaining: u8,  // Count of diagnostic packets remaining
+    screen_width: i32,       // Screen width for clamping
+    screen_height: i32,      // Screen height for clamping
 }
 
 impl MouseDriver {
@@ -252,7 +282,18 @@ impl MouseDriver {
             resync_attempts: 0,
             diagnostic_mode: false,
             diagnostic_packets_remaining: 0,
+            screen_width: 1280,   // Default, can be updated
+            screen_height: 800,   // Default, can be updated
         }
+    }
+    
+    /// Set screen dimensions for mouse clamping
+    pub fn set_screen_dimensions(&mut self, width: i32, height: i32) {
+        self.screen_width = width;
+        self.screen_height = height;
+        // Clamp current position to new bounds
+        self.x = self.x.max(0).min(self.screen_width - 1);
+        self.y = self.y.max(0).min(self.screen_height - 1);
     }
     
     /// Flush the PS/2 data buffer to recover from desync
@@ -402,29 +443,26 @@ impl MouseDriver {
         false
     }
     
-    pub fn handle_interrupt(&mut self) -> Option<InputEvent> {
-        // Check status register to verify this is mouse data
-        // Bit 5 of status register (0x64) indicates if data is from mouse (1) or keyboard (0)
+    /// IRQ handler - minimal work, just update atomic position
+    /// NO allocations, NO printing, NO complex logic!
+    pub fn handle_interrupt(&mut self) {
+        // Check status register
         let status = unsafe { inb(0x64) };
-        let _is_mouse_data = status & 0x20 != 0;
+        
+        // Check if data is available (bit 0)
+        if status & 0x01 == 0 {
+            return; // No data - spurious interrupt
+        }
         
         let data = unsafe { inb(0x60) };
         
-        // NOTE: Don't use println! in interrupt handlers - it can deadlock!
-        // Diagnostic logging removed to prevent lock contention
-        
-        // Check for timeout - reset cycle if it's been too long
+        // Check for timeout
         let current_time = crate::arch::interrupts::get_timer_ticks();
         if self.cycle != 0 && current_time > self.last_update + 100 {
-            // Timeout - flush buffer and reset to sync state
             self.flush_buffer();
             self.cycle = 0;
-            self.error_count += 1;
             self.consecutive_errors += 1;
-            
-            // Only do full reset after many consecutive timeouts (reduced aggressiveness)
-            if self.consecutive_errors >= 50 {
-                // Can't print here - would deadlock. Set flag for main loop to report.
+            if self.consecutive_errors >= 10 {
                 self.reset_and_resync();
             }
         }
@@ -432,117 +470,77 @@ impl MouseDriver {
         
         match self.cycle {
             0 => {
-                // Looking for sync byte (bit 3 must be set, overflow bits clear)
+                // Looking for sync byte
                 if data & 0x08 != 0 && data & 0xC0 == 0 {
-                    // Valid first byte: sync bit set, overflow bits clear
                     self.packet[0] = data;
                     self.cycle = 1;
-                    // Reset consecutive errors on valid sync
                     self.consecutive_errors = 0;
-                    
-                    // Reset resync attempts after sustained good operation
-                    if self.resync_attempts > 0 && self.error_count < 10 {
-                        self.resync_attempts = 0;
-                    }
                 } else {
-                    // Invalid sync byte - just log it, don't be too aggressive
-                    self.error_count += 1;
                     self.consecutive_errors += 1;
-                    
-                    // Only flush after many consecutive errors (reduced aggressiveness)
-                    if self.consecutive_errors >= 20 {
+                    if self.consecutive_errors >= 5 {
                         self.flush_buffer();
+                        self.cycle = 0;
                         self.consecutive_errors = 0;
                     }
-                    
-                    // Only reset after very many errors (reduced aggressiveness)
-                    if self.error_count > 500 {
-                        // Can't print here - would deadlock
-                        self.error_count = 0;
-                        self.reset_and_resync();
-                    }
                 }
-                None
             }
             1 => {
                 self.packet[1] = data;
                 self.cycle = 2;
-                None
             }
             2 => {
                 self.packet[2] = data;
                 self.cycle = 0;
-                // Clear consecutive errors and reduce error count on successful packet
                 self.consecutive_errors = 0;
-                self.error_count = self.error_count.saturating_sub(1);
-                self.process_packet()
+                // Process packet - updates atomic position
+                self.process_packet();
             }
             _ => {
-                // Invalid state - reset
                 self.cycle = 0;
-                self.error_count += 1;
-                self.consecutive_errors += 1;
-                None
             }
         }
     }
     
-    fn process_packet(&mut self) -> Option<InputEvent> {
+    /// Process packet and update atomic mouse state
+    /// This is called from IRQ handler - must be fast and use atomics only!
+    fn process_packet(&mut self) {
         let flags = self.packet[0];
         
         // Check for overflow conditions
         if flags & 0xC0 != 0 {
-            // Overflow bit set, ignore this packet
-            return None;
+            return; // Overflow - ignore packet
         }
         
         // PS/2 mouse protocol: sign bits are in the flags byte
-        // bit 4 = X sign (1 = negative), bit 5 = Y sign (1 = negative)
-        // We need to properly sign-extend the 9-bit movement values
         let x_sign_extend = if flags & 0x10 != 0 { 0xFFFFFF00u32 } else { 0 };
         let y_sign_extend = if flags & 0x20 != 0 { 0xFFFFFF00u32 } else { 0 };
         
         let x_movement = (self.packet[1] as u32 | x_sign_extend) as i32 as i16;
         let y_movement = (self.packet[2] as u32 | y_sign_extend) as i32 as i16;
 
-        // Sanity check on movement values (shouldn't move more than 100 pixels in one packet)
+        // Sanity check on movement values
         if x_movement.abs() > 100 || y_movement.abs() > 100 {
-            return None;
+            return;
         }
 
-        let x_delta = x_movement as i32;
-        let y_delta = y_movement as i32;
-
-        self.x += x_delta;
-        self.y -= y_delta;
-
-        // Use hardcoded screen dimensions (1280x800) to avoid locking in interrupt handler
-        // IMPORTANT: Do NOT lock mutexes in interrupt handlers - causes deadlock!
-        self.x = self.x.max(0).min(1279);
-        self.y = self.y.max(0).min(799);
+        // Get current position from atomics
+        let mut x = MOUSE_X.load(Ordering::Relaxed);
+        let mut y = MOUSE_Y.load(Ordering::Relaxed);
+        let screen_w = SCREEN_WIDTH.load(Ordering::Relaxed);
+        let screen_h = SCREEN_HEIGHT.load(Ordering::Relaxed);
         
-        let new_buttons = flags & 0x07;
-        let button_change = self.buttons ^ new_buttons;
-        self.buttons = new_buttons;
+        // Update position
+        x += x_movement as i32;
+        y -= y_movement as i32;
         
-        if x_delta != 0 || y_delta != 0 {
-            Some(InputEvent {
-                event_type: EventType::MouseMove,
-                keycode: 0, ascii: 0, x: self.x, y: self.y,
-                button: new_buttons, scroll: 0, modifiers: 0,
-            })
-        } else if button_change != 0 {
-            let button = button_change.trailing_zeros() as u8;
-            let pressed = new_buttons & button_change != 0;
-            
-            Some(InputEvent {
-                event_type: if pressed { EventType::MouseButtonPress } else { EventType::MouseButtonRelease },
-                keycode: 0, ascii: 0, x: self.x, y: self.y,
-                button, scroll: 0, modifiers: 0,
-            })
-        } else {
-            None
-        }
+        // Clamp to screen
+        x = x.max(0).min(screen_w - 1);
+        y = y.max(0).min(screen_h - 1);
+        
+        // Write back to atomics
+        MOUSE_X.store(x, Ordering::Relaxed);
+        MOUSE_Y.store(y, Ordering::Relaxed);
+        MOUSE_BTNS.store((flags & 0x07) as u64, Ordering::Relaxed);
     }
     
     pub fn position(&self) -> (i32, i32) { (self.x, self.y) }
@@ -597,12 +595,9 @@ impl InputManager {
     }
     
     pub fn handle_mouse(&mut self) {
-        if let Some(event) = self.mouse.handle_interrupt() {
-            if self.events.len() < MAX_EVENTS {
-                self.events.push_back(event);
-            }
-            // Note: Don't print in interrupt handler - can cause deadlock
-        }
+        // Mouse interrupt now only updates atomic position
+        // No event generated - timer polling handles that
+        self.mouse.handle_interrupt();
     }
     
     pub fn poll_event(&mut self) -> Option<InputEvent> { self.events.pop_front() }
@@ -611,6 +606,9 @@ impl InputManager {
     pub fn mouse_position(&self) -> (i32, i32) { self.mouse.position() }
     pub fn set_mouse_position(&mut self, x: i32, y: i32) { self.mouse.set_position(x, y); }
     pub fn mouse_buttons(&self) -> u8 { self.mouse.buttons() }
+    pub fn set_mouse_dimensions(&mut self, width: i32, height: i32) { 
+        self.mouse.set_screen_dimensions(width, height); 
+    }
 }
 
 lazy_static! {
@@ -620,134 +618,95 @@ lazy_static! {
 pub fn init() {
     println!("[input] Initializing input subsystem...");
     INPUT_MANAGER.lock().init();
-    println!("[input] Input subsystem ready");
+    
+    // Also initialize the IRQ-specific drivers
+    unsafe {
+        IRQ_KEYBOARD_DRIVER.init();
+        IRQ_MOUSE_DRIVER.init();
+    }
+    
+    // Initialize last position from current position
+    LAST_MOUSE_X.store(MOUSE_X.load(Ordering::Relaxed), Ordering::Relaxed);
+    LAST_MOUSE_Y.store(MOUSE_Y.load(Ordering::Relaxed), Ordering::Relaxed);
+    
+    println!("[input] Input subsystem ready (timer-based mouse polling)");
 }
 
-use core::sync::atomic::{AtomicU64, Ordering};
-
-// Counters for diagnostics (visible from main thread)
-static MOUSE_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
-static KEYBOARD_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
-
 // Separate static drivers for interrupt handlers
-// These are ONLY accessed by interrupt handlers, preventing deadlock with main thread
+// These ONLY update atomic state - NO events, NO queues!
 static mut IRQ_KEYBOARD_DRIVER: KeyboardDriver = KeyboardDriver::new();
 static mut IRQ_MOUSE_DRIVER: MouseDriver = MouseDriver::new();
 
-/// Lock-free SPSC queue for IRQ events
-/// Producer: interrupt handler | Consumer: main thread
-struct LockFreeQueue {
-    buffer: [InputEvent; MAX_EVENTS],
-    head: AtomicU64, // Consumer (main thread) reads from here
-    tail: AtomicU64, // Producer (IRQ) writes here
-}
-
-impl LockFreeQueue {
-    const fn new() -> Self {
-        Self {
-            buffer: [InputEvent { 
-                event_type: EventType::KeyPress, 
-                keycode: 0, ascii: 0, x: 0, y: 0, button: 0, scroll: 0, modifiers: 0 
-            }; MAX_EVENTS],
-            head: AtomicU64::new(0),
-            tail: AtomicU64::new(0),
-        }
-    }
-    
-    /// Push from interrupt handler (producer)
-    fn push(&self, event: InputEvent) -> bool {
-        let tail = self.tail.load(Ordering::Relaxed);
-        let head = self.head.load(Ordering::Acquire);
-        
-        // Check if queue is full
-        if tail.wrapping_sub(head) >= MAX_EVENTS as u64 {
-            return false;
-        }
-        
-        let idx = (tail % MAX_EVENTS as u64) as usize;
-        unsafe {
-            let ptr = &self.buffer[idx] as *const InputEvent as *mut InputEvent;
-            ptr.write(event);
-        }
-        
-        self.tail.store(tail.wrapping_add(1), Ordering::Release);
-        true
-    }
-    
-    /// Pop from main thread (consumer)
-    fn pop(&self) -> Option<InputEvent> {
-        let head = self.head.load(Ordering::Relaxed);
-        let tail = self.tail.load(Ordering::Acquire);
-        
-        if head == tail {
-            return None;
-        }
-        
-        let idx = (head % MAX_EVENTS as u64) as usize;
-        let event = unsafe { self.buffer[idx].clone() };
-        
-        self.head.store(head.wrapping_add(1), Ordering::Release);
-        Some(event)
-    }
-    
-    fn len(&self) -> usize {
-        let tail = self.tail.load(Ordering::Relaxed);
-        let head = self.head.load(Ordering::Relaxed);
-        tail.wrapping_sub(head) as usize
-    }
-}
-
-// Lock-free queues for IRQ events
-static KEYBOARD_QUEUE: LockFreeQueue = LockFreeQueue::new();
-static MOUSE_QUEUE: LockFreeQueue = LockFreeQueue::new();
-
+/// Keyboard IRQ handler - just accumulates events in queue
 pub fn handle_keyboard_interrupt() { 
     KEYBOARD_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
-    // CRITICAL: Use the IRQ-only driver, NOT INPUT_MANAGER (which would deadlock)
     unsafe {
         if let Some(event) = IRQ_KEYBOARD_DRIVER.handle_interrupt() {
-            KEYBOARD_QUEUE.push(event);
+            // Push to main queue - this is safe because we use Mutex
+            INPUT_MANAGER.lock().events.push_back(event);
         }
     }
 }
 
+/// Mouse IRQ handler - MINIMAL, just updates atomic position
 pub fn handle_mouse_interrupt() { 
     MOUSE_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
-    // CRITICAL: Use the IRQ-only driver, NOT INPUT_MANAGER (which would deadlock)
     unsafe {
-        if let Some(event) = IRQ_MOUSE_DRIVER.handle_interrupt() {
-            MOUSE_QUEUE.push(event);
-        }
+        IRQ_MOUSE_DRIVER.handle_interrupt();
     }
 }
 
-pub fn poll_event() -> Option<InputEvent> { 
-    // First check lock-free IRQ queues
-    if let Some(event) = KEYBOARD_QUEUE.pop() {
-        return Some(event);
+/// Poll mouse from timer (20Hz) - generates events, does printing
+/// This is where all the heavy lifting happens!
+pub fn poll_mouse_from_timer() -> Option<InputEvent> {
+    // Read current atomic position
+    let current_x = MOUSE_X.load(Ordering::Relaxed);
+    let current_y = MOUSE_Y.load(Ordering::Relaxed);
+    let buttons = MOUSE_BTNS.load(Ordering::Relaxed) as u8;
+    
+    // Read last reported position
+    let last_x = LAST_MOUSE_X.load(Ordering::Relaxed);
+    let last_y = LAST_MOUSE_Y.load(Ordering::Relaxed);
+    
+    // Check if position changed
+    if current_x != last_x || current_y != last_y {
+        // Update last reported position
+        LAST_MOUSE_X.store(current_x, Ordering::Relaxed);
+        LAST_MOUSE_Y.store(current_y, Ordering::Relaxed);
+        
+        // Return movement event
+        return Some(InputEvent {
+            event_type: EventType::MouseMove,
+            keycode: 0,
+            ascii: 0,
+            x: current_x,
+            y: current_y,
+            button: buttons,
+            scroll: 0,
+            modifiers: 0,
+        });
     }
-    if let Some(event) = MOUSE_QUEUE.pop() {
-        return Some(event);
-    }
-    // Then check main manager queue (for events generated internally)
-    INPUT_MANAGER.lock().poll_event() 
+    
+    None
 }
 
-pub fn has_events() -> bool { 
-    KEYBOARD_QUEUE.len() > 0 || MOUSE_QUEUE.len() > 0 || INPUT_MANAGER.lock().has_events()
-}
-
-pub fn event_queue_len() -> usize { 
-    KEYBOARD_QUEUE.len() + MOUSE_QUEUE.len() + INPUT_MANAGER.lock().event_queue_len() 
-}
-
+/// Get current mouse position (from atomics)
 pub fn mouse_position() -> (i32, i32) { 
-    // Use the IRQ driver position since it's most up-to-date
-    unsafe { IRQ_MOUSE_DRIVER.position() }
+    (MOUSE_X.load(Ordering::Relaxed), MOUSE_Y.load(Ordering::Relaxed))
 }
 
+/// Get mouse buttons (from atomics)
 pub fn mouse_buttons() -> u8 {
-    unsafe { IRQ_MOUSE_DRIVER.buttons() }
+    MOUSE_BTNS.load(Ordering::Relaxed) as u8
+}
+
+/// Set screen dimensions for mouse clamping
+pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
+    SCREEN_WIDTH.store(width, Ordering::Relaxed);
+    SCREEN_HEIGHT.store(height, Ordering::Relaxed);
+    unsafe { 
+        IRQ_MOUSE_DRIVER.set_screen_dimensions(width, height); 
+    }
 }
 
 /// Get interrupt counters for diagnostics
@@ -755,25 +714,24 @@ pub fn get_irq_counts() -> (u64, u64) {
     (KEYBOARD_IRQ_COUNT.load(Ordering::Relaxed), MOUSE_IRQ_COUNT.load(Ordering::Relaxed))
 }
 
-/// Poll keyboard for input (non-interrupt mode)
-pub fn poll_keyboard() -> Option<InputEvent> {
-    // First check if there are any pending events
-    if let Some(event) = poll_event() {
+/// Poll keyboard from timer (20Hz) - generates events
+pub fn poll_keyboard_from_timer() -> Option<InputEvent> {
+    INPUT_MANAGER.lock().poll_event()
+}
+
+/// Legacy poll_event - combines keyboard queue and mouse timer
+pub fn poll_event() -> Option<InputEvent> {
+    // First check keyboard queue
+    if let Some(event) = INPUT_MANAGER.lock().poll_event() {
         return Some(event);
     }
-    
-    // Poll the keyboard hardware directly
-    unsafe {
-        // Check if data is available (status port 0x64, bit 0)
-        if (inb(0x64) & 0x01) != 0 {
-            // Process through keyboard driver's interrupt handler
-            // (which just reads and processes the scancode)
-            let mut manager = INPUT_MANAGER.lock();
-            manager.keyboard.handle_interrupt()
-        } else {
-            None
-        }
-    }
+    // Then check mouse timer
+    poll_mouse_from_timer()
+}
+
+/// Poll keyboard for input (non-interrupt mode) - legacy
+pub fn poll_keyboard() -> Option<InputEvent> {
+    INPUT_MANAGER.lock().poll_event()
 }
 
 pub fn wait_key() -> InputEvent {
