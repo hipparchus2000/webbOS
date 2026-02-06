@@ -231,11 +231,20 @@ pub struct MouseDriver {
     buttons: u8,
     cycle: u8,
     packet: [u8; 4],
+    error_count: u32,
+    last_update: u64,
 }
 
 impl MouseDriver {
     const fn new() -> Self {
-        Self { x: 400, y: 300, buttons: 0, cycle: 0, packet: [0; 4] }
+        Self { 
+            x: 400, y: 300, 
+            buttons: 0, 
+            cycle: 0, 
+            packet: [0; 4],
+            error_count: 0,
+            last_update: 0,
+        }
     }
     
     pub fn init(&mut self) {
@@ -272,11 +281,46 @@ impl MouseDriver {
     pub fn handle_interrupt(&mut self) -> Option<InputEvent> {
         let data = unsafe { inb(0x60) };
         
+        // Debug: count mouse interrupts
+        static mut MOUSE_INT_COUNT: u32 = 0;
+        static mut LAST_PRINT: u64 = 0;
+        unsafe {
+            MOUSE_INT_COUNT += 1;
+            let current = crate::arch::interrupts::get_timer_ticks();
+            if current > LAST_PRINT + 500 {
+                // Print every ~500 ticks
+                if MOUSE_INT_COUNT > 0 {
+                    crate::println!("[mouse] IRQs: {}, pos: ({},{}), err: {}", 
+                        MOUSE_INT_COUNT, self.x, self.y, self.error_count);
+                }
+                MOUSE_INT_COUNT = 0;
+                LAST_PRINT = current;
+            }
+        }
+        
+        // Check for timeout - reset cycle if it's been too long
+        let current_time = crate::arch::interrupts::get_timer_ticks();
+        if self.cycle != 0 && current_time > self.last_update + 100 {
+            // Timeout - reset to sync state
+            self.cycle = 0;
+            self.error_count += 1;
+        }
+        self.last_update = current_time;
+        
         match self.cycle {
             0 => {
-                if data & 0x08 != 0 {
+                // Looking for sync byte (bit 3 must be set)
+                if data & 0x08 != 0 && data & 0xC0 == 0 {
+                    // Valid first byte: sync bit set, overflow bits clear
                     self.packet[0] = data;
                     self.cycle = 1;
+                } else {
+                    // Invalid sync byte, stay in cycle 0
+                    self.error_count += 1;
+                    if self.error_count > 100 {
+                        // Too many errors, reset completely
+                        self.error_count = 0;
+                    }
                 }
                 None
             }
@@ -288,10 +332,13 @@ impl MouseDriver {
             2 => {
                 self.packet[2] = data;
                 self.cycle = 0;
+                // Clear error count on successful packet
+                self.error_count = self.error_count.saturating_sub(1);
                 self.process_packet()
             }
             _ => {
                 self.cycle = 0;
+                self.error_count += 1;
                 None
             }
         }
@@ -299,8 +346,20 @@ impl MouseDriver {
     
     fn process_packet(&mut self) -> Option<InputEvent> {
         let flags = self.packet[0];
+        
+        // Check for overflow conditions
+        if flags & 0xC0 != 0 {
+            // Overflow bit set, ignore this packet
+            return None;
+        }
+        
         let x_movement = self.packet[1] as i8 as i16;
         let y_movement = self.packet[2] as i8 as i16;
+
+        // Sanity check on movement values (shouldn't move more than 100 pixels in one packet)
+        if x_movement.abs() > 100 || y_movement.abs() > 100 {
+            return None;
+        }
 
         let x_delta = x_movement as i32;
         let y_delta = y_movement as i32;
@@ -340,6 +399,7 @@ impl MouseDriver {
     pub fn position(&self) -> (i32, i32) { (self.x, self.y) }
     pub fn set_position(&mut self, x: i32, y: i32) { self.x = x; self.y = y; }
     pub fn buttons(&self) -> u8 { self.buttons }
+    pub fn error_count(&self) -> u32 { self.error_count }
     
     fn wait_write(&self) { unsafe { while inb(0x64) & 0x02 != 0 {} } }
     fn wait_read(&self) { unsafe { while inb(0x64) & 0x01 == 0 {} } }

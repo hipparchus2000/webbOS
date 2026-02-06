@@ -49,6 +49,10 @@ pub enum IconAction {
     None,
 }
 
+/// Cursor save-under buffer size (must be larger than cursor)
+const CURSOR_SIZE: usize = 16;
+const SAVE_BUFFER_SIZE: usize = CURSOR_SIZE * CURSOR_SIZE;
+
 /// Desktop UI state
 pub struct DesktopUI {
     menu_bar_height: u32,
@@ -62,6 +66,11 @@ pub struct DesktopUI {
     old_mouse_x: i32,
     old_mouse_y: i32,
     browser_open: bool,
+    // Save-under buffer for mouse cursor (stores pixels under cursor)
+    save_buffer: [u32; SAVE_BUFFER_SIZE],
+    save_buffer_valid: bool,
+    save_buffer_x: i32,
+    save_buffer_y: i32,
 }
 
 /// Browser window dimensions
@@ -84,6 +93,10 @@ impl DesktopUI {
             old_mouse_x: 640,
             old_mouse_y: 400,
             browser_open: false,
+            save_buffer: [0; SAVE_BUFFER_SIZE],
+            save_buffer_valid: false,
+            save_buffer_x: 0,
+            save_buffer_y: 0,
         };
 
         // Create dock icons (centered at bottom)
@@ -204,6 +217,56 @@ impl DesktopUI {
     }
 
     /// Draw mouse cursor
+    /// Save the pixels under the cursor to the save buffer
+    fn save_under_cursor(&mut self, driver: &VesaDriver) {
+        let info = driver.info();
+        let screen_w = info.width as i32;
+        let screen_h = info.height as i32;
+        
+        self.save_buffer_x = self.mouse_x;
+        self.save_buffer_y = self.mouse_y;
+        
+        let mut idx = 0;
+        for y in 0..CURSOR_SIZE as i32 {
+            for x in 0..CURSOR_SIZE as i32 {
+                let px = self.mouse_x + x;
+                let py = self.mouse_y + y;
+                
+                if px >= 0 && px < screen_w && py >= 0 && py < screen_h {
+                    self.save_buffer[idx] = driver.get_pixel(px as u32, py as u32);
+                } else {
+                    self.save_buffer[idx] = 0;
+                }
+                idx += 1;
+            }
+        }
+        self.save_buffer_valid = true;
+    }
+    
+    /// Restore the pixels from the save buffer (erase cursor)
+    fn restore_under_cursor(&self, driver: &mut VesaDriver) {
+        if !self.save_buffer_valid {
+            return;
+        }
+        
+        let info = driver.info();
+        let screen_w = info.width as i32;
+        let screen_h = info.height as i32;
+        
+        let mut idx = 0;
+        for y in 0..CURSOR_SIZE as i32 {
+            for x in 0..CURSOR_SIZE as i32 {
+                let px = self.save_buffer_x + x;
+                let py = self.save_buffer_y + y;
+                
+                if px >= 0 && px < screen_w && py >= 0 && py < screen_h {
+                    driver.set_pixel(px as u32, py as u32, self.save_buffer[idx]);
+                }
+                idx += 1;
+            }
+        }
+    }
+
     fn draw_mouse_cursor(&self, driver: &mut VesaDriver) {
         // Simple arrow cursor (11x16 pixels)
         let cursor_data: &[(i32, i32)] = &[
@@ -621,29 +684,35 @@ pub fn show() {
         return;
     }
 
-    let desktop = DESKTOP_UI.lock();
-    desktop.draw(&mut driver);
-
-    println!("[desktop_ui] Desktop drawn, ready for interaction");
+    {
+        let mut desktop = DESKTOP_UI.lock();
+        desktop.draw(&mut driver);
+        
+        // Initial save of area under cursor
+        desktop.save_under_cursor(&mut driver);
+        desktop.draw_mouse_cursor(&mut driver);
+        
+        println!("[desktop_ui] Desktop drawn, ready for interaction");
+    }
 }
 
 /// Update mouse position and redraw only the cursor
 pub fn update_mouse(x: i32, y: i32) {
-    // Use simpler approach: redraw small area around old cursor, then draw new cursor
+    static mut UPDATE_COUNT: u32 = 0;
+    static mut LAST_PRINT: u64 = 0;
+    
     let mut desktop = DESKTOP_UI.lock();
-    let old_x = desktop.old_mouse_x;
-    let old_y = desktop.old_mouse_y;
+    
+    // Only update if mouse actually moved significantly (reduce updates)
+    let dx = (x - desktop.mouse_x).abs();
+    let dy = (y - desktop.mouse_y).abs();
+    if dx < 2 && dy < 2 {
+        return; // Ignore tiny movements
+    }
 
     let mut driver = vesa::driver().lock();
     if !driver.is_initialized() {
         return;
-    }
-
-    // Only update if mouse actually moved significantly (reduce updates)
-    let dx = (x - old_x).abs();
-    let dy = (y - old_y).abs();
-    if dx < 2 && dy < 2 {
-        return; // Ignore tiny movements
     }
 
     // Bounds check to prevent drawing outside screen
@@ -652,12 +721,27 @@ pub fn update_mouse(x: i32, y: i32) {
         return; // Mouse coordinates out of bounds, skip update
     }
 
-    // Update mouse position first
-    desktop.update_mouse(x, y);
+    unsafe {
+        UPDATE_COUNT += 1;
+        let current = crate::arch::interrupts::get_timer_ticks();
+        if current > LAST_PRINT + 500 {
+            if UPDATE_COUNT > 0 {
+                crate::println!("[desktop] Mouse updates: {}, pos: ({},{})", 
+                    UPDATE_COUNT, x, y);
+            }
+            UPDATE_COUNT = 0;
+            LAST_PRINT = current;
+        }
+    }
 
-    // Simple approach: just redraw small areas
-    // This is less efficient but more reliable than save/restore
-    desktop.redraw_cursor_area(&mut driver, old_x, old_y);
+    // Restore old position (erase cursor)
+    desktop.restore_under_cursor(&mut driver);
+    
+    // Update mouse position
+    desktop.update_mouse(x, y);
+    
+    // Save new position and draw cursor
+    desktop.save_under_cursor(&mut driver);
     desktop.draw_mouse_cursor(&mut driver);
 }
 

@@ -105,8 +105,8 @@ impl DesktopManager {
             current_user: None,
             show_login: true,
             show_desktop: false,
-            screen_width: 1024,
-            screen_height: 768,
+            screen_width: 1280,
+            screen_height: 800,
             taskbar_height: 40,
         };
         
