@@ -41,6 +41,7 @@ pub struct Icon {
     pub icon_char: char,
     pub icon_path: Option<String>, // Path to PNG icon file
     pub action: IconAction,
+    pub is_folder: bool,           // For desktop icons
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +139,7 @@ impl DesktopUI {
                 icon_char: 'B',
                 icon_path: Some("system/icons/globe_icon_64.png".to_string()),
                 action: IconAction::LaunchApp("browser".to_string()),
+                is_folder: false,
             },
             Icon {
                 x: dock_x as i32 + 8 + 64,
@@ -148,6 +150,7 @@ impl DesktopUI {
                 icon_char: 'A',
                 icon_path: None, // No icon for app store yet
                 action: IconAction::LaunchApp("appstore".to_string()),
+                is_folder: false,
             },
             Icon {
                 x: dock_x as i32 + 8 + 128,
@@ -158,6 +161,7 @@ impl DesktopUI {
                 icon_char: 'F',
                 icon_path: Some("system/icons/filemanager_icon_64.png".to_string()),
                 action: IconAction::LaunchApp("filemanager".to_string()),
+                is_folder: false,
             },
         ];
     }
@@ -174,6 +178,7 @@ impl DesktopUI {
                 icon_char: 'D',
                 icon_path: Some("system/icons/folder_icon_64.png".to_string()),
                 action: IconAction::OpenFolder("/home/user/documents".to_string()),
+                is_folder: true,
             },
             Icon {
                 x: 1120,
@@ -184,6 +189,7 @@ impl DesktopUI {
                 icon_char: 'L',
                 icon_path: Some("system/icons/folder_icon_64.png".to_string()),
                 action: IconAction::OpenFolder("/home/user/downloads".to_string()),
+                is_folder: true,
             },
         ];
     }
@@ -638,6 +644,24 @@ impl DesktopUI {
 
     /// Handle mouse click
     pub fn handle_click(&mut self, x: i32, y: i32) -> bool {
+        // Single click - select icon
+        for (idx, icon) in self.desktop_icons.iter().enumerate() {
+            if x >= icon.x && x < icon.x + icon.width as i32 &&
+               y >= icon.y && y < icon.y + icon.height as i32 {
+                println!("[desktop] Selected icon: {}", icon.label);
+                self.selected_icon = Some(idx);
+                return true; // Redraw needed
+            }
+        }
+        // Clicked elsewhere - clear selection
+        if self.selected_icon.is_some() {
+            self.selected_icon = None;
+            return true;
+        }
+        false // No redraw needed
+    }
+    
+    pub fn handle_double_click(&mut self, x: i32, y: i32) -> bool {
         // Check if clicking close button on browser
         if self.browser_open {
             let close_x = BROWSER_X + 12;
@@ -654,7 +678,7 @@ impl DesktopUI {
         for icon in &self.dock_icons {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Clicked dock icon: {}", icon.label);
+                println!("[desktop] Double-clicked dock icon: {}", icon.label);
                 match &icon.action {
                     IconAction::LaunchApp(app_name) => {
                         if app_name == "browser" {
@@ -677,7 +701,13 @@ impl DesktopUI {
         for icon in &self.desktop_icons {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Clicked desktop icon: {}", icon.label);
+                println!("[desktop] Double-clicked desktop icon: {}", icon.label);
+                // Launch file manager for folders
+                if icon.is_folder {
+                    if let Some(ref path) = icon.icon_path {
+                        println!("[desktop] Opening folder: {}", path);
+                    }
+                }
                 return true; // Redraw needed
             }
         }
@@ -815,7 +845,7 @@ pub fn update_mouse(x: i32, y: i32) {
     }
 }
 
-/// Handle mouse click
+/// Handle mouse click (single)
 pub fn handle_click(x: i32, y: i32) {
     // CRITICAL: Lock ordering must match show() - driver first, then desktop!
     let mut driver = vesa::driver().lock();
@@ -827,7 +857,21 @@ pub fn handle_click(x: i32, y: i32) {
     let needs_redraw = desktop.handle_click(x, y);
 
     if needs_redraw {
-        // Full redraw needed (window opened/closed)
+        desktop.draw(&mut driver);
+    }
+}
+
+/// Handle mouse double-click
+pub fn handle_double_click(x: i32, y: i32) {
+    let mut driver = vesa::driver().lock();
+    if !driver.is_initialized() {
+        return;
+    }
+    
+    let mut desktop = DESKTOP_UI.lock();
+    let needs_redraw = desktop.handle_double_click(x, y);
+
+    if needs_redraw {
         desktop.draw(&mut driver);
     }
 }

@@ -304,7 +304,7 @@ fn draw_boot_triangle() {
 }
 
 /// Desktop event loop - handles mouse and keyboard input for desktop
-/// Uses timer-based polling (20Hz) instead of IRQ-driven events
+/// Uses timer-based polling (40Hz) instead of IRQ-driven events
 fn desktop_event_loop() {
     use core::sync::atomic::{AtomicU64, Ordering};
     
@@ -324,15 +324,23 @@ fn desktop_event_loop() {
     static LAST_PRINT: AtomicU64 = AtomicU64::new(0);
     static EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
     static LAST_TIMER_TICK: AtomicU64 = AtomicU64::new(0);
+    
+    // Double-click detection state
+    let mut last_click_time: u64 = 0;
+    let mut last_click_x: i32 = 0;
+    let mut last_click_y: i32 = 0;
+    let mut last_button_state: u8 = 0;
+    const DOUBLE_CLICK_TIME: u64 = 50; // ~500ms at 100 ticks/second (was 30)
+    const DOUBLE_CLICK_DIST: i32 = 20; // 20 pixels radius (was 10)
 
     loop {
         let loop_num = LOOP_COUNT.fetch_add(1, Ordering::Relaxed);
         
-        // Timer-based polling at ~20Hz (every 5 timer ticks)
+        // Timer-based polling at ~40Hz (every 2-3 timer ticks)
         let current_tick = crate::arch::interrupts::get_timer_ticks();
         let last_timer = LAST_TIMER_TICK.load(Ordering::Relaxed);
         
-        if current_tick >= last_timer + 5 {
+        if current_tick >= last_timer + 2 { // 40Hz polling (was 5 for 20Hz)
             LAST_TIMER_TICK.store(current_tick, Ordering::Relaxed);
             
             // Poll mouse from timer (reads atomic position, generates events)
@@ -340,6 +348,35 @@ fn desktop_event_loop() {
                 EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
                 desktop::ui::update_mouse(event.x, event.y);
             }
+            
+            // Check for mouse button press (for double-click detection)
+            let current_buttons = drivers::input::mouse_buttons();
+            let button_just_pressed = (current_buttons & 0x01) != 0 && (last_button_state & 0x01) == 0;
+            let (mouse_x, mouse_y) = drivers::input::mouse_position();
+            
+            if button_just_pressed {
+                // Check for double-click
+                let time_since_last = current_tick - last_click_time;
+                let dx = mouse_x - last_click_x;
+                let dy = mouse_y - last_click_y;
+                let dist_sq = dx * dx + dy * dy;
+                
+                if time_since_last < DOUBLE_CLICK_TIME && dist_sq < (DOUBLE_CLICK_DIST * DOUBLE_CLICK_DIST) {
+                    // Double-click detected!
+                    println!("[desktop] Double-click at ({}, {})", mouse_x, mouse_y);
+                    desktop::ui::handle_double_click(mouse_x, mouse_y);
+                } else {
+                    // Single click
+                    desktop::ui::handle_click(mouse_x, mouse_y);
+                }
+                
+                // Update last click state
+                last_click_time = current_tick;
+                last_click_x = mouse_x;
+                last_click_y = mouse_y;
+            }
+            
+            last_button_state = current_buttons;
             
             // Poll keyboard
             if let Some(event) = drivers::input::poll_keyboard_from_timer() {
