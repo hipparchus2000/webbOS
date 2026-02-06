@@ -52,8 +52,8 @@ pub unsafe fn outw(port: u16, value: u16) {
     );
 }
 
-/// Maximum event queue size
-const MAX_EVENTS: usize = 256;
+/// Maximum event queue size (increased from 256 to handle burst events)
+const MAX_EVENTS: usize = 512;
 
 /// Input event types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,7 +104,7 @@ pub struct KeyboardDriver {
 }
 
 impl KeyboardDriver {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             shift_pressed: false,
             ctrl_pressed: false,
@@ -233,10 +233,14 @@ pub struct MouseDriver {
     packet: [u8; 4],
     error_count: u32,
     last_update: u64,
+    consecutive_errors: u8,  // Track consecutive errors for recovery
+    resync_attempts: u8,     // Track resync attempts
+    diagnostic_mode: bool,   // Enable diagnostic logging
+    diagnostic_packets_remaining: u8,  // Count of diagnostic packets remaining
 }
 
 impl MouseDriver {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self { 
             x: 400, y: 300, 
             buttons: 0, 
@@ -244,31 +248,112 @@ impl MouseDriver {
             packet: [0; 4],
             error_count: 0,
             last_update: 0,
+            consecutive_errors: 0,
+            resync_attempts: 0,
+            diagnostic_mode: false,
+            diagnostic_packets_remaining: 0,
         }
     }
+    
+    /// Flush the PS/2 data buffer to recover from desync
+    fn flush_buffer(&self) {
+        unsafe {
+            // Read all pending data from port 0x60
+            // Limit to 16 reads to prevent infinite loop if hardware is stuck
+            for _ in 0..16 {
+                // Check if data is available (status bit 0)
+                if inb(0x64) & 0x01 != 0 {
+                    // Read and discard the data byte
+                    let _ = inb(0x60);
+                } else {
+                    // No more data
+                    break;
+                }
+            }
+        }
+    }
+    
+    /// Perform full PS/2 mouse reset and re-initialization
+    /// NOTE: This may be called from interrupt context - NO PRINTLN!
+    fn reset_and_resync(&mut self) {
+        // Limit reset attempts to prevent infinite loops
+        if self.resync_attempts >= 3 {
+            // Too many resets - just flush and hope for the best
+            self.flush_buffer();
+            self.cycle = 0;
+            self.consecutive_errors = 0;
+            return;
+        }
+        
+        self.resync_attempts += 1;
+        
+        // Flush any pending data
+        self.flush_buffer();
+        
+        // Reset packet state
+        self.cycle = 0;
+        self.packet = [0; 4];
+        self.consecutive_errors = 0;
+        
+        // Re-initialize the mouse (simplified re-init)
+        unsafe {
+            // Disable mouse
+            self.wait_write();
+            outb(0x64, 0xA7);
+            
+            // Small delay
+            for _ in 0..10000 {
+                core::arch::asm!("nop", options(nomem, nostack));
+            }
+            
+            // Re-enable mouse
+            self.wait_write();
+            outb(0x64, 0xA8);
+            
+            // Send enable streaming command
+            self.write(0xF4);
+            let _ = self.read(); // Read ACK
+        }
+    }
+    
+    /// PS/2 ACK response byte
+    const PS2_ACK: u8 = 0xFA;
+    const PS2_RESEND: u8 = 0xFE;
+    const PS2_ERROR: u8 = 0xFC;
     
     pub fn init(&mut self) {
         println!("[input] Initializing mouse...");
 
         unsafe {
+            // Enable mouse port
             self.wait_write();
             outb(0x64, 0xA8);
 
+            // Read command byte
             self.wait_write();
             outb(0x64, 0x20);
             self.wait_read();
             let status = (inb(0x60) | 2) & 0xDF;
 
+            // Write command byte (enable mouse interrupt)
             self.wait_write();
             outb(0x64, 0x60);
             self.wait_write();
             outb(0x60, status);
 
-            self.write(0xF6);
-            self.read();
+            // Set defaults (0xF6)
+            let defaults_ok = self.write_with_ack(0xF6);
+            if !defaults_ok {
+                println!("[mouse] Warning: Set defaults command failed");
+            }
 
-            self.write(0xF4);
-            self.read();
+            // Enable streaming (0xF4) - must succeed for mouse to work
+            let streaming_ok = self.write_with_ack(0xF4);
+            if !streaming_ok {
+                println!("[mouse] Warning: Enable streaming command failed! Mouse may not work.");
+                // Don't try to reset here - it can cause more problems
+                // Just continue and hope the mouse works anyway
+            }
 
             // Unmask IRQ2 (cascade from slave PIC) and IRQ12 (mouse)
             crate::arch::interrupts::unmask_irq(2);
@@ -276,50 +361,105 @@ impl MouseDriver {
         }
 
         println!("[input] Mouse initialized and IRQ12 unmasked");
+        
+        // Enable diagnostic mode for first 10 packets to help debug
+        self.diagnostic_mode = true;
+        self.diagnostic_packets_remaining = 10;
+    }
+    
+    /// Write command to mouse and wait for ACK, with retry on RESEND
+    fn write_with_ack(&self, cmd: u8) -> bool {
+        const MAX_RETRIES: u8 = 3;
+        
+        for _ in 0..MAX_RETRIES {
+            self.write(cmd);
+            let response = self.read();
+            
+            match response {
+                Self::PS2_ACK => return true,
+                Self::PS2_RESEND => {
+                    // Wait a bit before retry
+                    unsafe {
+                        for _ in 0..1000 {
+                            core::arch::asm!("nop", options(nomem, nostack));
+                        }
+                    }
+                    continue;
+                }
+                Self::PS2_ERROR => {
+                    println!("[mouse] PS/2 error response received");
+                    return false;
+                }
+                _ => {
+                    // Unexpected response, might be old data
+                    println!("[mouse] Unexpected PS/2 response: 0x{:02X}", response);
+                    // Flush and retry
+                    self.flush_buffer();
+                }
+            }
+        }
+        
+        false
     }
     
     pub fn handle_interrupt(&mut self) -> Option<InputEvent> {
+        // Check status register to verify this is mouse data
+        // Bit 5 of status register (0x64) indicates if data is from mouse (1) or keyboard (0)
+        let status = unsafe { inb(0x64) };
+        let _is_mouse_data = status & 0x20 != 0;
+        
         let data = unsafe { inb(0x60) };
         
-        // Debug: count mouse interrupts
-        static mut MOUSE_INT_COUNT: u32 = 0;
-        static mut LAST_PRINT: u64 = 0;
-        unsafe {
-            MOUSE_INT_COUNT += 1;
-            let current = crate::arch::interrupts::get_timer_ticks();
-            if current > LAST_PRINT + 500 {
-                // Print every ~500 ticks
-                if MOUSE_INT_COUNT > 0 {
-                    crate::println!("[mouse] IRQs: {}, pos: ({},{}), err: {}", 
-                        MOUSE_INT_COUNT, self.x, self.y, self.error_count);
-                }
-                MOUSE_INT_COUNT = 0;
-                LAST_PRINT = current;
-            }
-        }
+        // NOTE: Don't use println! in interrupt handlers - it can deadlock!
+        // Diagnostic logging removed to prevent lock contention
         
         // Check for timeout - reset cycle if it's been too long
         let current_time = crate::arch::interrupts::get_timer_ticks();
         if self.cycle != 0 && current_time > self.last_update + 100 {
-            // Timeout - reset to sync state
+            // Timeout - flush buffer and reset to sync state
+            self.flush_buffer();
             self.cycle = 0;
             self.error_count += 1;
+            self.consecutive_errors += 1;
+            
+            // Only do full reset after many consecutive timeouts (reduced aggressiveness)
+            if self.consecutive_errors >= 50 {
+                // Can't print here - would deadlock. Set flag for main loop to report.
+                self.reset_and_resync();
+            }
         }
         self.last_update = current_time;
         
         match self.cycle {
             0 => {
-                // Looking for sync byte (bit 3 must be set)
+                // Looking for sync byte (bit 3 must be set, overflow bits clear)
                 if data & 0x08 != 0 && data & 0xC0 == 0 {
                     // Valid first byte: sync bit set, overflow bits clear
                     self.packet[0] = data;
                     self.cycle = 1;
+                    // Reset consecutive errors on valid sync
+                    self.consecutive_errors = 0;
+                    
+                    // Reset resync attempts after sustained good operation
+                    if self.resync_attempts > 0 && self.error_count < 10 {
+                        self.resync_attempts = 0;
+                    }
                 } else {
-                    // Invalid sync byte, stay in cycle 0
+                    // Invalid sync byte - just log it, don't be too aggressive
                     self.error_count += 1;
-                    if self.error_count > 100 {
-                        // Too many errors, reset completely
+                    self.consecutive_errors += 1;
+                    
+                    // Only flush after many consecutive errors (reduced aggressiveness)
+                    if self.consecutive_errors >= 20 {
+                        self.flush_buffer();
+                        self.consecutive_errors = 0;
+                    }
+                    
+                    // Only reset after very many errors (reduced aggressiveness)
+                    if self.error_count > 500 {
+                        // Can't print here - would deadlock
                         self.error_count = 0;
+                        self.reset_and_resync();
                     }
                 }
                 None
@@ -332,13 +472,16 @@ impl MouseDriver {
             2 => {
                 self.packet[2] = data;
                 self.cycle = 0;
-                // Clear error count on successful packet
+                // Clear consecutive errors and reduce error count on successful packet
+                self.consecutive_errors = 0;
                 self.error_count = self.error_count.saturating_sub(1);
                 self.process_packet()
             }
             _ => {
+                // Invalid state - reset
                 self.cycle = 0;
                 self.error_count += 1;
+                self.consecutive_errors += 1;
                 None
             }
         }
@@ -353,8 +496,14 @@ impl MouseDriver {
             return None;
         }
         
-        let x_movement = self.packet[1] as i8 as i16;
-        let y_movement = self.packet[2] as i8 as i16;
+        // PS/2 mouse protocol: sign bits are in the flags byte
+        // bit 4 = X sign (1 = negative), bit 5 = Y sign (1 = negative)
+        // We need to properly sign-extend the 9-bit movement values
+        let x_sign_extend = if flags & 0x10 != 0 { 0xFFFFFF00u32 } else { 0 };
+        let y_sign_extend = if flags & 0x20 != 0 { 0xFFFFFF00u32 } else { 0 };
+        
+        let x_movement = (self.packet[1] as u32 | x_sign_extend) as i32 as i16;
+        let y_movement = (self.packet[2] as u32 | y_sign_extend) as i32 as i16;
 
         // Sanity check on movement values (shouldn't move more than 100 pixels in one packet)
         if x_movement.abs() > 100 || y_movement.abs() > 100 {
@@ -443,6 +592,7 @@ impl InputManager {
             if self.events.len() < MAX_EVENTS {
                 self.events.push_back(event);
             }
+            // Note: Don't print in interrupt handler - can cause deadlock
         }
     }
     
@@ -451,11 +601,13 @@ impl InputManager {
             if self.events.len() < MAX_EVENTS {
                 self.events.push_back(event);
             }
+            // Note: Don't print in interrupt handler - can cause deadlock
         }
     }
     
     pub fn poll_event(&mut self) -> Option<InputEvent> { self.events.pop_front() }
     pub fn has_events(&self) -> bool { !self.events.is_empty() }
+    pub fn event_queue_len(&self) -> usize { self.events.len() }
     pub fn mouse_position(&self) -> (i32, i32) { self.mouse.position() }
     pub fn set_mouse_position(&mut self, x: i32, y: i32) { self.mouse.set_position(x, y); }
     pub fn mouse_buttons(&self) -> u8 { self.mouse.buttons() }
@@ -471,11 +623,137 @@ pub fn init() {
     println!("[input] Input subsystem ready");
 }
 
-pub fn handle_keyboard_interrupt() { INPUT_MANAGER.lock().handle_keyboard(); }
-pub fn handle_mouse_interrupt() { INPUT_MANAGER.lock().handle_mouse(); }
-pub fn poll_event() -> Option<InputEvent> { INPUT_MANAGER.lock().poll_event() }
-pub fn has_events() -> bool { INPUT_MANAGER.lock().has_events() }
-pub fn mouse_position() -> (i32, i32) { INPUT_MANAGER.lock().mouse_position() }
+use core::sync::atomic::{AtomicU64, Ordering};
+
+// Counters for diagnostics (visible from main thread)
+static MOUSE_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
+static KEYBOARD_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
+
+// Separate static drivers for interrupt handlers
+// These are ONLY accessed by interrupt handlers, preventing deadlock with main thread
+static mut IRQ_KEYBOARD_DRIVER: KeyboardDriver = KeyboardDriver::new();
+static mut IRQ_MOUSE_DRIVER: MouseDriver = MouseDriver::new();
+
+/// Lock-free SPSC queue for IRQ events
+/// Producer: interrupt handler | Consumer: main thread
+struct LockFreeQueue {
+    buffer: [InputEvent; MAX_EVENTS],
+    head: AtomicU64, // Consumer (main thread) reads from here
+    tail: AtomicU64, // Producer (IRQ) writes here
+}
+
+impl LockFreeQueue {
+    const fn new() -> Self {
+        Self {
+            buffer: [InputEvent { 
+                event_type: EventType::KeyPress, 
+                keycode: 0, ascii: 0, x: 0, y: 0, button: 0, scroll: 0, modifiers: 0 
+            }; MAX_EVENTS],
+            head: AtomicU64::new(0),
+            tail: AtomicU64::new(0),
+        }
+    }
+    
+    /// Push from interrupt handler (producer)
+    fn push(&self, event: InputEvent) -> bool {
+        let tail = self.tail.load(Ordering::Relaxed);
+        let head = self.head.load(Ordering::Acquire);
+        
+        // Check if queue is full
+        if tail.wrapping_sub(head) >= MAX_EVENTS as u64 {
+            return false;
+        }
+        
+        let idx = (tail % MAX_EVENTS as u64) as usize;
+        unsafe {
+            let ptr = &self.buffer[idx] as *const InputEvent as *mut InputEvent;
+            ptr.write(event);
+        }
+        
+        self.tail.store(tail.wrapping_add(1), Ordering::Release);
+        true
+    }
+    
+    /// Pop from main thread (consumer)
+    fn pop(&self) -> Option<InputEvent> {
+        let head = self.head.load(Ordering::Relaxed);
+        let tail = self.tail.load(Ordering::Acquire);
+        
+        if head == tail {
+            return None;
+        }
+        
+        let idx = (head % MAX_EVENTS as u64) as usize;
+        let event = unsafe { self.buffer[idx].clone() };
+        
+        self.head.store(head.wrapping_add(1), Ordering::Release);
+        Some(event)
+    }
+    
+    fn len(&self) -> usize {
+        let tail = self.tail.load(Ordering::Relaxed);
+        let head = self.head.load(Ordering::Relaxed);
+        tail.wrapping_sub(head) as usize
+    }
+}
+
+// Lock-free queues for IRQ events
+static KEYBOARD_QUEUE: LockFreeQueue = LockFreeQueue::new();
+static MOUSE_QUEUE: LockFreeQueue = LockFreeQueue::new();
+
+pub fn handle_keyboard_interrupt() { 
+    KEYBOARD_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
+    // CRITICAL: Use the IRQ-only driver, NOT INPUT_MANAGER (which would deadlock)
+    unsafe {
+        if let Some(event) = IRQ_KEYBOARD_DRIVER.handle_interrupt() {
+            KEYBOARD_QUEUE.push(event);
+        }
+    }
+}
+
+pub fn handle_mouse_interrupt() { 
+    MOUSE_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
+    // CRITICAL: Use the IRQ-only driver, NOT INPUT_MANAGER (which would deadlock)
+    unsafe {
+        if let Some(event) = IRQ_MOUSE_DRIVER.handle_interrupt() {
+            MOUSE_QUEUE.push(event);
+        }
+    }
+}
+
+pub fn poll_event() -> Option<InputEvent> { 
+    // First check lock-free IRQ queues
+    if let Some(event) = KEYBOARD_QUEUE.pop() {
+        return Some(event);
+    }
+    if let Some(event) = MOUSE_QUEUE.pop() {
+        return Some(event);
+    }
+    // Then check main manager queue (for events generated internally)
+    INPUT_MANAGER.lock().poll_event() 
+}
+
+pub fn has_events() -> bool { 
+    KEYBOARD_QUEUE.len() > 0 || MOUSE_QUEUE.len() > 0 || INPUT_MANAGER.lock().has_events()
+}
+
+pub fn event_queue_len() -> usize { 
+    KEYBOARD_QUEUE.len() + MOUSE_QUEUE.len() + INPUT_MANAGER.lock().event_queue_len() 
+}
+
+pub fn mouse_position() -> (i32, i32) { 
+    // Use the IRQ driver position since it's most up-to-date
+    unsafe { IRQ_MOUSE_DRIVER.position() }
+}
+
+pub fn mouse_buttons() -> u8 {
+    unsafe { IRQ_MOUSE_DRIVER.buttons() }
+}
+
+/// Get interrupt counters for diagnostics
+pub fn get_irq_counts() -> (u64, u64) {
+    (KEYBOARD_IRQ_COUNT.load(Ordering::Relaxed), MOUSE_IRQ_COUNT.load(Ordering::Relaxed))
+}
 
 /// Poll keyboard for input (non-interrupt mode)
 pub fn poll_keyboard() -> Option<InputEvent> {

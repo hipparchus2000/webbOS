@@ -261,33 +261,33 @@ pub fn send_eoi(irq: u8) {
 // Timer interrupt handler (IRQ0)
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     unsafe {
+        // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
+        send_eoi(0);
+        
         // Increment tick count
         TIMER_TICKS += 1;
-        
-        // Send EOI to PIC
-        send_eoi(0);
     }
 }
 
 // Keyboard interrupt handler (IRQ1)
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     unsafe {
+        // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
+        send_eoi(1);
+        
         // Handle keyboard input
         crate::drivers::input::handle_keyboard_interrupt();
-
-        // Send EOI to PIC
-        send_eoi(1);
     }
 }
 
 // Mouse interrupt handler (IRQ12)
 extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
     unsafe {
+        // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
+        send_eoi(12);
+        
         // Handle mouse input
         crate::drivers::input::handle_mouse_interrupt();
-
-        // Send EOI to PIC
-        send_eoi(12);
     }
 }
 

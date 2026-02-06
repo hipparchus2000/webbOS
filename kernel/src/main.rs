@@ -301,11 +301,33 @@ fn draw_boot_triangle() {
 
 /// Desktop event loop - handles mouse and keyboard input for desktop
 fn desktop_event_loop() {
+    use core::sync::atomic::{AtomicU64, Ordering};
+    
     println!("[desktop] Entering desktop event loop");
+    
+    // Heartbeat counter to detect freezes
+    static LOOP_COUNT: AtomicU64 = AtomicU64::new(0);
+    static LAST_PRINT: AtomicU64 = AtomicU64::new(0);
+    static EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
 
     loop {
+        let loop_num = LOOP_COUNT.fetch_add(1, Ordering::Relaxed);
+        
+        // Print heartbeat every 500 timer ticks (about 0.5 seconds)
+        let current = crate::arch::interrupts::get_timer_ticks();
+        let last = LAST_PRINT.load(Ordering::Relaxed);
+        if current > last + 50 {
+            let events = EVENT_COUNT.load(Ordering::Relaxed);
+            let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
+            println!("[desktop-heartbeat] loops={}, events={}, queue={}, kb_irq={}, mouse_irq={}", 
+                loop_num, events, drivers::input::event_queue_len(), kb_irq, mouse_irq);
+            LAST_PRINT.store(current, Ordering::Relaxed);
+        }
+        
         // Check for input events
         if let Some(event) = drivers::input::poll_event() {
+            EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
+            
             match event.event_type {
                 drivers::input::EventType::MouseMove => {
                     // Update mouse position

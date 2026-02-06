@@ -11,6 +11,7 @@ use alloc::vec::Vec;
 use alloc::vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use crate::drivers::vesa::{self, VesaDriver, colors};
 use crate::println;
 
@@ -223,6 +224,14 @@ impl DesktopUI {
         let screen_w = info.width as i32;
         let screen_h = info.height as i32;
         
+        // Validate mouse position is within bounds before saving
+        if self.mouse_x < 0 || self.mouse_y < 0 || 
+           self.mouse_x >= screen_w || self.mouse_y >= screen_h {
+            // Mouse out of bounds - mark buffer as invalid
+            self.save_buffer_valid = false;
+            return;
+        }
+        
         self.save_buffer_x = self.mouse_x;
         self.save_buffer_y = self.mouse_y;
         
@@ -249,9 +258,18 @@ impl DesktopUI {
             return;
         }
         
+        // Validate save buffer position is within bounds
+        if self.save_buffer_x < 0 || self.save_buffer_y < 0 {
+            return;
+        }
+        
         let info = driver.info();
         let screen_w = info.width as i32;
         let screen_h = info.height as i32;
+        
+        if self.save_buffer_x >= screen_w || self.save_buffer_y >= screen_h {
+            return;
+        }
         
         let mut idx = 0;
         for y in 0..CURSOR_SIZE as i32 {
@@ -698,64 +716,119 @@ pub fn show() {
 
 /// Update mouse position and redraw only the cursor
 pub fn update_mouse(x: i32, y: i32) {
-    static mut UPDATE_COUNT: u32 = 0;
-    static mut LAST_PRINT: u64 = 0;
+    // Use atomics instead of static mut for thread safety
+    static UPDATE_COUNT: AtomicU32 = AtomicU32::new(0);
+    static LAST_PRINT: AtomicU64 = AtomicU64::new(0);
+    static TRACE_COUNT: AtomicU32 = AtomicU32::new(0);
     
+    // Trace first few calls to verify flow
+    let trace = TRACE_COUNT.fetch_add(1, Ordering::Relaxed);
+    let should_trace = trace < 20;
+    
+    if should_trace {
+        crate::println!("[mouse-trace] update_mouse({},{}) start", x, y);
+    }
+    
+    // CRITICAL: Lock ordering must match show() - driver first, then desktop!
+    // This prevents deadlock with the event loop
+    if should_trace {
+        crate::println!("[mouse-trace] acquiring driver lock...");
+    }
+    let mut driver = vesa::driver().lock();
+    if should_trace {
+        crate::println!("[mouse-trace] driver lock acquired");
+    }
+    
+    if !driver.is_initialized() {
+        if should_trace {
+            crate::println!("[mouse-trace] driver not initialized, returning");
+        }
+        return;
+    }
+    
+    if should_trace {
+        crate::println!("[mouse-trace] acquiring desktop lock...");
+    }
     let mut desktop = DESKTOP_UI.lock();
+    if should_trace {
+        crate::println!("[mouse-trace] desktop lock acquired");
+    }
     
     // Only update if mouse actually moved significantly (reduce updates)
     let dx = (x - desktop.mouse_x).abs();
     let dy = (y - desktop.mouse_y).abs();
-    if dx < 2 && dy < 2 {
-        return; // Ignore tiny movements
-    }
-
-    let mut driver = vesa::driver().lock();
-    if !driver.is_initialized() {
-        return;
+    if dx < 1 && dy < 1 {
+        if should_trace {
+            crate::println!("[mouse-trace] movement too small, returning");
+        }
+        return; // Ignore tiny movements (reduced from 2 to 1)
     }
 
     // Bounds check to prevent drawing outside screen
     let info = driver.info();
     if x < 0 || y < 0 || x >= info.width as i32 || y >= info.height as i32 {
+        if should_trace {
+            crate::println!("[mouse-trace] out of bounds, returning");
+        }
         return; // Mouse coordinates out of bounds, skip update
     }
 
-    unsafe {
-        UPDATE_COUNT += 1;
-        let current = crate::arch::interrupts::get_timer_ticks();
-        if current > LAST_PRINT + 500 {
-            if UPDATE_COUNT > 0 {
-                crate::println!("[desktop] Mouse updates: {}, pos: ({},{})", 
-                    UPDATE_COUNT, x, y);
-            }
-            UPDATE_COUNT = 0;
-            LAST_PRINT = current;
+    // Atomically update counters
+    let count = UPDATE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+    let current = crate::arch::interrupts::get_timer_ticks();
+    let last = LAST_PRINT.load(Ordering::Relaxed);
+    
+    if current > last + 500 {
+        if count > 0 {
+            crate::println!("[desktop] Mouse updates: {}, pos: ({},{})", 
+                count, x, y);
         }
+        UPDATE_COUNT.store(0, Ordering::Relaxed);
+        LAST_PRINT.store(current, Ordering::Relaxed);
     }
 
+    if should_trace {
+        crate::println!("[mouse-trace] restoring under cursor...");
+    }
     // Restore old position (erase cursor)
     desktop.restore_under_cursor(&mut driver);
     
+    if should_trace {
+        crate::println!("[mouse-trace] updating position...");
+    }
     // Update mouse position
     desktop.update_mouse(x, y);
     
+    if should_trace {
+        crate::println!("[mouse-trace] saving under cursor...");
+    }
     // Save new position and draw cursor
     desktop.save_under_cursor(&mut driver);
+    
+    if should_trace {
+        crate::println!("[mouse-trace] drawing cursor...");
+    }
     desktop.draw_mouse_cursor(&mut driver);
+    
+    if should_trace {
+        crate::println!("[mouse-trace] update_mouse done");
+    }
 }
 
 /// Handle mouse click
 pub fn handle_click(x: i32, y: i32) {
+    // CRITICAL: Lock ordering must match show() - driver first, then desktop!
+    let mut driver = vesa::driver().lock();
+    if !driver.is_initialized() {
+        return;
+    }
+    
     let mut desktop = DESKTOP_UI.lock();
     let needs_redraw = desktop.handle_click(x, y);
 
     if needs_redraw {
-        let mut driver = vesa::driver().lock();
-        if driver.is_initialized() {
-            // Full redraw needed (window opened/closed)
-            desktop.draw(&mut driver);
-        }
+        // Full redraw needed (window opened/closed)
+        desktop.draw(&mut driver);
     }
 }
 
