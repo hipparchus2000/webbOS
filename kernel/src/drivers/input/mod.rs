@@ -704,6 +704,17 @@ pub fn mouse_buttons() -> u8 {
 pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
     SCREEN_WIDTH.store(width, Ordering::Relaxed);
     SCREEN_HEIGHT.store(height, Ordering::Relaxed);
+    
+    // Re-clamp current mouse position to new bounds
+    let current_x = MOUSE_X.load(Ordering::Relaxed);
+    let current_y = MOUSE_Y.load(Ordering::Relaxed);
+    let clamped_x = current_x.max(0).min(width - 1);
+    let clamped_y = current_y.max(0).min(height - 1);
+    MOUSE_X.store(clamped_x, Ordering::Relaxed);
+    MOUSE_Y.store(clamped_y, Ordering::Relaxed);
+    LAST_MOUSE_X.store(clamped_x, Ordering::Relaxed);
+    LAST_MOUSE_Y.store(clamped_y, Ordering::Relaxed);
+    
     unsafe { 
         IRQ_MOUSE_DRIVER.set_screen_dimensions(width, height); 
     }

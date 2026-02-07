@@ -642,48 +642,18 @@ impl DesktopUI {
         driver.draw_text(&icon.label, label_x, icon.y + icon.height as i32 - 12, palette::TEXT_WHITE, 1);
     }
 
-    /// Handle mouse click
+    /// Handle mouse click (now launches apps on single click)
     pub fn handle_click(&mut self, x: i32, y: i32) -> bool {
-        // Single click - select icon
-        for (idx, icon) in self.desktop_icons.iter().enumerate() {
-            if x >= icon.x && x < icon.x + icon.width as i32 &&
-               y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Selected icon: {}", icon.label);
-                self.selected_icon = Some(idx);
-                return true; // Redraw needed
-            }
-        }
-        // Clicked elsewhere - clear selection
-        if self.selected_icon.is_some() {
-            self.selected_icon = None;
-            return true;
-        }
-        false // No redraw needed
-    }
-    
-    pub fn handle_double_click(&mut self, x: i32, y: i32) -> bool {
-        // Check if clicking close button on browser
-        if self.browser_open {
-            let close_x = BROWSER_X + 12;
-            let close_y = BROWSER_Y + 16;
-            let dist = ((x - close_x) * (x - close_x) + (y - close_y) * (y - close_y)) as f32;
-            if dist < 36.0 { // Within 6px radius
-                println!("[desktop] Closing browser window");
-                self.browser_open = false;
-                return true; // Redraw needed
-            }
-        }
-
-        // Check dock icons
+        // Check dock icons first (launch on single click)
         for icon in &self.dock_icons {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Double-clicked dock icon: {}", icon.label);
+                println!("[desktop] Clicked dock icon: {}", icon.label);
                 match &icon.action {
                     IconAction::LaunchApp(app_name) => {
                         if app_name == "browser" {
                             println!("[desktop] Opening browser window");
-                            self.browser_open = true;
+                            crate::desktop::launch_app("browser");
                             return true; // Redraw needed
                         } else if app_name == "appstore" {
                             println!("[desktop] App Store coming soon!");
@@ -696,23 +666,29 @@ impl DesktopUI {
                 return true; // Redraw needed
             }
         }
-
-        // Check desktop icons
-        for icon in &self.desktop_icons {
+        
+        // Check desktop icons (select on single click)
+        for (idx, icon) in self.desktop_icons.iter().enumerate() {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Double-clicked desktop icon: {}", icon.label);
-                // Launch file manager for folders
-                if icon.is_folder {
-                    if let Some(ref path) = icon.icon_path {
-                        println!("[desktop] Opening folder: {}", path);
-                    }
-                }
+                println!("[desktop] Selected icon: {}", icon.label);
+                self.selected_icon = Some(idx);
                 return true; // Redraw needed
             }
         }
-
+        
+        // Clicked elsewhere - clear selection
+        if self.selected_icon.is_some() {
+            self.selected_icon = None;
+            return true;
+        }
         false // No redraw needed
+    }
+    
+    pub fn handle_double_click(&mut self, x: i32, y: i32) -> bool {
+        // Double-click now does the same as single-click for simplicity
+        // In the future this could do something different (e.g., open properties)
+        self.handle_click(x, y)
     }
 
 }
