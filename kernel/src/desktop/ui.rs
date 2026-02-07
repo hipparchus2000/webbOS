@@ -644,6 +644,18 @@ impl DesktopUI {
 
     /// Handle mouse click (now launches apps on single click)
     pub fn handle_click(&mut self, x: i32, y: i32) -> bool {
+        // Check if clicking browser close button (when browser is open)
+        if self.browser_open {
+            let close_x = BROWSER_X + 12;
+            let close_y = BROWSER_Y + 16;
+            let dist_sq = (x - close_x) * (x - close_x) + (y - close_y) * (y - close_y);
+            if dist_sq < 36 { // Within 6px radius
+                println!("[desktop] Closing browser window");
+                self.browser_open = false;
+                return true; // Redraw needed
+            }
+        }
+        
         // Check dock icons first (launch on single click)
         for icon in &self.dock_icons {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
@@ -653,7 +665,7 @@ impl DesktopUI {
                     IconAction::LaunchApp(app_name) => {
                         if app_name == "browser" {
                             println!("[desktop] Opening browser window");
-                            crate::desktop::launch_app("browser");
+                            self.browser_open = true;  // Use UI's own browser flag
                             return true; // Redraw needed
                         } else if app_name == "appstore" {
                             println!("[desktop] App Store coming soon!");
