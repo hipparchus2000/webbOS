@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="description" content="Rubber Chicken Darts - A fun PWA game">
+    <link rel="manifest" href="chicken-darts.manifest.json">
+    <title>Rubber Chicken Darts</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            cursor: crosshair;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+
+        #powerMeter {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 30px;
+            background: rgba(0,0,0,0.7);
+            border: 3px solid #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        #powerBar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+            transition: width 0.05s linear;
+        }
+
+        #instructions {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        #installPrompt {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+
+        #installPrompt button {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+        }
+
+        #installPrompt button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui">
+        <div>Score: <span id="score">0</span></div>
+        <div>Chickens: <span id="chickens">10</span></div>
+    </div>
+
+    <div id="instructions">
+        Click & Hold to aim and build power • Release to throw!
+    </div>
+
+    <div id="powerMeter">
+        <div id="powerBar"></div>
+    </div>
+
+    <div id="installPrompt">
+        <h2>Install Rubber Chicken Darts?</h2>
+        <p>Play offline anytime!</p>
+        <button id="installBtn">Install</button>
+        <button id="cancelBtn">Not Now</button>
+    </div>
+
+    <script>
+        // PWA Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('chicken-darts-sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
+        }
+
+        // Install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installPrompt').style.display = 'block';
+        });
+
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+            }
+            document.getElementById('installPrompt').style.display = 'none';
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            document.getElementById('installPrompt').style.display = 'none';
+        });
+
+        // Game Code
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game State
+        let score = 0;
+        let chickensLeft = 10;
+        let isAiming = false;
+        let power = 0;
+        let powerBuilding = false;
+        let aimAngle = -Math.PI / 4; // Start at 45 degrees up
+        let chicken = null;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // Dart Board
+        const dartBoard = {
+            x: canvas.width * 0.75,
+            y: canvas.height * 0.3,
+            radius: Math.min(canvas.width, canvas.height) * 0.15
+        };
+
+        // Sound Generation
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSquawk() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+            oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.2);
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        function playThud() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            oscillator.type = 'sine';
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(200, audioContext.currentTime);
+
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.1);
+
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        // Chicken Physics
+        class RubberChicken {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.rotation = 0;
+                this.rotationSpeed = 0.2;
+                this.gravity = 0.5;
+                this.active = true;
+                this.bounced = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.rotation += this.rotationSpeed;
+
+                // Check dartboard collision
+                const dx = this.x - dartBoard.x;
+                const dy = this.y - dartBoard.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < dartBoard.radius && !this.bounced) {
+                    this.bounced = true;
+                    playThud();
+
+                    // Calculate score based on distance from center
+                    const hitRatio = 1 - (distance / dartBoard.radius);
+                    let points = 0;
+
+                    if (hitRatio > 0.9) points = 50; // Bullseye
+                    else if (hitRatio > 0.7) points = 25;
+                    else if (hitRatio > 0.5) points = 15;
+                    else if (hitRatio > 0.3) points = 10;
+                    else points = 5;
+
+                    score += points;
+                    document.getElementById('score').textContent = score;
+
+                    // Bounce off
+                    this.vx = -this.vx * 0.5;
+                    this.vy = -this.vy * 0.5;
+                }
+
+                // Check if off screen
+                if (this.y > canvas.height + 100 || this.x > canvas.width + 100 || this.x < -100) {
+                    this.active = false;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // Draw rubber chicken
+                // Body
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, 30, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Head
+                ctx.beginPath();
+                ctx.arc(-5, -25, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Beak
+                ctx.fillStyle = '#FF6B00';
+                ctx.beginPath();
+                ctx.moveTo(-15, -25);
+                ctx.lineTo(-25, -23);
+                ctx.lineTo(-15, -21);
+                ctx.closePath();
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-8, -27, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Comb
+                ctx.fillStyle = '#FF0000';
+                ctx.beginPath();
+                ctx.moveTo(-5, -37);
+                ctx.lineTo(-2, -32);
+                ctx.lineTo(-8, -32);
+                ctx.closePath();
+                ctx.fill();
+
+                // Wings
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.ellipse(-15, 0, 8, 15, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.ellipse(10, 0, 8, 15, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Legs
+                ctx.strokeStyle = '#FF6B00';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-8, 30);
+                ctx.lineTo(-8, 40);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(8, 30);
+                ctx.lineTo(8, 40);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        // Draw Dart Board
+        function drawDartBoard() {
+            const x = dartBoard.x;
+            const y = dartBoard.y;
+            const r = dartBoard.radius;
+
+            // Board circles
+            const colors = ['#000', '#fff', '#ff0000', '#00ff00', '#000', '#fff'];
+            for (let i = 5; i >= 0; i--) {
+                ctx.fillStyle = colors[i];
+                ctx.beginPath();
+                ctx.arc(x, y, r * (i + 1) / 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Bullseye
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(x, y, r * 0.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Board segments
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 20; i++) {
+                const angle = (i * Math.PI * 2) / 20;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + Math.cos(angle) * r, y + Math.sin(angle) * r);
+                ctx.stroke();
+            }
+
+            // Board outline
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Draw aim line
+        function drawAimLine() {
+            if (!isAiming) return;
+
+            const startX = 100;
+            const startY = canvas.height - 100;
+            const lineLength = 100 + power * 2;
+
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.7)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(
+                startX + Math.cos(aimAngle) * lineLength,
+                startY + Math.sin(aimAngle) * lineLength
+            );
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Draw launcher chicken
+        function drawLauncherChicken() {
+            if (chicken) return; // Don't draw if chicken is flying
+
+            const x = 100;
+            const y = canvas.height - 100;
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(aimAngle);
+            ctx.scale(0.8, 0.8);
+
+            // Same chicken drawing code
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 20, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(-5, -25, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FF6B00';
+            ctx.beginPath();
+            ctx.moveTo(-15, -25);
+            ctx.lineTo(-25, -23);
+            ctx.lineTo(-15, -21);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-8, -27, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.moveTo(-5, -37);
+            ctx.lineTo(-2, -32);
+            ctx.lineTo(-8, -32);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Input handling
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX || e.touches[0].clientX) - rect.left,
+                y: (e.clientY || e.touches[0].clientY) - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', startAiming);
+        canvas.addEventListener('touchstart', startAiming);
+        canvas.addEventListener('mousemove', updateAim);
+        canvas.addEventListener('touchmove', updateAim);
+        canvas.addEventListener('mouseup', shoot);
+        canvas.addEventListener('touchend', shoot);
+
+        function startAiming(e) {
+            e.preventDefault();
+            if (chicken || chickensLeft <= 0) return;
+
+            isAiming = true;
+            powerBuilding = true;
+            power = 0;
+
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            updateAimAngle();
+        }
+
+        function updateAim(e) {
+            if (!isAiming) return;
+            e.preventDefault();
+
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            updateAimAngle();
+        }
+
+        function updateAimAngle() {
+            const startX = 100;
+            const startY = canvas.height - 100;
+            aimAngle = Math.atan2(mouseY - startY, mouseX - startX);
+
+            // Clamp angle to prevent shooting backwards
+            aimAngle = Math.max(Math.min(aimAngle, Math.PI / 4), -Math.PI / 2);
+        }
+
+        function shoot(e) {
+            if (!isAiming) return;
+            e.preventDefault();
+
+            isAiming = false;
+            powerBuilding = false;
+
+            // Launch chicken
+            const startX = 100;
+            const startY = canvas.height - 100;
+            const speed = 10 + power * 0.3;
+            const vx = Math.cos(aimAngle) * speed;
+            const vy = Math.sin(aimAngle) * speed;
+
+            chicken = new RubberChicken(startX, startY, vx, vy);
+            chickensLeft--;
+            document.getElementById('chickens').textContent = chickensLeft;
+
+            playSquawk();
+
+            power = 0;
+            document.getElementById('powerBar').style.width = '0%';
+        }
+
+        // Power building
+        function updatePower() {
+            if (powerBuilding && power < 100) {
+                power += 2;
+                if (power > 100) power = 100;
+                document.getElementById('powerBar').style.width = power + '%';
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            // Update dart board position on resize
+            dartBoard.x = canvas.width * 0.75;
+            dartBoard.y = canvas.height * 0.3;
+            dartBoard.radius = Math.min(canvas.width, canvas.height) * 0.15;
+
+            // Clear canvas
+            ctx.fillStyle = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(1, '#16213e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw dart board
+            drawDartBoard();
+
+            // Update and draw chicken
+            if (chicken) {
+                chicken.update();
+                chicken.draw();
+
+                if (!chicken.active) {
+                    chicken = null;
+
+                    // Game over check
+                    if (chickensLeft <= 0) {
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 48px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 50);
+                        ctx.font = '36px Arial';
+                        ctx.fillText('Final Score: ' + score, canvas.width / 2, canvas.height / 2 + 10);
+                        ctx.font = '24px Arial';
+                        ctx.fillText('Refresh to play again', canvas.width / 2, canvas.height / 2 + 60);
+                    }
+                }
+            }
+
+            // Draw launcher chicken and aim line
+            drawLauncherChicken();
+            drawAimLine();
+
+            // Update power
+            updatePower();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

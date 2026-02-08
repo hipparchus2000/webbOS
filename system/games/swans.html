@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="JACK ARMY DEFENSE - Swansea.com Stadium FPS game">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Jack Army">
+    <link rel="manifest" href="./swans.manifest.json">
+    <title>Swansea Stadium FPS</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000;
+            user-select: none;
+        }
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        #instructions {
+            font-size: 24px;
+            text-align: center;
+            cursor: pointer;
+            padding: 20px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-sizing: border-box;
+        }
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: white;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+        }
+        #score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+        .swansea-logo {
+            color: white; 
+            font-weight: bold; 
+            background: black; 
+            padding: 5px 10px;
+        }
+    </style>
+    <!--
+        Three.js library required for this game to work offline.
+        Download from: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+        Save as "three.min.js" in the same directory as this HTML file.
+    -->
+    <script src="three.min.js"></script>
+</head>
+<body>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1>JACK ARMY DEFENSE</h1>
+            <p>Click to Play</p>
+            <p>Currently at: Swansea.com Stadium</p>
+            <p>Controls: W,A,S,D to Move | Mouse to Look | Click to Shoot Footballs</p>
+            <p><small>Target the Bluebirds (Cardiff Fans) to clear the pitch!</small></p>
+        </div>
+    </div>
+
+    <div id="hud">
+        <div id="score-board">
+            <span class="swansea-logo">SWANSEA CITY</span> <span id="score">0</span> - <span id="enemies-count">0</span> CARDIFF
+        </div>
+        <div id="crosshair"></div>
+    </div>
+
+    <script>
+        // --- Game Variables ---
+        let camera, scene, renderer;
+        let controls;
+        let controlsEnabled = false; // Moved to top to prevent ReferenceError
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let canJump = false;
+
+        let prevTime = performance.now();
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+
+        const footballs = [];
+        const enemies = [];
+        let score = 0;
+        const enemyCountStart = 20;
+        
+        // Colors
+        const COLOR_SWANSEA_WHITE = 0xFFFFFF;
+        const COLOR_SWANSEA_BLACK = 0x000000;
+        const COLOR_PITCH = 0x2d5a27; // Green
+        const COLOR_CARDIFF_BLUE = 0x0033ff; // Bluebirds blue
+
+        // --- Initialization ---
+        init();
+        animate();
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue
+            scene.fog = new THREE.Fog(0x87CEEB, 0, 150);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.y = 2; // Player height
+
+            // Lighting
+            const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+            light.position.set(0, 20, 0);
+            scene.add(light);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // --- The Stadium (Procedural) ---
+            createStadium();
+
+            // --- Enemies ---
+            spawnEnemies(enemyCountStart);
+
+            // --- Renderer ---
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // --- Controls (PointerLock) ---
+            setupControls();
+
+            // --- Event Listeners ---
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('click', onMouseClick);
+        }
+
+        function createStadium() {
+            // 1. The Pitch
+            const pitchGeometry = new THREE.PlaneGeometry(120, 80);
+            const pitchMaterial = new THREE.MeshStandardMaterial({ 
+                color: COLOR_PITCH,
+                roughness: 0.8
+            });
+            const pitch = new THREE.Mesh(pitchGeometry, pitchMaterial);
+            pitch.rotation.x = -Math.PI / 2;
+            pitch.receiveShadow = true;
+            scene.add(pitch);
+
+            // Pitch lines (Simplified)
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            
+            // Center circle
+            const circleGeo = new THREE.RingGeometry(9, 9.2, 32);
+            const circle = new THREE.Mesh(circleGeo, lineMat);
+            circle.rotation.x = -Math.PI / 2;
+            circle.position.y = 0.05;
+            scene.add(circle);
+
+            // Halfway line
+            const centerLineGeo = new THREE.PlaneGeometry(0.2, 80);
+            const centerLine = new THREE.Mesh(centerLineGeo, lineMat);
+            centerLine.rotation.x = -Math.PI / 2;
+            centerLine.position.y = 0.05;
+            scene.add(centerLine);
+
+            // 2. The Stands (Swansea White/Black)
+            const standHeight = 15;
+            const standDepth = 20;
+            
+            // Create 4 main stands
+            createStand(0, 10, -50, 140, standHeight, standDepth); // North (Length)
+            createStand(0, 10, 50, 140, standHeight, standDepth);  // South (Length)
+            createStand(-70, 10, 0, standDepth, standHeight, 100); // West (Goal end)
+            createStand(70, 10, 0, standDepth, standHeight, 100);  // East (Goal end)
+
+            // 3. Goals
+            createGoal(-55);
+            createGoal(55);
+        }
+
+        function createStand(x, y, z, w, h, d) {
+            // Base structure
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xeeeeee }); // Concrete/White
+            const stand = new THREE.Mesh(geo, mat);
+            stand.position.set(x, y/2, z);
+            stand.receiveShadow = true;
+            scene.add(stand);
+
+            // Seats (visual trick: just rows of black/white cubes on top)
+            // Simplified: Just make the top face look like seats (Texture or color variation could go here)
+            // Let's add a "Roof" to make it look like a stadium
+            const roofGeo = new THREE.BoxGeometry(w, 1, d + 10);
+            const roofMat = new THREE.MeshStandardMaterial({ color: COLOR_SWANSEA_WHITE });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.set(x, y + h/2 + 5, z - (z > 0 ? 5 : -5)); // Offset inwards slightly
+            scene.add(roof);
+        }
+
+        function createGoal(xPos) {
+            const postMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const postGeo = new THREE.CylinderGeometry(0.1, 0.1, 2.44);
+            const crossbarGeo = new THREE.CylinderGeometry(0.1, 0.1, 7.32);
+
+            // Posts
+            const post1 = new THREE.Mesh(postGeo, postMat);
+            post1.position.set(xPos, 1.22, 3.66);
+            scene.add(post1);
+
+            const post2 = new THREE.Mesh(postGeo, postMat);
+            post2.position.set(xPos, 1.22, -3.66);
+            scene.add(post2);
+
+            // Crossbar
+            const bar = new THREE.Mesh(crossbarGeo, postMat);
+            bar.rotation.x = Math.PI / 2;
+            bar.position.set(xPos, 2.44, 0);
+            scene.add(bar);
+        }
+
+        function spawnEnemies(count) {
+            const enemyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 16);
+            const headGeo = new THREE.SphereGeometry(0.3, 16, 16);
+            const material = new THREE.MeshStandardMaterial({ color: COLOR_CARDIFF_BLUE }); // Blue shirt
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+
+            for (let i = 0; i < count; i++) {
+                const enemyGroup = new THREE.Group();
+
+                // Body
+                const body = new THREE.Mesh(enemyGeo, material);
+                body.position.y = 0.9;
+                body.castShadow = true;
+                enemyGroup.add(body);
+
+                // Head
+                const head = new THREE.Mesh(headGeo, skinMat);
+                head.position.y = 1.9; // On top of body
+                enemyGroup.add(head);
+
+                // Random Position on pitch
+                const x = (Math.random() - 0.5) * 100; // Keep within pitch bounds
+                const z = (Math.random() - 0.5) * 70;
+                
+                enemyGroup.position.set(x, 0, z);
+                
+                // Add user data for game logic
+                enemyGroup.userData = {
+                    id: i,
+                    alive: true,
+                    speed: Math.random() * 2 + 1,
+                    direction: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize()
+                };
+
+                scene.add(enemyGroup);
+                enemies.push(enemyGroup);
+            }
+            updateScore();
+        }
+
+        // --- Controls Setup ---
+        function setupControls() {
+            // Pointer Lock logic manually implemented to avoid import issues in single file
+            const instructions = document.getElementById('instructions');
+            const blocker = document.getElementById('blocker');
+
+            const havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
+
+            if (havePointerLock) {
+                const element = document.body;
+
+                const pointerlockchange = function(event) {
+                    if (document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element) {
+                        controlsEnabled = true;
+                        blocker.style.display = 'none';
+                    } else {
+                        controlsEnabled = false;
+                        blocker.style.display = 'flex';
+                        instructions.style.display = '';
+                    }
+                };
+
+                document.addEventListener('pointerlockchange', pointerlockchange, false);
+                document.addEventListener('mozpointerlockchange', pointerlockchange, false);
+                document.addEventListener('webkitpointerlockchange', pointerlockchange, false);
+
+                instructions.addEventListener('click', function(event) {
+                    instructions.style.display = 'none';
+                    element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
+                    element.requestPointerLock();
+                }, false);
+
+            } else {
+                instructions.innerHTML = 'Your browser doesn\'t support Pointer Lock API';
+            }
+
+            // Mouse Look logic
+            let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+            const PI_2 = Math.PI / 2;
+
+            document.addEventListener('mousemove', function(event) {
+                if (!controlsEnabled) return;
+                const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+                euler.setFromQuaternion(camera.quaternion);
+                euler.y -= movementX * 0.002;
+                euler.x -= movementY * 0.002;
+                euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
+                camera.quaternion.setFromEuler(euler);
+            });
+
+            // Keyboard movement
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+        }
+
+        // Removed declaration here to prevent temporal dead zone error
+
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW': moveForward = true; break;
+                case 'ArrowLeft':
+                case 'KeyA': moveLeft = true; break;
+                case 'ArrowDown':
+                case 'KeyS': moveBackward = true; break;
+                case 'ArrowRight':
+                case 'KeyD': moveRight = true; break;
+                case 'Space': if (canJump === true) velocity.y += 350; canJump = false; break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW': moveForward = false; break;
+                case 'ArrowLeft':
+                case 'KeyA': moveLeft = false; break;
+                case 'ArrowDown':
+                case 'KeyS': moveBackward = false; break;
+                case 'ArrowRight':
+                case 'KeyD': moveRight = false; break;
+            }
+        }
+
+        function onMouseClick(event) {
+            if (!controlsEnabled) return;
+            shootFootball();
+        }
+
+        // --- Game Mechanics ---
+
+        function shootFootball() {
+            const footballGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            // Simple black and white texture approximation via face colors? 
+            // Just use white for now for performance/simplicity or load a generic texture
+            const footballMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); 
+            
+            const football = new THREE.Mesh(footballGeo, footballMat);
+            
+            // Start at camera position
+            football.position.copy(camera.position);
+            // Move slightly forward so we don't clip into camera
+            football.position.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(1));
+
+            // Direction
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            
+            football.userData = {
+                velocity: dir.multiplyScalar(30), // Speed
+                gravity: new THREE.Vector3(0, -15, 0),
+                active: true
+            };
+
+            scene.add(football);
+            footballs.push(football);
+        }
+
+        function updateScore() {
+            const remaining = enemies.length;
+            document.getElementById('score').innerText = score;
+            document.getElementById('enemies-count').innerText = remaining;
+            
+            if(remaining === 0 && score > 0) {
+                // Win condition
+                const h1 = document.querySelector('#instructions h1');
+                h1.innerText = "VICTORY! SWANSEA WINS!";
+                const p = document.querySelector('#instructions p');
+                p.innerText = "The stadium is clear.";
+            }
+        }
+
+        function checkCollisions() {
+            // Football vs Ground/Bounds
+            for (let i = footballs.length - 1; i >= 0; i--) {
+                const b = footballs[i];
+                if (b.position.y < 0.3 || b.position.x > 70 || b.position.x < -70 || b.position.z > 50 || b.position.z < -50) {
+                    scene.remove(b);
+                    footballs.splice(i, 1);
+                    continue;
+                }
+
+                // Football vs Enemy
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const dist = b.position.distanceTo(enemy.position);
+                    // Height check approx
+                    if (dist < 1.5 && b.position.y < 2) {
+                        // HIT!
+                        scene.remove(enemy);
+                        enemies.splice(j, 1);
+                        
+                        // Remove ball too
+                        scene.remove(b);
+                        footballs.splice(i, 1);
+                        
+                        score++;
+                        updateScore();
+                        break; // Ball is gone
+                    }
+                }
+            }
+        }
+
+        function updateEnemies(delta) {
+            // Simple AI: Wander
+            enemies.forEach(enemy => {
+                // Move
+                const move = enemy.userData.direction.clone().multiplyScalar(enemy.userData.speed * delta);
+                enemy.position.add(move);
+
+                // Bounce off walls (Pitch bounds)
+                if (enemy.position.x > 55 || enemy.position.x < -55) enemy.userData.direction.x *= -1;
+                if (enemy.position.z > 35 || enemy.position.z < -35) enemy.userData.direction.z *= -1;
+
+                // Face direction
+                enemy.lookAt(enemy.position.clone().add(enemy.userData.direction));
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+
+            if (controlsEnabled) {
+                // Physics for player movement
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * 100.0 * delta; // Gravity
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize(); // consistent movement in all directions
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 400.0 * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 400.0 * delta;
+
+                // Update controls manually since we aren't using the class object for movement, just Look
+                controls = { object: camera }; // Mock for logic below
+                
+                // Move Camera logic
+                controls.object.translateX(velocity.x * delta);
+                controls.object.translateZ(velocity.z * delta);
+                controls.object.position.y += (velocity.y * delta); 
+
+                if (controls.object.position.y < 2) {
+                    velocity.y = 0;
+                    controls.object.position.y = 2;
+                    canJump = true;
+                }
+
+                // --- Game Logic ---
+                
+                // Update Footballs
+                footballs.forEach(b => {
+                    b.userData.velocity.add(b.userData.gravity.clone().multiplyScalar(delta));
+                    b.position.add(b.userData.velocity.clone().multiplyScalar(delta));
+                    b.rotation.x += 10 * delta;
+                    b.rotation.z += 10 * delta;
+                });
+
+                updateEnemies(delta);
+                checkCollisions();
+            }
+
+            prevTime = time;
+            renderer.render(scene, camera);
+        }
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./swans-sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+    </script>
+</body>
+</html>

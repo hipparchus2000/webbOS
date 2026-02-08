@@ -1,17 +1,16 @@
 # WebbOS TODO List
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-06
 
 ---
 
 ## Critical Issues (Must Fix First)
 
-- [ ] **Mouse Cursor Freezing** 🔥 CRITICAL
-  - Mouse works but freezes after extended movement
-  - Multiple fix attempts made (redraw optimization, bounds checking, simplified drawing)
-  - Likely related to lock contention or interrupt handler timing
-  - Temporarily deferred - needs deeper investigation
-  - Status: IN PROGRESS
+- [x] **Mouse Cursor Freezing** 🔥 FIXED
+  - Migrated from IRQ-driven events to timer-based atomic polling
+  - Mouse IRQ handler now only updates AtomicI32 position values
+  - Main loop polls at 40Hz timer interval
+  - Status: RESOLVED
 
 ---
 
@@ -32,25 +31,55 @@
   - [ ] Enable file creation/saving to Desktop from apps
   - [ ] Enable saving to Desktop subfolders
 
-- [ ] **Browser Testing & Verification**
-  - [ ] Test browser launch from desktop
+- [ ] **Browser Improvements**
+  - [x] Browser launches from desktop icon click
+  - [x] Browser address bar clickable for URL entry
+  - [x] Keyboard input for typing URLs
+  - [x] Text cursor/caret in address bar (blinks at ~500ms)
+  - [x] URL navigation (Enter key loads page - logs URL)
+  - [x] **Optimized browser window redraw** 🔥 
+    - Added dirty region tracking
+    - Cursor blink only redraws address bar (not entire window)
+    - Full redraw only on open/close/major changes
+    - Separate `draw_address_bar()` and `clear_address_bar_cursor()` methods
   - [ ] Verify browser can display web pages
-  - [ ] Test navigation (back/forward, URL bar)
+  - [ ] Test navigation (back/forward buttons)
   - [ ] Test saving downloaded files to Desktop
 
-- [ ] **App Store Architecture**
-  - Current thought: Progressive Web Apps (PWA) instead of native packages
-  - PWA manifest parsing (JSON)
-  - Service worker support (simplified)
-  - Install to desktop from URLs
+- [x] **App Store** ✅ COMPLETE
+  - [x] Open App Store (apps.html) when App Store icon clicked
+  - [x] Created `\apps` folder in FAT32 with apps.html
+  - [x] Added games folder (tetris.html, snake.html, pong.html)
+  - [x] Added utils folder (calculator.html, clock.html, weather.html)
+  - [x] Build process copies all apps to FAT32 image
+  - [x] App Store displays available apps with descriptions
+  - [x] Categories: Games and Utilities
+  - [ ] Architecture: Progressive Web Apps (PWA) instead of native packages (deferred)
+  - [ ] PWA manifest parsing (JSON) (deferred)
+  - [ ] Service worker support (simplified) (deferred)
+  - [ ] Install to desktop from URLs (deferred)
 
 ---
 
 ## Medium Priority
 
-- [ ] **File Manager Integration**
-  - [ ] Browse FAT32 filesystem
-  - [ ] Create/delete/rename files and folders
+- [x] **File Manager (Files App)** ✅ COMPLETE
+  - [x] Open File Manager window when Files icon clicked
+  - [x] Basic window with title bar, path bar, file list, status bar
+  - [x] Display files with icons (📁 folder vs 📄 file)
+  - [x] Show file sizes in human-readable format (B, KB, MB, GB)
+  - [x] Click to select files (highlight in blue)
+  - [x] Double-click folders to navigate
+  - [x] Added `fs::read_dir()` API for directory listing
+  - [x] Block device wrapper for FAT32 (`block_wrapper.rs`)
+  - [x] Boot disk auto-mount at startup
+  - [x] Navigate up to parent folder ("..")
+  - [x] Delete files with Delete key (mock)
+  - [x] Open files with Enter key
+  - [x] File type detection (.txt → Notepad, .html → Browser)
+  - [x] Fixed no_std compatibility (no `format!` macro, no `std::`)
+  - [ ] Actual FAT32 filesystem integration (falls back to mock data if disk read fails)
+  - [ ] Create/rename files and folders
   - [ ] Copy/paste/move operations
   - [ ] File properties dialog
 
@@ -75,9 +104,13 @@
 ## Low Priority / Nice to Have
 
 - [ ] **Performance Optimizations**
+  - [ ] **Browser window redraw is slow** 🔥 
+    - Drawing entire browser window every frame is painful
+    - Need dirty rectangle tracking (only redraw changed regions)
+    - Consider double buffering for smoother rendering
   - [ ] Reduce binary size
   - [ ] Faster heap allocation
-  - [ ] Optimize graphics rendering (dirty rectangle tracking)
+  - [ ] Optimize graphics rendering globally (dirty rectangle tracking)
   - [ ] Implement double buffering for smoother rendering
 
 - [ ] **Real Hardware Testing**

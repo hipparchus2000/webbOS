@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A classic platformer game with coins and portals">
+<meta name="theme-color" content="#667eea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Platform">
+<link rel="manifest" href="./platform.manifest.json">
+<title>Platform Adventure</title>
+<style>
+  body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; font-family: Arial; }
+  canvas { border: 3px solid #444; }
+  #info { position: absolute; top: 20px; color: white; font-size: 24px; }
+</style>
+</head>
+<body>
+<div id="info">Coins: <span id="coins">0</span> | Reach the GOLD PORTAL!</div>
+<canvas id="game" width="800" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const coinText = document.getElementById('coins');
+
+// Game state
+let keys = {};
+let coins = 0;
+let gameWon = false;
+let currentLevel = 1;
+
+// Audio context for 8-bit music
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let musicPlaying = false;
+let musicTimeout = null;
+
+// 8-bit platformer music generator
+function playNote(frequency, startTime, duration, type = 'square') {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = type;
+  osc.frequency.value = frequency;
+
+  gain.gain.setValueAtTime(0.1, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+function playChiptune() {
+  if (!musicPlaying) return;
+
+  const now = audioCtx.currentTime;
+  const beat = 0.15; // Tempo
+
+  // Melody notes (frequencies in Hz)
+  const melody = [
+    523.25, 659.25, 783.99, 659.25, 523.25, 659.25, 783.99, 1046.5, // Main theme
+    587.33, 698.46, 880.00, 698.46, 587.33, 698.46, 880.00, 1174.7, // Variation
+    523.25, 659.25, 783.99, 659.25, 523.25, 659.25, 783.99, 1046.5,
+    493.88, 587.33, 739.99, 880.00, 739.99, 587.33, 523.25, 493.88
+  ];
+
+  // Bass line
+  const bass = [261.63, 261.63, 329.63, 329.63, 293.66, 293.66, 246.94, 246.94];
+
+  // Play melody
+  melody.forEach((freq, i) => {
+    playNote(freq, now + i * beat, beat * 0.9, 'square');
+  });
+
+  // Play bass (lower octave, longer notes)
+  bass.forEach((freq, i) => {
+    playNote(freq * 0.5, now + i * beat * 4, beat * 3.8, 'triangle');
+  });
+
+  // Loop the music
+  if (musicPlaying) {
+    musicTimeout = setTimeout(() => playChiptune(), melody.length * beat * 1000);
+  }
+}
+
+// Start music on first user interaction
+function startMusic() {
+  if (!musicPlaying) {
+    musicPlaying = true;
+    audioCtx.resume();
+    playChiptune();
+  }
+}
+
+// Stop music
+function stopMusic() {
+  musicPlaying = false;
+  if (musicTimeout) {
+    clearTimeout(musicTimeout);
+    musicTimeout = null;
+  }
+}
+
+// Sound effect for collecting coins
+function playCoinSound() {
+  const now = audioCtx.currentTime;
+  const notes = [523.25, 659.25, 783.99]; // C, E, G - ascending arpeggio
+  notes.forEach((freq, i) => {
+    playNote(freq, now + i * 0.05, 0.08, 'square');
+  });
+}
+
+// Sound effect for winning
+function playWinSound() {
+  const now = audioCtx.currentTime;
+  const victoryMelody = [
+    523.25, 659.25, 783.99, 1046.5, 1318.5, 1568.0 // Ascending victory fanfare
+  ];
+  victoryMelody.forEach((freq, i) => {
+    playNote(freq, now + i * 0.1, 0.15, 'square');
+  });
+  // Add some bass notes
+  playNote(261.63, now, 0.3, 'triangle');
+  playNote(329.63, now + 0.3, 0.3, 'triangle');
+  playNote(392.00, now + 0.6, 0.4, 'triangle');
+}
+
+// Sound effect for falling "ahhhggg"
+function playFallSound() {
+  const now = audioCtx.currentTime;
+  const duration = 0.8;
+
+  // Descending pitch to simulate falling scream
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(800, now); // Start high
+  osc.frequency.exponentialRampToValueAtTime(200, now + duration); // Drop low
+
+  // Fade out
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+// Player
+const player = {
+  x: 50, y: 200, width: 30, height: 30,
+  velX: 0, velY: 0,
+  speed: 5, jumpPower: 12,
+  grounded: false, color: '#4CAF50'
+};
+
+// Level data
+const levels = {
+  1: {
+    platforms: [
+      {x: 0, y: 350, width: 200, height: 50},
+      {x: 250, y: 300, width: 150, height: 20},
+      {x: 450, y: 250, width: 100, height: 20},
+      {x: 600, y: 200, width: 150, height: 20},
+      {x: 350, y: 150, width: 100, height: 20},
+      {x: 0, y: 100, width: 150, height: 20},
+      {x: 700, y: 350, width: 100, height: 50}
+    ],
+    coins: [
+      {x: 300, y: 260, width: 20, height: 20, collected: false},
+      {x: 480, y: 210, width: 20, height: 20, collected: false},
+      {x: 650, y: 160, width: 20, height: 20, collected: false},
+      {x: 50, y: 60, width: 20, height: 20, collected: false},
+      {x: 400, y: 110, width: 20, height: 20, collected: false}
+    ],
+    goal: {x: 720, y: 300, width: 40, height: 50},
+    background: '#87CEEB'
+  },
+  2: {
+    platforms: [
+      {x: 0, y: 380, width: 800, height: 20}, // Floor
+      {x: 0, y: 0, width: 20, height: 400}, // Left wall
+      {x: 780, y: 0, width: 20, height: 400}, // Right wall
+      {x: 100, y: 300, width: 80, height: 60, color: '#8B4513'}, // Sofa
+      {x: 300, y: 320, width: 60, height: 60, color: '#654321'}, // Table
+      {x: 500, y: 250, width: 100, height: 20}, // Upper platform
+      {x: 650, y: 180, width: 100, height: 20}, // Stairs
+      {x: 650, y: 220, width: 100, height: 20}
+    ],
+    coins: [
+      {x: 120, y: 260, width: 20, height: 20, collected: false},
+      {x: 320, y: 280, width: 20, height: 20, collected: false},
+      {x: 520, y: 210, width: 20, height: 20, collected: false},
+      {x: 670, y: 140, width: 20, height: 20, collected: false},
+      {x: 400, y: 100, width: 20, height: 20, collected: false}
+    ],
+    goal: {x: 700, y: 130, width: 40, height: 50},
+    background: '#2C1810',
+    lift: {x: 400, y: 300, width: 60, height: 15, velY: -2, minY: 100, maxY: 340}
+  }
+};
+
+// Current level references
+let platforms = levels[1].platforms;
+let coinArray = levels[1].coins;
+let goal = levels[1].goal;
+let lift = null;
+
+// Input handling
+document.addEventListener('keydown', (e) => {
+  startMusic();
+  keys[e.key] = true;
+});
+document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+// Load level
+function loadLevel(levelNum) {
+  currentLevel = levelNum;
+  const level = levels[levelNum];
+  platforms = level.platforms;
+  coinArray = level.coins;
+  goal = level.goal;
+  lift = level.lift ? {...level.lift} : null;
+
+  // Reset player
+  player.x = 50;
+  player.y = 200;
+  player.velX = 0;
+  player.velY = 0;
+
+  // Reset game state
+  gameWon = false;
+  coins = 0;
+  coinText.textContent = coins;
+
+  // Restart music
+  if (!musicPlaying) {
+    musicPlaying = true;
+    playChiptune();
+  }
+}
+
+// Collision detection
+function checkCollision(rect1, rect2) {
+  return rect1.x < rect2.x + rect2.width &&
+         rect1.x + rect1.width > rect2.x &&
+         rect1.y < rect2.y + rect2.height &&
+         rect1.y + rect1.height > rect2.y;
+}
+
+// Game loop
+function gameLoop() {
+  if (gameWon) return;
+
+  // Clear canvas with level background
+  ctx.fillStyle = levels[currentLevel].background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Update lift if it exists
+  if (lift) {
+    lift.y += lift.velY;
+    if (lift.y <= lift.minY || lift.y >= lift.maxY) {
+      lift.velY *= -1; // Reverse direction
+    }
+  }
+  
+  // Player movement
+  if (keys['ArrowLeft']) player.velX = -player.speed;
+  else if (keys['ArrowRight']) player.velX = player.speed;
+  else player.velX *= 0.8; // Friction
+  
+  if (keys[' '] && player.grounded) {
+    player.velY = -player.jumpPower;
+  }
+  
+  // Gravity
+  player.velY += 0.5;
+  
+  // Update position
+  player.x += player.velX;
+  player.y += player.velY;
+  
+  // Collision with platforms (including lift)
+  player.grounded = false;
+  const allPlatforms = lift ? [...platforms, lift] : platforms;
+
+  allPlatforms.forEach(p => {
+    if (checkCollision(player, p)) {
+      // Landing on top
+      if (player.velY > 0 && player.y < p.y) {
+        player.y = p.y - player.height;
+        player.velY = 0;
+        player.grounded = true;
+        // Move with lift
+        if (p === lift) {
+          player.y += lift.velY;
+        }
+      }
+      // Hitting from below
+      else if (player.velY < 0 && player.y > p.y) {
+        player.y = p.y + p.height;
+        player.velY = 0;
+      }
+      // Side collisions
+      else if (player.velX > 0 && player.x < p.x) {
+        player.x = p.x - player.width;
+      } else if (player.velX < 0 && player.x > p.x) {
+        player.x = p.x + p.width;
+      }
+    }
+  });
+  
+  // Keep player in bounds
+  if (player.x < 0) player.x = 0;
+  if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+  if (player.y > canvas.height) {
+    playFallSound(); // Play falling scream
+    player.x = 50; player.y = 200; // Respawn
+    player.velX = 0; player.velY = 0; // Reset velocity
+  }
+  
+  // Draw platforms
+  platforms.forEach(p => {
+    ctx.fillStyle = p.color || '#8B4513';
+    ctx.fillRect(p.x, p.y, p.width, p.height);
+  });
+
+  // Draw lift
+  if (lift) {
+    ctx.fillStyle = '#666';
+    ctx.fillRect(lift.x, lift.y, lift.width, lift.height);
+    // Lift cable
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(lift.x + lift.width/2, 0);
+    ctx.lineTo(lift.x + lift.width/2, lift.y);
+    ctx.stroke();
+  }
+  
+  // Draw coins
+  coinArray.forEach(coin => {
+    if (!coin.collected) {
+      // 3D rotation around vertical axis
+      const time = Date.now() / 500;
+      const rotationAngle = time % (Math.PI * 2);
+      const scale = Math.cos(rotationAngle); // Scale for 3D effect
+
+      ctx.save();
+      ctx.translate(coin.x + coin.width/2, coin.y + coin.height/2);
+
+      // Draw coin as ellipse with varying width for 3D rotation
+      const coinRadius = coin.width / 2;
+      const scaledWidth = Math.abs(scale) * coinRadius;
+
+      // Outer gold circle
+      ctx.beginPath();
+      ctx.ellipse(0, 0, scaledWidth + 2, coinRadius + 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFA500'; // Orange border
+      ctx.fill();
+
+      // Inner gold circle
+      ctx.beginPath();
+      ctx.ellipse(0, 0, scaledWidth, coinRadius, 0, 0, Math.PI * 2);
+      ctx.fillStyle = scale > 0 ? '#FFD700' : '#DAA520'; // Different shades for front/back
+      ctx.fill();
+
+      // Add shine effect
+      if (Math.abs(scale) > 0.3) {
+        ctx.beginPath();
+        ctx.ellipse(-scaledWidth/3, -coinRadius/3, Math.abs(scaledWidth/3), coinRadius/3, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      // Collect coin
+      if (checkCollision(player, coin)) {
+        coin.collected = true;
+        coins++;
+        coinText.textContent = coins;
+        playCoinSound();
+      }
+    }
+  });
+  
+  // Draw goal (golden portal)
+  if (!gameWon) {
+    const pulse = Math.sin(Date.now() / 200) * 5;
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(goal.x - pulse/2, goal.y - pulse/2, goal.width + pulse, goal.height + pulse);
+    ctx.fillStyle = '#FFA500';
+    ctx.font = '20px Arial';
+    ctx.fillText('GOAL', goal.x + 2, goal.y + 30);
+  }
+  
+  // Check win condition
+  if (checkCollision(player, goal) && !gameWon) {
+    gameWon = true;
+    stopMusic(); // Stop the music loop
+    playWinSound();
+
+    // Check if there's a next level
+    if (currentLevel < Object.keys(levels).length) {
+      // Show level complete message
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 36px Arial';
+      ctx.fillText('LEVEL COMPLETE!', 220, 180);
+      ctx.font = '20px Arial';
+      ctx.fillText(`Coins: ${coins}/5`, 320, 220);
+      ctx.fillText('Loading next level...', 280, 260);
+
+      // Load next level after delay
+      setTimeout(() => {
+        loadLevel(currentLevel + 1);
+        gameLoop();
+      }, 2000);
+    } else {
+      // Final victory
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 48px Arial';
+      ctx.fillText('YOU WIN!', 260, 200);
+      ctx.font = '24px Arial';
+      ctx.fillText(`Total Coins: ${coins}/5`, 300, 250);
+    }
+  }
+  
+  // Draw player (simple character)
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x, player.y, player.width, player.height);
+  // Eyes
+  ctx.fillStyle = 'white';
+  ctx.fillRect(player.x + 5, player.y + 6, 6, 6);
+  ctx.fillRect(player.x + 19, player.y + 6, 6, 6);
+  ctx.fillStyle = 'black';
+  ctx.fillRect(player.x + 7, player.y + 8, 2, 2);
+  ctx.fillRect(player.x + 21, player.y + 8, 2, 2);
+  
+  requestAnimationFrame(gameLoop);
+}
+
+// Start game
+gameLoop();
+
+// Register service worker for PWA functionality
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./platform-sw.js')
+      .then((registration) => {
+        console.log('ServiceWorker registration successful:', registration.scope);
+      })
+      .catch((error) => {
+        console.log('ServiceWorker registration failed:', error);
+      });
+  });
+}
+</script>
+</body>
+</html>

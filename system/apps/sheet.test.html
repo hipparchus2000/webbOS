@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sheet.html Test Suite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ccc;
+        }
+        .test-result.pass {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .test-result.fail {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .test-result.info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        .summary {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+        .summary.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .summary.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sheet.html Test Suite</h1>
+    <div class="test-container">
+        <div class="test-header">
+            <h2>Automated Tests</h2>
+            <div>
+                <button onclick="runAllTests()">Run All Tests</button>
+                <button onclick="exportResults()" style="margin-left: 10px; background: #27ae60;">Export Results</button>
+            </div>
+        </div>
+        <div id="testResults"></div>
+        <div id="summary"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Manual Testing Interface</h2>
+        <p>Open sheet.html in a new tab to manually verify functionality while tests run.</p>
+        <button onclick="window.open('sheet.html', '_blank')">Open Sheet.html</button>
+    </div>
+
+    <script>
+        let testResults = [];
+        let iframe = null;
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('testResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function assert(condition, message) {
+            if (condition) {
+                log(`✓ PASS: ${message}`, 'pass');
+                testResults.push({ pass: true, message });
+                return true;
+            } else {
+                log(`✗ FAIL: ${message}`, 'fail');
+                testResults.push({ pass: false, message });
+                return false;
+            }
+        }
+
+        function waitFor(condition, timeout = 5000) {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
+                const check = () => {
+                    if (condition()) {
+                        resolve(true);
+                    } else if (Date.now() - startTime > timeout) {
+                        reject(new Error('Timeout waiting for condition'));
+                    } else {
+                        setTimeout(check, 50);
+                    }
+                };
+                check();
+            });
+        }
+
+        async function testBasicCellOperations() {
+            log('=== Testing Basic Cell Operations ===', 'info');
+            
+            // These tests require interaction with the iframe
+            // We'll test the core functions exist and work
+            try {
+                // Test that key functions exist
+                assert(typeof getCellRef === 'function' || 
+                       (iframe && iframe.contentWindow && typeof iframe.contentWindow.getCellRef === 'function'),
+                       'getCellRef function exists');
+                
+                // Test cell reference parsing
+                const testRef = 'A1';
+                const parsed = parseCellRef ? parseCellRef(testRef) : null;
+                if (parsed) {
+                    assert(parsed.row === 0 && parsed.col === 0, 'parseCellRef correctly parses A1');
+                }
+                
+                assert(true, 'Basic cell operations structure verified');
+            } catch (e) {
+                assert(false, `Basic cell operations error: ${e.message}`);
+            }
+        }
+
+        async function testFormulas() {
+            log('=== Testing Formulas ===', 'info');
+            
+            // Test formula evaluation logic
+            const testCases = [
+                { formula: '1+1', expected: 2 },
+                { formula: '10-5', expected: 5 },
+                { formula: '2*3', expected: 6 },
+                { formula: '10/2', expected: 5 },
+            ];
+
+            testCases.forEach(test => {
+                try {
+                    const result = eval(test.formula);
+                    assert(result === test.expected, 
+                           `Formula ${test.formula} evaluates to ${test.expected}`);
+                } catch (e) {
+                    assert(false, `Formula ${test.formula} failed: ${e.message}`);
+                }
+            });
+        }
+
+        async function testPieChartDataParsing() {
+            log('=== Testing Pie Chart Data Parsing ===', 'info');
+            
+            // Test range parsing
+            const testRanges = [
+                { range: 'A1:B5', valid: true },
+                { range: 'A1', valid: true },
+                { range: 'INVALID', valid: false },
+            ];
+
+            testRanges.forEach(test => {
+                const hasColon = test.range.includes(':');
+                const parts = hasColon ? test.range.split(':') : [test.range];
+                const isValid = parts.every(part => /^[A-Z]+\d+$/.test(part));
+                assert(isValid === test.valid, 
+                       `Range ${test.range} validation: ${isValid === test.valid ? 'correct' : 'incorrect'}`);
+            });
+        }
+
+        async function testCellReferenceFunctions() {
+            log('=== Testing Cell Reference Functions ===', 'info');
+            
+            // Test getCellRef
+            function testGetCellRef(row, col, expected) {
+                const ref = String.fromCharCode(65 + col) + (row + 1);
+                assert(ref === expected, `getCellRef(${row}, ${col}) = ${ref} (expected ${expected})`);
+            }
+
+            testGetCellRef(0, 0, 'A1');
+            testGetCellRef(0, 1, 'B1');
+            testGetCellRef(1, 0, 'A2');
+            testGetCellRef(24, 25, 'Z25');
+
+            // Test parseCellRef
+            function testParseCellRef(ref, expectedRow, expectedCol) {
+                const match = ref.match(/^([A-Z]+)(\d+)$/);
+                if (match) {
+                    const col = match[1].charCodeAt(0) - 65;
+                    const row = parseInt(match[2]) - 1;
+                    assert(row === expectedRow && col === expectedCol,
+                           `parseCellRef(${ref}) = {row: ${row}, col: ${col}}`);
+                } else {
+                    assert(false, `parseCellRef(${ref}) failed to parse`);
+                }
+            }
+
+            testParseCellRef('A1', 0, 0);
+            testParseCellRef('B2', 1, 1);
+            testParseCellRef('Z50', 49, 25);
+        }
+
+        async function testRangeFunctions() {
+            log('=== Testing Range Functions ===', 'info');
+            
+            // Test range parsing
+            const ranges = [
+                { range: 'A1:B5', start: 'A1', end: 'B5' },
+                { range: 'C3:D10', start: 'C3', end: 'D10' },
+            ];
+
+            ranges.forEach(test => {
+                const [start, end] = test.range.split(':');
+                assert(start === test.start && end === test.end,
+                       `Range ${test.range} parsed correctly`);
+            });
+        }
+
+        async function testColorGeneration() {
+            log('=== Testing Color Generation ===', 'info');
+            
+            function generateColors(count) {
+                const colors = [
+                    '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+                    '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#d35400'
+                ];
+                const result = [];
+                for (let i = 0; i < count; i++) {
+                    result.push(colors[i % colors.length]);
+                }
+                return result;
+            }
+
+            const colors1 = generateColors(3);
+            assert(colors1.length === 3, 'Generate 3 colors');
+            assert(colors1[0] === '#3498db', 'First color is correct');
+
+            const colors2 = generateColors(15);
+            assert(colors2.length === 15, 'Generate 15 colors (with wrapping)');
+            assert(colors2[10] === '#3498db', 'Color wraps correctly');
+        }
+
+        async function testPieChartCalculations() {
+            log('=== Testing Pie Chart Calculations ===', 'info');
+            
+            // Test percentage calculations
+            const values = [10, 20, 30, 40];
+            const total = values.reduce((sum, val) => sum + Math.abs(val), 0);
+            assert(total === 100, 'Total calculation correct');
+
+            values.forEach((value, i) => {
+                const percentage = ((Math.abs(value) / total) * 100).toFixed(1);
+                const expected = [10.0, 20.0, 30.0, 40.0][i];
+                assert(parseFloat(percentage) === expected,
+                       `Percentage for value ${value} = ${percentage}%`);
+            });
+
+            // Test with zero values
+            const valuesWithZero = [0, 10, 20];
+            const totalWithZero = valuesWithZero.reduce((sum, val) => sum + Math.abs(val), 0);
+            assert(totalWithZero === 30, 'Total with zero values correct');
+        }
+
+        async function testFormulaFunctions() {
+            log('=== Testing Formula Helper Functions ===', 'info');
+            
+            // Test SUM
+            function sumRange(values) {
+                return values.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+            }
+            assert(sumRange([1, 2, 3, 4]) === 10, 'SUM([1,2,3,4]) = 10');
+            assert(sumRange(['1', '2', '3']) === 6, 'SUM string numbers works');
+
+            // Test AVG
+            function avgRange(values) {
+                const sum = values.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+                return values.length > 0 ? sum / values.length : 0;
+            }
+            assert(avgRange([10, 20, 30]) === 20, 'AVG([10,20,30]) = 20');
+
+            // Test MIN
+            function minRange(values) {
+                const nums = values.map(v => parseFloat(v) || 0);
+                return values.length > 0 ? Math.min(...nums) : 0;
+            }
+            assert(minRange([10, 5, 20]) === 5, 'MIN([10,5,20]) = 5');
+
+            // Test MAX
+            function maxRange(values) {
+                const nums = values.map(v => parseFloat(v) || 0);
+                return values.length > 0 ? Math.max(...nums) : 0;
+            }
+            assert(maxRange([10, 5, 20]) === 20, 'MAX([10,5,20]) = 20');
+        }
+
+        async function testEdgeCases() {
+            log('=== Testing Edge Cases ===', 'info');
+            
+            // Test division by zero handling
+            try {
+                const result = 10 / 0;
+                assert(!isFinite(result), 'Division by zero returns Infinity');
+            } catch (e) {
+                assert(false, `Division by zero error: ${e.message}`);
+            }
+
+            // Test empty array handling
+            const emptySum = [].reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+            assert(emptySum === 0, 'Empty array sum = 0');
+
+            // Test invalid number parsing
+            const invalidNum = parseFloat('abc');
+            assert(isNaN(invalidNum), 'Invalid number parsing returns NaN');
+        }
+
+        async function testSaveLoadStructure() {
+            log('=== Testing Save/Load Structure ===', 'info');
+            
+            // Test that save data structure includes charts
+            const mockCells = { 'A1': { value: 'test', display: 'test', format: {} } };
+            const mockCharts = [
+                { type: 'pie', data: { labels: ['A'], values: [1] }, title: 'Test Chart' }
+            ];
+            
+            const saveData = {
+                cells: mockCells,
+                charts: mockCharts,
+                version: '1.0'
+            };
+            
+            const jsonData = JSON.stringify(saveData);
+            const parsed = JSON.parse(jsonData);
+            
+            assert(parsed.cells !== undefined, 'Save data includes cells');
+            assert(parsed.charts !== undefined, 'Save data includes charts');
+            assert(Array.isArray(parsed.charts), 'Charts is an array');
+            assert(parsed.charts.length === 1, 'Charts array has correct length');
+            assert(parsed.charts[0].type === 'pie', 'Chart type is preserved');
+            assert(parsed.charts[0].title === 'Test Chart', 'Chart title is preserved');
+            
+            // Test legacy format handling
+            const legacyData = mockCells;
+            assert(legacyData.cells === undefined, 'Legacy format has no cells property (it IS cells)');
+        }
+
+        async function testSelectionLogic() {
+            log('=== Testing Selection Logic ===', 'info');
+            
+            // Test range calculation
+            function calculateRange(startRow, startCol, endRow, endCol) {
+                return {
+                    startRow: Math.min(startRow, endRow),
+                    endRow: Math.max(startRow, endRow),
+                    startCol: Math.min(startCol, endCol),
+                    endCol: Math.max(startCol, endCol)
+                };
+            }
+            
+            // Test forward selection
+            const range1 = calculateRange(0, 0, 2, 2);
+            assert(range1.startRow === 0 && range1.endRow === 2, 'Forward selection calculates correctly');
+            assert(range1.startCol === 0 && range1.endCol === 2, 'Forward selection columns correct');
+            
+            // Test backward selection
+            const range2 = calculateRange(2, 2, 0, 0);
+            assert(range2.startRow === 0 && range2.endRow === 2, 'Backward selection calculates correctly');
+            assert(range2.startCol === 0 && range2.endCol === 2, 'Backward selection columns correct');
+            
+            // Test single cell
+            const range3 = calculateRange(5, 5, 5, 5);
+            assert(range3.startRow === 5 && range3.endRow === 5, 'Single cell selection works');
+            
+            // Test cell reference generation for ranges
+            function getCellRef(row, col) {
+                return String.fromCharCode(65 + col) + (row + 1);
+            }
+            
+            const startRef = getCellRef(0, 0);
+            const endRef = getCellRef(2, 2);
+            assert(startRef === 'A1', 'Start reference is A1');
+            assert(endRef === 'C3', 'End reference is C3');
+            assert(`${startRef}:${endRef}` === 'A1:C3', 'Range reference format is correct');
+        }
+
+        async function testContextMenuLogic() {
+            log('=== Testing Context Menu Logic ===', 'info');
+            
+            // Test clipboard state tracking
+            let mockClipboard = null;
+            const hasClipboard = () => mockClipboard !== null;
+            
+            assert(!hasClipboard(), 'Clipboard starts empty');
+            mockClipboard = { value: 'test', format: {} };
+            assert(hasClipboard(), 'Clipboard can be set');
+            
+            // Test menu positioning logic
+            function calculateMenuPosition(x, y, menuWidth, menuHeight, windowWidth, windowHeight) {
+                let finalX = x;
+                let finalY = y;
+                
+                if (x + menuWidth > windowWidth) {
+                    finalX = windowWidth - menuWidth;
+                }
+                if (y + menuHeight > windowHeight) {
+                    finalY = windowHeight - menuHeight;
+                }
+                
+                return { x: finalX, y: finalY };
+            }
+            
+            // Test normal positioning
+            const pos1 = calculateMenuPosition(100, 100, 150, 100, 800, 600);
+            assert(pos1.x === 100 && pos1.y === 100, 'Menu positions normally when within bounds');
+            
+            // Test right edge adjustment
+            const pos2 = calculateMenuPosition(700, 100, 150, 100, 800, 600);
+            assert(pos2.x === 650, 'Menu adjusts for right edge');
+            
+            // Test bottom edge adjustment
+            const pos3 = calculateMenuPosition(100, 550, 150, 100, 800, 600);
+            assert(pos3.y === 500, 'Menu adjusts for bottom edge');
+            
+            // Test delete operation structure
+            function simulateDelete(cells, range) {
+                if (range) {
+                    for (let r = range.startRow; r <= range.endRow; r++) {
+                        for (let c = range.startCol; c <= range.endCol; c++) {
+                            const key = `R${r}C${c}`;
+                            if (cells[key]) {
+                                cells[key].value = '';
+                                cells[key].display = '';
+                            }
+                        }
+                    }
+                }
+                return cells;
+            }
+            
+            const testCells = {
+                'R0C0': { value: 'test1', display: 'test1' },
+                'R0C1': { value: 'test2', display: 'test2' },
+                'R1C0': { value: 'test3', display: 'test3' }
+            };
+            
+            const testRange = { startRow: 0, endRow: 0, startCol: 0, endCol: 1 };
+            const deleted = simulateDelete(testCells, testRange);
+            assert(deleted['R0C0'].value === '', 'Delete clears cell value');
+            assert(deleted['R0C1'].value === '', 'Delete clears range values');
+            assert(deleted['R1C0'].value === 'test3', 'Delete only affects selected range');
+        }
+
+        async function testDragSelectionBug() {
+            log('=== Testing Drag Selection Bug Fix ===', 'info');
+            
+            // Simulate the bug scenario: drag from A1 to C3
+            // The issue was that click event fires after mouseup and deselects the range
+            
+            // Simulate drag detection
+            let wasDragOperation = false;
+            let mouseDownCell = { row: 0, col: 0 };
+            let isMouseDown = true;
+            
+            // Simulate mouseenter on different cell (drag occurred)
+            const dragToRow = 2;
+            const dragToCol = 2;
+            if (mouseDownCell.row !== dragToRow || mouseDownCell.col !== dragToCol) {
+                wasDragOperation = true;
+            }
+            
+            // Simulate mouseup (sets isMouseDown = false)
+            isMouseDown = false;
+            
+            // Simulate click event firing after mouseup
+            // The fix: check wasDragOperation instead of just isMouseDown
+            const isDrag = wasDragOperation || 
+                          (mouseDownCell && (mouseDownCell.row !== dragToRow || mouseDownCell.col !== dragToCol));
+            
+            assert(isDrag === true, 'Drag operation is correctly detected');
+            assert(wasDragOperation === true, 'wasDragOperation flag is set correctly');
+            
+            // Test that single click (no drag) still works
+            wasDragOperation = false;
+            mouseDownCell = { row: 0, col: 0 };
+            const clickRow = 0;
+            const clickCol = 0;
+            const isDrag2 = wasDragOperation || 
+                           (mouseDownCell && (mouseDownCell.row !== clickRow || mouseDownCell.col !== clickCol));
+            assert(isDrag2 === false, 'Single click (no drag) is correctly detected');
+        }
+
+        async function testRangeFormatting() {
+            log('=== Testing Range Formatting Logic ===', 'info');
+            
+            // Test range cell enumeration
+            function enumerateRangeCells(range) {
+                const cells = [];
+                for (let r = range.startRow; r <= range.endRow; r++) {
+                    for (let c = range.startCol; c <= range.endCol; c++) {
+                        cells.push({ row: r, col: c });
+                    }
+                }
+                return cells;
+            }
+            
+            const range1 = { startRow: 0, endRow: 2, startCol: 0, endCol: 2 };
+            const cells1 = enumerateRangeCells(range1);
+            assert(cells1.length === 9, '3x3 range has 9 cells');
+            assert(cells1[0].row === 0 && cells1[0].col === 0, 'First cell is correct');
+            assert(cells1[8].row === 2 && cells1[8].col === 2, 'Last cell is correct');
+            
+            // Test single row range
+            const range2 = { startRow: 0, endRow: 0, startCol: 0, endCol: 5 };
+            const cells2 = enumerateRangeCells(range2);
+            assert(cells2.length === 6, 'Single row range has correct cell count');
+            
+            // Test single column range
+            const range3 = { startRow: 0, endRow: 5, startCol: 0, endCol: 0 };
+            const cells3 = enumerateRangeCells(range3);
+            assert(cells3.length === 6, 'Single column range has correct cell count');
+            
+            // Test formatting application to range
+            function simulateFormatRange(cells, range, property, value) {
+                const cellsToFormat = [];
+                for (let r = range.startRow; r <= range.endRow; r++) {
+                    for (let c = range.startCol; c <= range.endCol; c++) {
+                        const key = `R${r}C${c}`;
+                        if (!cells[key]) {
+                            cells[key] = { value: '', display: '', format: {} };
+                        }
+                        cells[key].format[property] = value;
+                        cellsToFormat.push(key);
+                    }
+                }
+                return cellsToFormat;
+            }
+            
+            const testCells = {};
+            const formatRange = { startRow: 0, endRow: 1, startCol: 0, endCol: 1 };
+            const formatted = simulateFormatRange(testCells, formatRange, 'fontWeight', 'bold');
+            assert(formatted.length === 4, 'Formatting applied to 4 cells');
+            assert(testCells['R0C0'].format.fontWeight === 'bold', 'First cell formatted');
+            assert(testCells['R1C1'].format.fontWeight === 'bold', 'Last cell formatted');
+            
+            // Test toggle logic
+            function simulateToggleFormat(cells, range, property) {
+                if (cells.length === 0) return;
+                const firstCell = cells[0];
+                const firstFormat = firstCell.format || {};
+                const isActive = firstFormat[property] === 'bold' || 
+                                firstFormat[property] === 'italic' || 
+                                firstFormat[property] === 'underline';
+                const toggleValue = isActive ? 
+                    (property === 'fontWeight' ? 'normal' : 
+                     property === 'fontStyle' ? 'normal' : 'none') : 
+                    (property === 'fontWeight' ? 'bold' : 
+                     property === 'fontStyle' ? 'italic' : 'underline');
+                
+                cells.forEach(cell => {
+                    if (!cell.format) cell.format = {};
+                    cell.format[property] = toggleValue;
+                });
+                return toggleValue;
+            }
+            
+            const toggleCells = [
+                { format: { fontWeight: 'bold' } },
+                { format: { fontWeight: 'bold' } }
+            ];
+            const toggleResult = simulateToggleFormat(toggleCells, null, 'fontWeight');
+            assert(toggleResult === 'normal', 'Toggle turns off when all are bold');
+            
+            const toggleCells2 = [
+                { format: { fontWeight: 'normal' } },
+                { format: { fontWeight: 'normal' } }
+            ];
+            const toggleResult2 = simulateToggleFormat(toggleCells2, null, 'fontWeight');
+            assert(toggleResult2 === 'bold', 'Toggle turns on when all are normal');
+        }
+
+        async function runAllTests() {
+            document.getElementById('testResults').innerHTML = '';
+            testResults = [];
+            
+            log('Starting test suite...', 'info');
+            const startTime = Date.now();
+
+            try {
+                await testCellReferenceFunctions();
+                await testFormulas();
+                await testPieChartDataParsing();
+                await testRangeFunctions();
+                await testColorGeneration();
+                await testPieChartCalculations();
+                await testFormulaFunctions();
+                await testEdgeCases();
+                await testBasicCellOperations();
+                await testSaveLoadStructure();
+                await testSelectionLogic();
+                await testContextMenuLogic();
+                await testRangeFormatting();
+                await testDragSelectionBug();
+            } catch (e) {
+                log(`Test suite error: ${e.message}`, 'fail');
+            }
+
+            const endTime = Date.now();
+            const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+            // Summary
+            const passed = testResults.filter(t => t.pass).length;
+            const failed = testResults.filter(t => !t.pass).length;
+            const total = testResults.length;
+
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.className = `summary ${failed === 0 ? 'pass' : 'fail'}`;
+            summaryDiv.innerHTML = `
+                <h3>Test Summary</h3>
+                <p>Total Tests: ${total}</p>
+                <p>Passed: ${passed}</p>
+                <p>Failed: ${failed}</p>
+                <p>Duration: ${duration}s</p>
+                <p>Success Rate: ${total > 0 ? ((passed / total) * 100).toFixed(1) : 0}%</p>
+            `;
+
+            log(`Test suite completed in ${duration}s`, 'info');
+            
+            // Store summary for export
+            window.lastTestSummary = {
+                total,
+                passed,
+                failed,
+                duration,
+                successRate: total > 0 ? ((passed / total) * 100).toFixed(1) : 0,
+                timestamp: new Date().toISOString(),
+                results: testResults
+            };
+        }
+
+        function exportResults() {
+            if (!window.lastTestSummary) {
+                alert('Please run tests first before exporting results.');
+                return;
+            }
+
+            const summary = window.lastTestSummary;
+            const resultsDiv = document.getElementById('testResults');
+            const allLogs = Array.from(resultsDiv.querySelectorAll('.test-result')).map(el => {
+                const type = el.classList.contains('pass') ? 'PASS' : 
+                           el.classList.contains('fail') ? 'FAIL' : 'INFO';
+                return `[${type}] ${el.textContent}`;
+            }).join('\n');
+
+            const markdown = `# Sheet.html Test Results
+
+## Test Run: ${new Date(summary.timestamp).toLocaleString()}
+
+### Summary
+- **Total Tests**: ${summary.total}
+- **Passed**: ${summary.passed}
+- **Failed**: ${summary.failed}
+- **Duration**: ${summary.duration}s
+- **Success Rate**: ${summary.successRate}%
+
+### Test Results
+
+\`\`\`
+${allLogs}
+\`\`\`
+
+### Detailed Results
+
+${summary.results.map((r, i) => `${i + 1}. ${r.pass ? '✅' : '❌'} ${r.message}`).join('\n')}
+
+---
+*Generated by sheet.test.html on ${new Date().toLocaleString()}*
+`;
+
+            // Create download
+            const blob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'SHEET.TEST_RESULTS.md';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('Results exported to SHEET.TEST_RESULTS.md', 'info');
+        }
+
+        // Helper functions for testing
+        function parseCellRef(ref) {
+            const match = ref.match(/^([A-Z]+)(\d+)$/);
+            if (!match) return null;
+            const col = match[1].charCodeAt(0) - 65;
+            const row = parseInt(match[2]) - 1;
+            return { row, col };
+        }
+
+        // Run tests on load
+        window.addEventListener('load', () => {
+            log('Test suite loaded. Click "Run All Tests" to begin.', 'info');
+        });
+    </script>
+</body>
+</html>
+

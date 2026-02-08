@@ -1,0 +1,33 @@
+{
+  "name": "Solitaire",
+  "short_name": "Solitaire",
+  "description": "Classic Klondike Solitaire card game",
+  "start_url": "./solitaire.html",
+  "display": "standalone",
+  "background_color": "#1e7a3e",
+  "theme_color": "#2d9f5a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Cdefs%3E%3ClinearGradient id='bgGreen' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%231e7a3e'/%3E%3Cstop offset='100%25' style='stop-color:%232d9f5a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='192' height='192' rx='20' fill='url(%23bgGreen)'/%3E%3Cg transform='translate(36, 26)'%3E%3Crect width='50' height='70' rx='6' fill='white' stroke='%23333' stroke-width='2'/%3E%3Ctext x='10' y='22' font-size='16' font-weight='bold' fill='%23c41e3a'%3EA%3C/text%3E%3Ctext x='10' y='40' font-size='20' fill='%23c41e3a'%3E%E2%99%A5%3C/text%3E%3Ctext x='25' y='52' font-size='28' fill='%23c41e3a' text-anchor='middle'%3E%E2%99%A5%3C/text%3E%3C/g%3E%3Cg transform='translate(106, 26)'%3E%3Crect width='50' height='70' rx='6' fill='white' stroke='%23333' stroke-width='2'/%3E%3Ctext x='10' y='22' font-size='16' font-weight='bold' fill='%23000'%3EK%3C/text%3E%3Ctext x='10' y='40' font-size='20' fill='%23000'%3E%E2%99%A0%3C/text%3E%3Ctext x='25' y='52' font-size='28' fill='%23000' text-anchor='middle'%3E%E2%99%A0%3C/text%3E%3C/g%3E%3Cg transform='translate(66, 96)'%3E%3Crect width='60' height='84' rx='6' fill='%23c41e3a' stroke='white' stroke-width='3'/%3E%3Crect x='6' y='6' width='48' height='72' rx='4' fill='none' stroke='white' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='bgGreen' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%231e7a3e'/%3E%3Cstop offset='100%25' style='stop-color:%232d9f5a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='50' fill='url(%23bgGreen)'/%3E%3Cg transform='translate(86, 66)'%3E%3Crect width='140' height='196' rx='12' fill='white' stroke='%23333' stroke-width='4'/%3E%3Ctext x='20' y='50' font-size='42' font-weight='bold' fill='%23c41e3a'%3EA%3C/text%3E%3Ctext x='20' y='90' font-size='52' fill='%23c41e3a'%3E%E2%99%A5%3C/text%3E%3Ctext x='70' y='130' font-size='72' fill='%23c41e3a' text-anchor='middle'%3E%E2%99%A5%3C/text%3E%3C/g%3E%3Cg transform='translate(286, 66)'%3E%3Crect width='140' height='196' rx='12' fill='white' stroke='%23333' stroke-width='4'/%3E%3Ctext x='20' y='50' font-size='42' font-weight='bold' fill='%23000'%3EK%3C/text%3E%3Ctext x='20' y='90' font-size='52' fill='%23000'%3E%E2%99%A0%3C/text%3E%3Ctext x='70' y='130' font-size='72' fill='%23000' text-anchor='middle'%3E%E2%99%A0%3C/text%3E%3C/g%3E%3Cg transform='translate(176, 262)'%3E%3Crect width='160' height='224' rx='12' fill='%23c41e3a' stroke='white' stroke-width='6'/%3E%3Crect x='16' y='16' width='128' height='192' rx='8' fill='none' stroke='white' stroke-width='4'/%3E%3C/g%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'%3E%3Cdefs%3E%3ClinearGradient id='bgGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%231e7a3e'/%3E%3Cstop offset='100%25' style='stop-color:%232d9f5a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='540' height='720' fill='url(%23bgGrad)'/%3E%3Ctext x='270' y='360' font-size='80' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'%3ESolitaire%3C/text%3E%3C/svg%3E",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
+}
