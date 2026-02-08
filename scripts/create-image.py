@@ -295,8 +295,8 @@ def add_file_to_image(f, bpb, parent_cluster, filename, data, is_directory=False
     # Add directory entry to parent
     entry = create_directory_entry(name, ext, attr, clusters[0] if clusters else 0, size)
     
-    # Find free slot in parent directory
-    fat_entries, _ = read_fat(f, bpb)
+    # Find free slot in parent directory (may need to extend directory)
+    fat_entries, fat_data = read_fat(f, bpb)
     parent_clusters = []
     current = parent_cluster
     while current < len(fat_entries):
@@ -324,13 +324,76 @@ def add_file_to_image(f, bpb, parent_cluster, filename, data, is_directory=False
         if entry_written:
             break
     
+    # If no free slot found, extend the directory with a new cluster
+    if not entry_written:
+        # Allocate new cluster for directory
+        new_cluster = allocate_clusters(f, bpb, 1)[0]
+        
+        # Link last parent cluster to new cluster
+        last_cluster = parent_clusters[-1]
+        fat_entries[last_cluster] = new_cluster
+        struct.pack_into('<I', fat_data, last_cluster * 4, new_cluster)
+        write_fat(f, bpb, fat_data)
+        
+        # Initialize new cluster and write entry at start
+        new_cluster_data = bytearray(cluster_size)
+        new_cluster_data[0:32] = entry
+        write_cluster(f, new_cluster, bpb, bytes(new_cluster_data))
+        entry_written = True
+    
     if not entry_written:
         raise ValueError("No free directory entries in parent")
     
     return clusters[0] if clusters else 0
 
 
-def create_webbos_image(output_path, bootloader_path=None, kernel_path=None, size_mb=64):
+def add_directory_recursive(f, bpb, parent_cluster, source_dir, target_name):
+    """
+    Recursively add a directory and all its contents to the image.
+    
+    Args:
+        f: File handle for the image
+        bpb: BIOS Parameter Block
+        parent_cluster: Cluster number of parent directory
+        source_dir: Path to source directory on host filesystem
+        target_name: Name for the directory in the image
+        
+    Returns:
+        The cluster number of the created directory
+    """
+    # Create the directory entry
+    dir_cluster = add_file_to_image(f, bpb, parent_cluster, target_name, b'', is_directory=True)
+    print(f"  Created {target_name}/ (cluster {dir_cluster})")
+    
+    # Walk through source directory and add all files
+    for item in sorted(os.listdir(source_dir)):
+        source_path = os.path.join(source_dir, item)
+        
+        if os.path.isdir(source_path):
+            # Recursively add subdirectory
+            add_directory_recursive(f, bpb, dir_cluster, source_path, item)
+        else:
+            # Add file
+            try:
+                with open(source_path, 'rb') as src:
+                    file_data = src.read()
+                
+                # Convert filename to FAT32 8.3 format for display
+                if '.' in item:
+                    name, ext = item.rsplit('.', 1)
+                    fat_name = f"{name[:8].upper()}.{ext[:3].upper()}"
+                else:
+                    fat_name = item[:11].upper()
+                
+                add_file_to_image(f, bpb, dir_cluster, item, file_data)
+                print(f"    Added {target_name}/{item} ({len(file_data)} bytes)")
+            except Exception as e:
+                print(f"    Warning: Failed to add {item}: {e}")
+    
+    return dir_cluster
+
+
+def create_webbos_image(output_path, bootloader_path=None, kernel_path=None, size_mb=64, system_dir='system'):
     """
     Create a complete WebbOS disk image.
     
@@ -339,6 +402,7 @@ def create_webbos_image(output_path, bootloader_path=None, kernel_path=None, siz
         bootloader_path: Path to bootloader.efi (optional)
         kernel_path: Path to kernel binary (optional)
         size_mb: Size of image in MB
+        system_dir: Path to system directory containing apps, games, etc.
     """
     # Create blank image
     bpb = create_fat32_image(output_path, size_mb, label="WEBBOS")
@@ -378,6 +442,30 @@ def create_webbos_image(output_path, bootloader_path=None, kernel_path=None, siz
             # Create placeholder
             add_file_to_image(f, bpb, bpb['root_cluster'], 'KERNEL.ELF', b'PLACEHOLDER')
             print(f"  Created placeholder KERNEL.ELF")
+        
+        # Add system files and directories
+        if system_dir and os.path.exists(system_dir):
+            print(f"\nAdding system files from {system_dir}...")
+            
+            # Add apps.html from system root
+            apps_html_path = os.path.join(system_dir, 'apps.html')
+            if os.path.exists(apps_html_path):
+                with open(apps_html_path, 'rb') as src:
+                    apps_html_data = src.read()
+                add_file_to_image(f, bpb, bpb['root_cluster'], 'APPS.HTML', apps_html_data)
+                print(f"  Added APPS.HTML ({len(apps_html_data)} bytes)")
+            
+            # Add apps directory
+            apps_dir = os.path.join(system_dir, 'apps')
+            if os.path.exists(apps_dir) and os.path.isdir(apps_dir):
+                add_directory_recursive(f, bpb, bpb['root_cluster'], apps_dir, 'APPS')
+            
+            # Add games directory
+            games_dir = os.path.join(system_dir, 'games')
+            if os.path.exists(games_dir) and os.path.isdir(games_dir):
+                add_directory_recursive(f, bpb, bpb['root_cluster'], games_dir, 'GAMES')
+        else:
+            print(f"  Warning: System directory not found at {system_dir}")
     
     print(f"\nDisk image created successfully: {output_path}")
     print(f"Image size: {size_mb}MB")
@@ -416,6 +504,8 @@ Examples:
                         help='Image size in MB (default: 64)')
     parser.add_argument('--empty', action='store_true',
                         help='Create empty image without files')
+    parser.add_argument('--system-dir', default='system',
+                        help='Path to system directory containing apps, games, etc. (default: system)')
     
     args = parser.parse_args()
     
@@ -427,7 +517,7 @@ Examples:
         kernel = args.kernel
     
     try:
-        create_webbos_image(args.output, bootloader, kernel, args.size)
+        create_webbos_image(args.output, bootloader, kernel, args.size, args.system_dir)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
