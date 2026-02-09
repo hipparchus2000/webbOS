@@ -62,6 +62,8 @@ impl AtaDrive {
 
     /// Initialize and identify drive
     pub fn init(&mut self) -> Result<(), StorageError> {
+        println!("[ata] Probing {}...", if self.is_master { "primary master" } else { "primary slave" });
+
         // Select drive
         let drive_sel = if self.is_master { 0xA0 } else { 0xB0 };
         unsafe {
@@ -71,25 +73,39 @@ impl AtaDrive {
         // Small delay
         wait_400ns(self.control_port);
 
+        // Check if there's any response at all
+        let status_before = unsafe { read_port(self.base_port + 7) };
+        println!("[ata] Status before IDENTIFY: 0x{:02X}", status_before);
+
+        // If status is 0xFF or 0x00, there's likely no drive
+        if status_before == 0xFF || status_before == 0x00 {
+            println!("[ata] No drive detected (status=0x{:02X})", status_before);
+            return Err(StorageError::NotFound);
+        }
+
         // Send IDENTIFY command
         unsafe {
             write_port(self.base_port + 7, CMD_IDENTIFY);
         }
 
-        // Wait for response
+        // Wait for response with timeout
         let status = self.wait_status();
+        println!("[ata] Status after IDENTIFY: 0x{:02X}", status);
+        
+        if status == 0 {
+            println!("[ata] No response to IDENTIFY");
+            return Err(StorageError::NotFound);
+        }
+        
         if status & STATUS_ERR != 0 {
+            println!("[ata] IDENTIFY returned error");
             return Err(StorageError::NotFound);
         }
 
-        // Check if drive exists (ATA or ATAPI)
+        // Check signature bytes
         let mid = unsafe { read_port(self.base_port + 4) };
         let high = unsafe { read_port(self.base_port + 5) };
-        
-        if mid != 0 || high != 0 {
-            // ATAPI or SATA drive - skip for now
-            return Err(StorageError::NotFound);
-        }
+        println!("[ata] Signature: mid=0x{:02X} high=0x{:02X}", mid, high);
 
         // Read identification data
         let mut id_buffer = [0u16; 256];
@@ -97,9 +113,17 @@ impl AtaDrive {
             id_buffer[i] = unsafe { read_port_word(self.base_port) };
         }
 
+        // Verify we got valid data
+        println!("[ata] Identify data word 0: 0x{:04X}", id_buffer[0]);
+        if id_buffer[0] == 0 || id_buffer[0] == 0xFFFF {
+            println!("[ata] Invalid identify data");
+            return Err(StorageError::NotFound);
+        }
+
         // Parse identification data
         self.parse_identify(&id_buffer);
 
+        println!("[ata] Found drive: {} sectors", self.sector_count);
         Ok(())
     }
 
@@ -137,10 +161,10 @@ impl AtaDrive {
         }
     }
 
-    /// Wait for status, return final status
+    /// Wait for status, return final status (with timeout)
     fn wait_status(&self) -> u8 {
-        let mut status;
-        loop {
+        let mut status = 0;
+        for _ in 0..100000 { // Timeout after ~100k iterations
             status = unsafe { read_port(self.base_port + 7) };
             if status & STATUS_BSY == 0 {
                 break;
@@ -172,10 +196,20 @@ impl AtaDrive {
 
         let sector_count = count; // 0 means 256 sectors in ATA
 
-        // Select drive and LBA
-        let drive_sel = if self.is_master { 0xE0 } else { 0xF0 };
+        // Wait for drive to be ready
+        self.wait_status();
+        
+        // Select drive
+        let drive_sel = if self.is_master { 0xA0 } else { 0xB0 };
         unsafe {
-            write_port(self.base_port + 6, drive_sel | ((lba >> 24) & 0x0F) as u8);
+            write_port(self.base_port + 6, drive_sel);
+        }
+        wait_400ns(self.control_port);
+
+        // Set up LBA and count
+        let drive_lba = if self.is_master { 0xE0 } else { 0xF0 };
+        unsafe {
+            write_port(self.base_port + 6, drive_lba | ((lba >> 24) & 0x0F) as u8);
             write_port(self.base_port + 2, sector_count);
             write_port(self.base_port + 3, (lba & 0xFF) as u8);
             write_port(self.base_port + 4, ((lba >> 8) & 0xFF) as u8);
@@ -186,6 +220,9 @@ impl AtaDrive {
         unsafe {
             write_port(self.base_port + 7, CMD_READ_SECTORS);
         }
+
+        // Wait for command to complete (BSY clear and DRQ set)
+        self.wait_status();
 
         // Read data
         let mut offset = 0;

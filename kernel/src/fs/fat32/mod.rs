@@ -112,10 +112,20 @@ pub struct Fat32Fs {
 impl Fat32Fs {
     /// Create new FAT32 filesystem from block device
     pub fn new(device: Box<dyn BlockDevice>) -> FsResult<Self> {
+        println!("[fat32] Reading boot sector...");
+        
         // Read boot sector
         let mut boot_data = [0u8; 512];
-        device.read_blocks(0, 1, &mut boot_data)
-            .map_err(|_| FsError::IoError)?;
+        println!("[fat32] About to read block 0...");
+        match device.read_blocks(0, 1, &mut boot_data) {
+            Ok(()) => println!("[fat32] read_blocks succeeded"),
+            Err(_) => {
+                println!("[fat32] read_blocks failed!");
+                return Err(FsError::IoError);
+            }
+        }
+        
+        println!("[fat32] Boot sector read OK");
 
         let boot_sector = unsafe {
             core::ptr::read(boot_data.as_ptr() as *const BootSector)
@@ -150,14 +160,19 @@ impl Fat32Fs {
             });
         println!("  Root cluster: {}", boot_sector.root_cluster);
 
-        // Read FAT into memory
-        let fat_entries = (sectors_per_fat as usize * bytes_per_sector as usize) / 4;
+        // Read FAT into memory (limit to reasonable size for now)
+        let fat_sectors = sectors_per_fat.min(256) as usize; // Limit to 256 sectors for now
+        let fat_entries = (fat_sectors * bytes_per_sector as usize) / 4;
+        println!("[fat32] Allocating FAT buffer: {} entries ({} bytes) from {} sectors", 
+                 fat_entries, fat_entries * 4, fat_sectors);
         let mut fat = Vec::with_capacity(fat_entries);
         
-        let mut fat_buffer = vec![0u8; (sectors_per_fat as usize * bytes_per_sector as usize)];
+        let mut fat_buffer = vec![0u8; fat_sectors * bytes_per_sector as usize];
         let fat_start = boot_sector.reserved_sectors as u64;
-        device.read_blocks(fat_start, sectors_per_fat as usize, &mut fat_buffer)
+        println!("[fat32] Reading FAT from sector {} ({} sectors)...", fat_start, fat_sectors);
+        device.read_blocks(fat_start, fat_sectors, &mut fat_buffer)
             .map_err(|_| FsError::IoError)?;
+        println!("[fat32] FAT read OK");
 
         for i in 0..fat_entries {
             let entry = unsafe {

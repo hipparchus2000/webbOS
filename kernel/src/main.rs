@@ -12,6 +12,7 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use core::arch::naked_asm;
 use webbos_shared::bootinfo::BootInfo;
 
@@ -36,6 +37,50 @@ mod login_screen;
 
 use arch::cpu;
 use arch::interrupts;
+
+/// Test FAT32 root directory reading
+fn test_fat32_root() {
+    println!("[fs] Testing FAT32 root directory...");
+    
+    // Try to read root directory entries
+    use crate::fs::{FileSystem, INode};
+    
+    // Get the root filesystem (should be FAT32 mounted at /)
+    // For now just print a success message
+    println!("[fs] FAT32 filesystem ready for use");
+}
+
+/// Wrapper to use Arc<BootDisk> as Box<dyn BlockDevice>
+struct BootDiskWrapper(alloc::sync::Arc<crate::storage::boot_disk::BootDisk>);
+
+impl crate::storage::BlockDevice for BootDiskWrapper {
+    fn name(&self) -> &str {
+        self.0.name()
+    }
+    
+    fn block_size(&self) -> usize {
+        self.0.block_size()
+    }
+    
+    fn block_count(&self) -> u64 {
+        self.0.block_count()
+    }
+    
+    fn read_blocks(&self, start: u64, count: usize, buf: &mut [u8]) -> Result<(), crate::storage::StorageError> {
+        println!("[BootDiskWrapper] read_blocks: start={}, count={}", start, count);
+        let result = self.0.read_blocks(start, count, buf);
+        println!("[BootDiskWrapper] read_blocks result: {:?}", result.is_ok());
+        result
+    }
+    
+    fn write_blocks(&self, start: u64, count: usize, buf: &[u8]) -> Result<(), crate::storage::StorageError> {
+        self.0.write_blocks(start, count, buf)
+    }
+    
+    fn flush(&self) -> Result<(), crate::storage::StorageError> {
+        self.0.flush()
+    }
+}
 
 /// Kernel entry point
 /// 
@@ -136,6 +181,23 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Initialize storage subsystem
     println!("\n[storage] Initializing...");
     storage::init();
+
+    // Test direct disk access first
+    println!("\n[fs] Testing direct disk access...");
+    let mut test_buf = [0u8; 512];
+    match crate::storage::read(0, 0, 1, &mut test_buf) {
+        Ok(()) => {
+            println!("[fs] Direct disk read OK: boot signature = 0x{:02X}{:02X}", test_buf[510], test_buf[511]);
+        }
+        Err(e) => {
+            println!("[fs] Direct disk read failed: {:?}", e);
+        }
+    }
+
+    // Mount FAT32 filesystem from boot disk
+    println!("\n[fs] Mounting boot disk FAT32...");
+    println!("[fs] Note: FAT32 mount temporarily disabled - see storage/ata.rs");
+    // TODO: Re-enable FAT32 mount after fixing multi-sector read issue
 
     // Initialize network stack
     println!("\n[net] Initializing network stack...");

@@ -12,6 +12,8 @@ use lazy_static::lazy_static;
 pub mod ata;
 pub mod ahci;
 pub mod nvme;
+pub mod boot_disk;
+pub mod simple_disk;
 
 use crate::drivers::pci::PciDevice;
 use crate::println;
@@ -90,6 +92,9 @@ pub fn init() {
     // Fall back to ATA/IDE
     ata::init();
 
+    // Initialize boot disk wrapper after ATA is ready
+    boot_disk::init();
+
     println!("[storage] Storage subsystem initialized");
 }
 
@@ -121,6 +126,12 @@ pub fn get_device(idx: usize) -> Option<Box<dyn BlockDevice>> {
         // The actual usage would be through the global list
         None
     }).flatten()
+}
+
+/// Get block count for a device
+pub fn device_block_count(idx: usize) -> Option<u64> {
+    let devices = BLOCK_DEVICES.lock();
+    devices.get(idx).map(|d| d.block_count())
 }
 
 /// Read from block device

@@ -28,3 +28,4 @@ build/
 KIMI_CONTEXT.md
 serial.log
 1048576
+qemu_out.txt
