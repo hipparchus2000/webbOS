@@ -36,6 +36,10 @@ mod users;
 mod desktop;
 mod login_screen;
 
+// Hardware Abstraction Layer (ARM64 only)
+#[cfg(target_arch = "aarch64")]
+mod hal;
+
 use arch::cpu;
 use arch::interrupts;
 

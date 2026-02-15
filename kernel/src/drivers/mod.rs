@@ -8,17 +8,50 @@ pub mod storage;
 pub mod vesa;
 pub mod input;
 
+// Raspberry Pi specific drivers (ARM64 only)
+#[cfg(target_arch = "aarch64")]
+pub mod raspberrypi;
+
+// Driver tests
+pub mod tests;
+
 use crate::println;
 
 /// Initialize all drivers
 pub fn init() {
     println!("[drivers] Initializing device drivers...");
     
+    // Initialize HAL first (ARM64 only)
+    #[cfg(target_arch = "aarch64")]
+    {
+        crate::hal::init();
+    }
+    
     timer::init();
     pci::init();
     // Storage drivers initialized separately after PCI enumeration
     
+    // Initialize Raspberry Pi specific drivers (ARM64 only)
+    #[cfg(target_arch = "aarch64")]
+    {
+        raspberrypi::init();
+    }
+    
     println!("[drivers] Device drivers initialized");
+}
+
+/// Run driver self-tests
+pub fn run_tests() {
+    println!("[drivers] Running driver tests...");
+    
+    tests::run_all_tests();
+    
+    #[cfg(target_arch = "aarch64")]
+    {
+        raspberrypi::run_tests();
+    }
+    
+    println!("[drivers] Driver tests complete");
 }
 
 /// Driver error
