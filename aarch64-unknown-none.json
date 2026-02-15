@@ -1,0 +1,48 @@
+{
+  "llvm-target": "aarch64-unknown-none",
+  "data-layout": "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
+  "arch": "aarch64",
+  "target-endian": "little",
+  "target-pointer-width": "64",
+  "target-c-int-width": "32",
+  "features": "+strict-align,+neon,+fp-armv8",
+  "max-atomic-width": 128,
+  "linker-flavor": "ld.lld",
+  "linker": "rust-lld",
+  "pre-link-args": {
+    "ld.lld": [
+      "-T",
+      "kernel/src/arch/linker-aarch64.ld"
+    ]
+  },
+  "post-link-args": {
+    "ld.lld": [
+      "--build-id",
+      "--eh-frame-hdr"
+    ]
+  },
+  "executables": true,
+  "relocation-model": "static",
+  "code-model": "large",
+  "disable-redzone": true,
+  "eliminate-frame-pointer": false,
+  "panic-strategy": "abort",
+  "position-independent-executables": false,
+  "static-position-independent-executables": false,
+  "singlethread": false,
+  "no-builtins": false,
+  "has-elf-tls": true,
+  "has-thumb-mode": false,
+  "has-rpath": false,
+  "has-tls": true,
+  "os": "none",
+  "env": "",
+  "vendor": "unknown",
+  "linker-is-gnu": false,
+  "llvm-abiname": "aapcs",
+  "min-atomic-width": 8,
+  "requires-uwtable": true,
+  "supports-verifier": false,
+  "supports-fp": true,
+  "supports-mutable-globals": true
+}

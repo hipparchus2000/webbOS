@@ -1,0 +1,38 @@
+# Raspberry Pi 5 configuration for webbOS
+# Place this file on the FAT32 boot partition alongside kernel8.img
+
+# Disable OS check to allow bare metal boot
+os_check=0
+
+# Disable device tree loading (bare metal)
+device_tree=
+
+# Disable GPU initialization (bare metal)
+disable_gpu=1
+
+# Disable audio
+dtparam=audio=off
+
+# Disable Bluetooth
+dtoverlay=disable-bt
+
+# Disable WiFi
+dtoverlay=disable-wifi
+
+# UART for serial console
+enable_uart=1
+
+# ARM64 mode
+arm_64bit=1
+
+# Kernel load address (bare metal default)
+kernel_address=0x80000
+
+# Disable splash screen
+disable_splash=1
+
+# Boot delay (0 = no delay)
+boot_delay=0
+
+# Disable rainbow screen
+disable_rainbow=1

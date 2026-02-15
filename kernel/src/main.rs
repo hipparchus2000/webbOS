@@ -4,7 +4,7 @@
 #![feature(naked_functions)]
 #![feature(fn_align)]
 #![feature(alloc_error_handler)]
-#![feature(abi_x86_interrupt)]
+#![cfg_attr(target_arch = "x86_64", feature(abi_x86_interrupt))]
 
 //! WebbOS Kernel
 //!
@@ -13,6 +13,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+#[cfg(target_arch = "x86_64")]
 use core::arch::naked_asm;
 use webbos_shared::bootinfo::BootInfo;
 
@@ -106,7 +107,10 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("║  ╚███╔███╔╝███████╗██████╔╝██║  ██║╚██████╔╝███████║");
     println!("║   ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝");
     println!("║                                                  ║");
+    #[cfg(target_arch = "x86_64")]
     println!("║           Version 0.1.0 - x86_64                 ║");
+    #[cfg(target_arch = "aarch64")]
+    println!("║           Version 0.1.0 - ARM64                  ║");
     println!("╚══════════════════════════════════════════════════╝");
     println!();
 
@@ -600,7 +604,10 @@ fn process_command(cmd: &[u8]) {
         "info" => {
             println!("System Information:");
             println!("  OS: WebbOS v0.1.0");
+            #[cfg(target_arch = "x86_64")]
             println!("  Architecture: x86_64");
+            #[cfg(target_arch = "aarch64")]
+            println!("  Architecture: ARM64 (aarch64)");
             cpu::print_info();
         }
         "memory" => {
