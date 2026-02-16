@@ -1,5 +1,5 @@
 [workspace]
-members = ["bootloader", "kernel", "shared"]
+members = ["bootloader", "bootloader-pi", "kernel", "shared"]
 resolver = "2"
 
 [workspace.package]

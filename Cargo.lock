@@ -24,6 +24,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bootloader-pi"
+version = "0.1.0"
+dependencies = [
+ "webbos-shared",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

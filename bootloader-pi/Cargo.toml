@@ -1,0 +1,20 @@
+[package]
+name = "bootloader-pi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "bootloader-pi"
+path = "src/main.rs"
+
+[dependencies]
+webbos-shared = { path = "../shared" }
+
+[profile.dev]
+opt-level = 2
+
+[profile.release]
+opt-level = "s"
+lto = true
