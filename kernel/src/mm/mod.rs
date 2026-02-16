@@ -5,8 +5,13 @@
 
 use webbos_shared::bootinfo::BootInfo;
 use webbos_shared::types::{MemoryRegionType, PhysAddr, VirtAddr, PAGE_SIZE, KERNEL_BASE};
-use crate::arch::paging::{BootInfoFrameAllocator, Page, PhysFrame, PageTableFlags, OffsetPageTable};
 use crate::println;
+
+// Architecture-specific paging imports
+#[cfg(target_arch = "x86_64")]
+use crate::arch::paging::{BootInfoFrameAllocator, Page, PhysFrame, PageTableFlags, OffsetPageTable};
+#[cfg(target_arch = "aarch64")]
+use crate::arch::paging::{PageTableFlags};
 
 pub mod allocator;
 pub mod bump;
@@ -66,29 +71,48 @@ pub unsafe fn init(boot_info: &'static BootInfo) {
         .sum();
     
     println!("  Total available memory: {} MB", total_memory / (1024 * 1024));
-    
-    // Initialize paging
-    let mut mapper = crate::arch::paging::init(PHYSICAL_MEMORY_OFFSET);
-    
-    // Initialize frame allocator
-    let mut frame_allocator = BootInfoFrameAllocator::init(memory_map);
-    
-    // Initialize heap
-    allocator::init_heap(&mut mapper, &mut frame_allocator)
-        .expect("heap initialization failed");
-    
-    println!("  Heap initialized: {} KB at {:016X}", 
-        HEAP_SIZE / 1024, 
-        HEAP_START
-    );
-    
-    // Map framebuffer region if present
-    map_framebuffer(&mut mapper, &mut frame_allocator, &boot_info.framebuffer);
+
+    // Architecture-specific memory initialization
+    #[cfg(target_arch = "x86_64")]
+    {
+        // Initialize paging
+        let mut mapper = crate::arch::paging::init(PHYSICAL_MEMORY_OFFSET);
+        
+        // Initialize frame allocator
+        let mut frame_allocator = BootInfoFrameAllocator::init(memory_map);
+        
+        // Initialize heap
+        allocator::init_heap(&mut mapper, &mut frame_allocator)
+            .expect("heap initialization failed");
+        
+        println!("  Heap initialized: {} KB at {:016X}", 
+            HEAP_SIZE / 1024, 
+            HEAP_START
+        );
+        
+        // Map framebuffer region if present
+        map_framebuffer(&mut mapper, &mut frame_allocator, &boot_info.framebuffer);
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    {
+        // Initialize paging for ARM64
+        crate::arch::paging::init();
+        
+        // Initialize heap for ARM64 (simplified for now)
+        crate::arch::paging::init_heap();
+        
+        println!("  Heap initialized: {} KB at {:016X}", 
+            HEAP_SIZE / 1024, 
+            HEAP_START
+        );
+    }
 }
 
-/// Map the framebuffer region in page tables
+/// Map the framebuffer region in page tables (x86_64 only)
 /// 
 /// This ensures the framebuffer is accessible at its expected virtual address
+#[cfg(target_arch = "x86_64")]
 unsafe fn map_framebuffer(
     mapper: &mut OffsetPageTable,
     frame_allocator: &mut BootInfoFrameAllocator,
@@ -152,8 +176,19 @@ pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
 
 /// Convert virtual address to physical address (if mapped)
 pub fn virt_to_phys(addr: VirtAddr) -> Option<PhysAddr> {
-    crate::arch::paging::translate_addr(addr.as_u64(), PHYSICAL_MEMORY_OFFSET)
-        .map(|p| PhysAddr::new(p.as_u64()))
+    #[cfg(target_arch = "x86_64")]
+    {
+        crate::arch::paging::translate_addr(addr.as_u64(), PHYSICAL_MEMORY_OFFSET)
+            .map(|p| PhysAddr::new(p.as_u64()))
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        // For now, assume identity mapping with offset for ARM64
+        unsafe {
+            crate::arch::paging::virt_to_phys(addr.as_u64())
+                .map(|p| PhysAddr::new(p))
+        }
+    }
 }
 
 /// Convert virtual address (u64) to physical address (u64) for DMA

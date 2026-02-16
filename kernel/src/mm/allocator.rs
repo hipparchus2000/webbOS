@@ -1,17 +1,22 @@
 //! Kernel heap allocator
 
 use linked_list_allocator::LockedHeap;
+
+// Architecture-specific imports
+#[cfg(target_arch = "x86_64")]
 use crate::arch::paging::{Page, PageTableFlags, BootInfoFrameAllocator, OffsetPageTable, MapToError};
+
 use super::{HEAP_SIZE, HEAP_START};
 
 /// Global heap allocator
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-/// Initialize the kernel heap
+/// Initialize the kernel heap (x86_64 version)
 /// 
 /// # Safety
 /// Must be called exactly once during kernel initialization
+#[cfg(target_arch = "x86_64")]
 pub fn init_heap(
     mapper: &mut OffsetPageTable,
     frame_allocator: &mut BootInfoFrameAllocator,
@@ -44,6 +49,17 @@ pub fn init_heap(
     }
 
     Ok(())
+}
+
+/// Initialize the kernel heap (AArch64 placeholder)
+/// 
+/// # Safety
+/// Must be called exactly once during kernel initialization
+#[cfg(target_arch = "aarch64")]
+pub unsafe fn init_heap() {
+    // For AArch64, we use a simpler approach for now
+    // The paging module handles mapping
+    ALLOCATOR.lock().init(HEAP_START as *mut u8, HEAP_SIZE as usize);
 }
 
 /// Get used heap bytes

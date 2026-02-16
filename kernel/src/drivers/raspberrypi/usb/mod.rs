@@ -574,7 +574,4 @@ pub mod research {
     //! - Hub support for multiple devices
 }
 
-/// Helper function to read 16-bit register
-unsafe fn mmio_read16(addr: usize) -> u16 {
-    mmio::read32(addr) as u16
-}
+

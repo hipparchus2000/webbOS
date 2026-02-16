@@ -5,6 +5,10 @@
 
 use crate::error::VFatError;
 use crate::fs::block::BlockDevice;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// Maximum number of MBR partitions
 pub const MBR_MAX_PARTITIONS: usize = 4;
@@ -44,7 +48,7 @@ pub mod gpt_types {
 }
 
 /// Partition information
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Partition {
     /// Partition number (1-based)
     pub number: u32,
@@ -78,17 +82,22 @@ impl Partition {
 
     /// Check if this is a FAT32 partition
     pub fn is_fat32(&self) -> bool {
-        matches!(self.partition_type, 
-            PartitionType::Mbr(partition_types::FAT32_CHS) |
-            PartitionType::Mbr(partition_types::FAT32_LBA) |
-            PartitionType::Gpt(guid) if guid == gpt_types::MICROSOFT_BASIC_DATA)
+        match self.partition_type {
+            PartitionType::Mbr(ty) => {
+                ty == partition_types::FAT32_CHS || ty == partition_types::FAT32_LBA
+            }
+            PartitionType::Gpt(ref guid) => guid == gpt_types::MICROSOFT_BASIC_DATA,
+            _ => false,
+        }
     }
 
     /// Check if this is the boot partition
     pub fn is_boot(&self) -> bool {
-        self.bootable || matches!(self.partition_type,
-            PartitionType::Mbr(partition_types::FAT32_LBA) |
-            PartitionType::Gpt(guid) if guid == gpt_types::EFI_SYSTEM)
+        self.bootable || match self.partition_type {
+            PartitionType::Mbr(ty) => ty == partition_types::FAT32_LBA,
+            PartitionType::Gpt(ref guid) => guid == gpt_types::EFI_SYSTEM,
+            _ => false,
+        }
     }
 
     /// Get partition name as string

@@ -1,5 +1,7 @@
 //! ARM64 architecture-specific code
 
+use crate::println;
+
 pub mod cpu;
 pub mod interrupts;
 pub mod paging;
@@ -15,7 +17,9 @@ pub fn init() {
     interrupts::init();
     
     // Initialize memory management
-    paging::init();
+    unsafe {
+        paging::init();
+    }
     
     println!("[arch] ARM64 architecture initialized");
 }
@@ -32,9 +36,8 @@ pub fn panic(info: &core::panic::PanicInfo) -> ! {
             location.column()
         );
     }
-    if let Some(message) = info.message() {
-        println!("  {}", message);
-    }
+    // Print the panic message
+    println!("  {}", info.message());
     
     // Halt the CPU
     loop {

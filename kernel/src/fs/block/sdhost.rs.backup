@@ -5,7 +5,6 @@
 
 use crate::error::{VFatError, IoError};
 use alloc::format;
-use alloc::string::String;
 use core::ptr::{read_volatile, write_volatile};
 
 /// SDHCI register offsets (RP1)
@@ -214,7 +213,7 @@ impl SdBlockDevice {
 
         // Check if card is present
         if !self.is_card_present() {
-            return Err(VFatError::io(IoError::device_error("No SD card detected")));
+            return Err(VFatError::io(IoError::device_error("No SD card detected"));
         }
 
         // Initialize the card
@@ -226,21 +225,21 @@ impl SdBlockDevice {
         // Get card capacity
         self.read_card_capacity()?;
 
-        Ok(())
+        Ok(()
     }
 
     /// Read a single 512-byte sector
     pub fn read_sector(&mut self, sector: u64, buffer: &mut [u8]) -> Result<(), VFatError> {
         if buffer.len() != self.block_size {
             return Err(VFatError::InvalidParameter(
-                String::from("Buffer size must match block size (512 bytes)"),
-            ));
+                "Buffer size must match block size (512 bytes)".to_string(),
+            );
         }
 
         let mut retries = self.max_retries;
         loop {
             match self.read_sector_internal(sector, buffer) {
-                Ok(()) => return Ok(()),
+                Ok(() => return Ok((),
                 Err(e) => {
                     retries -= 1;
                     if retries == 0 {
@@ -257,14 +256,14 @@ impl SdBlockDevice {
     pub fn write_sector(&mut self, sector: u64, buffer: &[u8]) -> Result<(), VFatError> {
         if buffer.len() != self.block_size {
             return Err(VFatError::InvalidParameter(
-                String::from("Buffer size must match block size (512 bytes)"),
-            ));
+                "Buffer size must match block size (512 bytes)".to_string(),
+            );
         }
 
         let mut retries = self.max_retries;
         loop {
             match self.write_sector_internal(sector, buffer) {
-                Ok(()) => return Ok(()),
+                Ok(() => return Ok((),
                 Err(e) => {
                     retries -= 1;
                     if retries == 0 {
@@ -281,30 +280,30 @@ impl SdBlockDevice {
     pub fn read_sectors(&mut self, start_sector: u64, count: usize, buffer: &mut [u8]) -> Result<(), VFatError> {
         if buffer.len() != count * self.block_size {
             return Err(VFatError::InvalidParameter(
-                String::from("Buffer size must match sector count * block size"),
-            ));
+                "Buffer size must match sector count * block size".to_string(),
+            );
         }
 
         for i in 0..count {
             self.read_sector(start_sector + i as u64, &mut buffer[i * self.block_size..(i + 1) * self.block_size])?;
         }
 
-        Ok(())
+        Ok(()
     }
 
     /// Write multiple sectors
     pub fn write_sectors(&mut self, start_sector: u64, count: usize, buffer: &[u8]) -> Result<(), VFatError> {
         if buffer.len() != count * self.block_size {
             return Err(VFatError::InvalidParameter(
-                String::from("Buffer size must match sector count * block size"),
-            ));
+                "Buffer size must match sector count * block size".to_string(),
+            );
         }
 
         for i in 0..count {
             self.write_sector(start_sector + i as u64, &buffer[i * self.block_size..(i + 1) * self.block_size])?;
         }
 
-        Ok(())
+        Ok(()
     }
 
     /// Get card capacity in sectors
@@ -356,12 +355,12 @@ impl SdBlockDevice {
         let timeout = 10000;
         for _ in 0..timeout {
             if self.read_reg(regs::SOFTWARE_RESET) & 0x01 == 0 {
-                return Ok(());
+                return Ok(();
             }
             self.delay_us(10);
         }
 
-        Err(VFatError::io(IoError::timeout()))
+        Err(VFatError::io(IoError::timeout())
     }
 
     fn card_init(&mut self) -> Result<(), VFatError> {
@@ -380,7 +379,7 @@ impl SdBlockDevice {
         // Send CMD8 - Send interface condition (SD 2.0+)
         let arg = 0x1AA; // VHS=1 (2.7-3.6V), check pattern=0xAA
         let result = self.send_command(SdCommand::SendIfCond as u8, arg, 
-            (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16));
+            (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16);
 
         let sd_v2 = result.is_ok();
 
@@ -390,12 +389,12 @@ impl SdBlockDevice {
         for _ in 0..1000 {
             // Send CMD55 (APP_CMD) first
             self.send_command(SdCommand::AppCmd as u8, 0, 
-                (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16))?;
+                (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16)?;
             
             // Then ACMD41
             let acmd41_arg: u32 = if sd_v2 { 0x40300000 } else { 0x00300000 };
             let resp = self.send_command(41, acmd41_arg,
-                (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16));
+                (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16);
             
             if let Ok(r) = resp {
                 ocr = self.read_reg(regs::RESPONSE_0);
@@ -409,7 +408,7 @@ impl SdBlockDevice {
         }
 
         if ocr & 0x80000000 == 0 {
-            return Err(VFatError::io(IoError::device_error("SD card initialization failed")));
+            return Err(VFatError::io(IoError::device_error("SD card initialization failed"));
         }
 
         // Check for high capacity card
@@ -417,21 +416,21 @@ impl SdBlockDevice {
 
         // Send CMD2 - Get CID
         self.send_command(SdCommand::AllSendCid as u8, 0,
-            (CommandFlags::Response136 as u16) | (CommandFlags::CrcCheck as u16))?;
+            (CommandFlags::Response136 as u16) | (CommandFlags::CrcCheck as u16)?;
 
         // Send CMD3 - Get RCA (relative card address)
         self.send_command(SdCommand::SendRelativeAddr as u8, 0,
-            (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16))?;
+            (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16)?;
 
         let rca = self.read_reg(regs::RESPONSE_0) >> 16;
 
         // Send CMD9 - Get CSD
         self.send_command(SdCommand::SendCsd as u8, rca << 16,
-            (CommandFlags::Response136 as u16) | (CommandFlags::CrcCheck as u16))?;
+            (CommandFlags::Response136 as u16) | (CommandFlags::CrcCheck as u16)?;
 
         // Select the card
         self.send_command(SdCommand::SelectCard as u8, rca << 16,
-            (CommandFlags::Response48Busy as u16) | (CommandFlags::CrcCheck as u16))?;
+            (CommandFlags::Response48Busy as u16) | (CommandFlags::CrcCheck as u16)?;
 
         // Set clock to high speed (25 MHz for SD, 50 MHz for high speed)
         self.set_clock(25_000_000)?;
@@ -439,7 +438,7 @@ impl SdBlockDevice {
         // Enable 4-bit mode (optional optimization)
         // This would require ACMD6
 
-        Ok(())
+        Ok(()
     }
 
     fn read_card_capacity(&mut self) -> Result<(), VFatError> {
@@ -456,13 +455,13 @@ impl SdBlockDevice {
             self.capacity_sectors = 1_966_080; // ~1GB card
         }
 
-        Ok(())
+        Ok(()
     }
 
     fn set_block_size(&self, size: u16) -> Result<(), VFatError> {
         self.send_command(SdCommand::SetBlocklen as u8, size as u32,
-            (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16))?;
-        Ok(())
+            (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16)?;
+        Ok(()
     }
 
     fn set_clock(&self, _freq: u32) -> Result<(), VFatError> {
@@ -476,7 +475,7 @@ impl SdBlockDevice {
         // Set internal clock enable and SD clock enable
         // Assuming base clock is 100MHz
         let divider = 1; // Simplified - should calculate based on freq
-        self.write_reg16(regs::CLOCK_CONTROL, 0x0001 | (divider << 8));
+        self.write_reg16(regs::CLOCK_CONTROL, 0x0001 | (divider << 8);
         self.delay_us(10);
 
         // Wait for clock stable
@@ -486,7 +485,7 @@ impl SdBlockDevice {
                 // Enable SD clock
                 self.write_reg16(regs::CLOCK_CONTROL, 
                     self.read_reg16(regs::CLOCK_CONTROL) | 0x0004);
-                return Ok(());
+                return Ok(();
             }
             self.delay_us(10);
         }
@@ -523,22 +522,24 @@ impl SdBlockDevice {
             if status & NormalIntStatus::CommandComplete as u16 != 0 {
                 // Clear command complete bit
                 self.write_reg16(regs::NORMAL_INT_STATUS, NormalIntStatus::CommandComplete as u16);
-                return Ok(());
+                return Ok(();
             }
 
             let error_status = self.read_reg16(regs::ERROR_INT_STATUS);
             if error_status != 0 {
                 // Clear error bits
                 self.write_reg16(regs::ERROR_INT_STATUS, error_status);
-                return Err(VFatError::io(IoError::other(
-                    &format!("SD command error: 0x{:04X}", error_status),
-                )));
+                return Err(VFatError::io(IoError::
+                    other(,
+                    format!("SD command error: 0x{:04X}", error_status),
+                ));
             }
 
             self.delay_us(1);
         }
 
-        Err(VFatError::io(IoError::timeout()))
+        Err(VFatError::io(IoError::timeout("SD command timeout")))
+        ))
     }
 
     fn read_sector_internal(&self, sector: u64, buffer: &mut [u8]) -> Result<(), VFatError> {
@@ -604,16 +605,18 @@ impl SdBlockDevice {
                 let error_status = self.read_reg16(regs::ERROR_INT_STATUS);
                 if error_status != 0 {
                     self.write_reg16(regs::ERROR_INT_STATUS, error_status);
-                    return Err(VFatError::io(IoError::other(
-                        &format!("SD read error: 0x{:04X}", error_status),
-                    )));
+                    return Err(VFatError::io(IoError::
+                        other(,
+                        format!("SD read error: 0x{:04X}", error_status),
+                    ));
                 }
 
                 self.delay_us(1);
             }
 
             if !ready && words_read < words_to_read {
-                return Err(VFatError::io(IoError::timeout()));
+                return Err(VFatError::io(IoError::timeout("SD read timeout")))
+                ));
             }
 
             // Read up to 512 bytes from buffer port
@@ -640,23 +643,25 @@ impl SdBlockDevice {
             let error_status = self.read_reg16(regs::ERROR_INT_STATUS);
             if error_status != 0 {
                 self.write_reg16(regs::ERROR_INT_STATUS, error_status);
-                return Err(VFatError::io(IoError::other(
-                    &format!("SD read completion error: 0x{:04X}", error_status),
-                )));
+                return Err(VFatError::io(IoError::
+                    other(,
+                    format!("SD read completion error: 0x{:04X}", error_status),
+                ));
             }
 
             self.delay_us(1);
         }
 
-        Ok(())
+        Ok(()
     }
 
     fn write_sector_internal(&self, sector: u64, buffer: &[u8]) -> Result<(), VFatError> {
         // Check write protection
         if self.is_write_protected() {
-            return Err(VFatError::io(IoError::permission_denied(
+            return Err(VFatError::io(IoError::
+                permission_denied(,
                 "SD card is write-protected",
-            )));
+            ));
         }
 
         // Convert sector to byte address for standard capacity cards
@@ -721,16 +726,17 @@ impl SdBlockDevice {
                 let error_status = self.read_reg16(regs::ERROR_INT_STATUS);
                 if error_status != 0 {
                     self.write_reg16(regs::ERROR_INT_STATUS, error_status);
-                    return Err(VFatError::io(IoError::other(
-                        &format!("SD write error: 0x{:04X}", error_status),
-                    )));
+                    return Err(VFatError::io(IoError::
+                        other(,
+                        format!("SD write error: 0x{:04X}", error_status),
+                    ));
                 }
 
                 self.delay_us(1);
             }
 
             if !ready && words_written < words_to_write {
-                return Err(VFatError::io(IoError::timeout()));
+                return Err(VFatError::io(IoError::timeout());
             }
 
             // Write up to 512 bytes to buffer port
@@ -757,23 +763,20 @@ impl SdBlockDevice {
             let error_status = self.read_reg16(regs::ERROR_INT_STATUS);
             if error_status != 0 {
                 self.write_reg16(regs::ERROR_INT_STATUS, error_status);
-                return Err(VFatError::io(IoError::device_error(&format!("SD write completion error: 0x{:04X}", error_status))));
+                return Err(VFatError::io(IoError::device_error(&format!("SD write completion error: 0x{:04X}", error_status));
             }
 
             self.delay_us(1);
         }
 
-        Ok(())
+        Ok(()
     }
 
     fn delay_us(&self, us: u32) {
         // Simple busy-wait delay
         // In a real implementation, this would use a timer
         for _ in 0..us * 10 {
-            #[cfg(target_arch = "aarch64")]
             unsafe { core::arch::aarch64::__nop() };
-            #[cfg(target_arch = "x86_64")]
-            unsafe { core::arch::x86_64::_mm_pause() };
         }
     }
 }

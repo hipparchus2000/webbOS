@@ -796,6 +796,10 @@ pub fn update_mouse(x: i32, y: i32) {
     let current = crate::arch::interrupts::get_timer_ticks();
     let last = LAST_PRINT.load(Ordering::Relaxed);
     
+    // Suppress unused warning on aarch64 where timer might not be fully implemented
+    #[cfg(target_arch = "aarch64")]
+    let _ = (count, current, last);
+    
     if current > last + 500 {
         if count > 0 {
             crate::println!("[desktop] Mouse updates: {}, pos: ({},{})", 

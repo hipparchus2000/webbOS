@@ -37,7 +37,8 @@
 //! ```
 
 #![no_std]
-#![feature(llvm_asm)]
+// llvm_asm is only used for x86_64-specific inline assembly
+#![cfg_attr(target_arch = "x86_64", feature(llvm_asm))]
 
 pub mod block;
 pub mod cache;
@@ -45,8 +46,9 @@ pub mod fat32;
 pub mod partition;
 pub mod vfs;
 
-use crate::error::VFatError;
+use crate::error::{VFatError, IoError};
 use alloc::string::String;
+use alloc::vec;
 use alloc::vec::Vec;
 
 /// Filesystem initialization result
@@ -210,10 +212,7 @@ pub fn init_filesystem(sdhci_base: usize) -> FsResult<fat32::Fat32Filesystem<blo
     // Find FAT32 partition
     let fat32_partition = partition_table.find_fat32_partition()
         .or_else(|| partition_table.find_boot_partition())
-        .ok_or_else(|| VFatError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "No FAT32 partition found",
-        )))?;
+        .ok_or_else(|| VFatError::not_found("No FAT32 partition found"))?;
     
     // Create partition block device
     // In real implementation, wrap with partition-aware device

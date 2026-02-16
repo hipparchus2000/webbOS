@@ -144,18 +144,25 @@ pub type SyscallResult = i64;
 pub fn init() {
     println!("[syscall] Initializing system call interface...");
 
-    // Setup syscall MSRs (IA32_STAR, IA32_LSTAR, IA32_FMASK)
+    // Setup syscall MSRs (x86_64 only)
+    #[cfg(target_arch = "x86_64")]
     unsafe {
         setup_syscall_msrs();
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    {
+        println!("[syscall] ARM64 syscall support not yet implemented");
     }
 
     println!("[syscall] System call interface initialized");
 }
 
-/// Setup syscall MSRs
+/// Setup syscall MSRs (x86_64 only)
 ///
 /// # Safety
 /// This function is unsafe because it writes to MSRs.
+#[cfg(target_arch = "x86_64")]
 unsafe fn setup_syscall_msrs() {
     use crate::arch::gdt::KERNEL_CODE_SELECTOR;
 
@@ -214,9 +221,10 @@ unsafe fn setup_syscall_msrs() {
     }
 }
 
-/// System call entry point
+/// System call entry point (x86_64 only)
 ///
 /// This is called by the SYSCALL instruction.
+#[cfg(target_arch = "x86_64")]
 #[naked]
 unsafe extern "C" fn syscall_entry() {
     core::arch::naked_asm!(

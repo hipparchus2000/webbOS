@@ -7,13 +7,17 @@
 //! - Timer (20Hz): Polls mouse position, generates events, handles printing
 //! This avoids mutex contention and deadlock in IRQ handlers.
 
+#![cfg_attr(target_arch = "aarch64", allow(dead_code))]
+
 use spin::Mutex;
 use lazy_static::lazy_static;
 use alloc::collections::VecDeque;
 use core::sync::atomic::{AtomicU64, AtomicI32, Ordering};
 
 use crate::println;
-// Port I/O functions
+
+// Port I/O functions (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 #[inline]
 pub unsafe fn inb(port: u16) -> u8 {
     let result: u8;
@@ -26,6 +30,7 @@ pub unsafe fn inb(port: u16) -> u8 {
     result
 }
 
+#[cfg(target_arch = "x86_64")]
 #[inline]
 pub unsafe fn outb(port: u16, value: u8) {
     core::arch::asm!(
@@ -36,6 +41,7 @@ pub unsafe fn outb(port: u16, value: u8) {
     );
 }
 
+#[cfg(target_arch = "x86_64")]
 #[inline]
 pub unsafe fn inw(port: u16) -> u16 {
     let result: u16;
@@ -48,6 +54,7 @@ pub unsafe fn inw(port: u16) -> u16 {
     result
 }
 
+#[cfg(target_arch = "x86_64")]
 #[inline]
 pub unsafe fn outw(port: u16, value: u16) {
     core::arch::asm!(
@@ -57,6 +64,23 @@ pub unsafe fn outw(port: u16, value: u16) {
         options(nomem, nostack)
     );
 }
+
+// Stub implementations for aarch64
+#[cfg(target_arch = "aarch64")]
+#[inline]
+pub unsafe fn inb(_port: u16) -> u8 { 0 }
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+pub unsafe fn outb(_port: u16, _value: u8) {}
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+pub unsafe fn inw(_port: u16) -> u16 { 0 }
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+pub unsafe fn outw(_port: u16, _value: u16) {}
 
 /// Maximum event queue size
 const MAX_EVENTS: usize = 64;
@@ -155,6 +179,7 @@ impl KeyboardDriver {
             }
 
             // Unmask IRQ1 (keyboard interrupt)
+            #[cfg(target_arch = "x86_64")]
             crate::arch::interrupts::unmask_irq(1);
         }
 
@@ -397,8 +422,11 @@ impl MouseDriver {
             }
 
             // Unmask IRQ2 (cascade from slave PIC) and IRQ12 (mouse)
-            crate::arch::interrupts::unmask_irq(2);
-            crate::arch::interrupts::unmask_irq(12);
+            #[cfg(target_arch = "x86_64")]
+            {
+                crate::arch::interrupts::unmask_irq(2);
+                crate::arch::interrupts::unmask_irq(12);
+            }
         }
 
         println!("[input] Mouse initialized and IRQ12 unmasked");

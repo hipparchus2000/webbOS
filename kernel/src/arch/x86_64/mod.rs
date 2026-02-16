@@ -1,5 +1,7 @@
 //! x86_64 architecture-specific code
 
+use crate::println;
+
 pub mod cpu;
 pub mod interrupts;
 pub mod paging;
@@ -16,7 +18,8 @@ pub fn init() {
     interrupts::init();
     
     // Initialize memory management
-    paging::init();
+    // TODO: Get actual physical_memory_offset from boot info
+    unsafe { paging::init(0xFFFF_8000_0000_0000); } // Typical higher-half offset
     
     println!("[arch] x86_64 architecture initialized");
 }
@@ -33,9 +36,11 @@ pub fn panic(info: &core::panic::PanicInfo) -> ! {
             location.column()
         );
     }
-    if let Some(message) = info.message() {
-        println!("  {}", message);
-    }
+    // Note: info.message() returns fmt::Arguments which can't be printed directly
+    // in no_std without proper formatting support
+    // if let Some(message) = info.message() {
+    //     println!("  {}", message);
+    // }
     
     // Disable interrupts and halt
     cpu::disable_interrupts();

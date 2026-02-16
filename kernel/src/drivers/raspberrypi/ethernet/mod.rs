@@ -173,7 +173,7 @@ pub mod rtl8168_regs {
     /// Missed packet counter
     pub const MPC: usize = 0x4C;
     /// 9346 command register
-    pub const 9346CR: usize = 0x50;
+    pub const CR_9346: usize = 0x50;
     /// Configuration register 0
     pub const CONFIG0: usize = 0x51;
     /// Configuration register 1
@@ -403,7 +403,7 @@ fn detect_controller() {
                 base_addr: info.ethernet_base,
                 irq: 56, // GIC SPI for Ethernet on Pi 4
                 pci_vendor_id: 0x14E4, // Broadcom
-                pci_device_id: 0x54213,
+                pci_device_id: 0x5421, // BCM54213PE (truncated to u16)
                 mac_address: MacAddress::default(), // Would be read from OTP
                 max_mtu: 1500,
             };
@@ -511,63 +511,7 @@ fn init_rtl8168(info: &EtherControllerInfo) -> Result<(), EtherError> {
     Ok(())
 }
 
-/// Read MAC address from controller
-fn read_mac_address(info: &EtherControllerInfo) -> Result<MacAddress, EtherError> {
-    unsafe {
-        let mut mac = [0u8; 6];
-        
-        for i in 0..6 {
-            mac[i] = mmio::read8(info.base_addr + rtl8168_regs::MAC_ADDR + i);
-        }
-        
-        let addr = MacAddress::new(mac);
-        
-        if addr.is_valid() {
-            Ok(addr)
-        } else {
-            // Return a default local MAC if none programmed
-            Ok(MacAddress::new([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]))
-        }
-    }
-}
 
-/// Check link status
-fn check_link_status() -> bool {
-    let drv = driver();
-    
-    if let Some(ref info) = drv.controller {
-        unsafe {
-            let phystatus = mmio::read8(info.base_addr + rtl8168_regs::PHYSTATUS);
-            // Link status bit is typically bit 1
-            (phystatus & 0x02) != 0
-        }
-    } else {
-        false
-    }
-}
-
-/// Get current link speed
-fn get_link_speed() -> LinkSpeed {
-    let drv = driver();
-    
-    if let Some(ref info) = drv.controller {
-        unsafe {
-            let phystatus = mmio::read8(info.base_addr + rtl8168_regs::PHYSTATUS);
-            
-            // Speed bits are typically in bits 2-3
-            let speed_bits = (phystatus >> 2) & 0x3;
-            
-            match speed_bits {
-                0 => LinkSpeed::Speed10M,
-                1 => LinkSpeed::Speed100M,
-                2 => LinkSpeed::Speed1G,
-                _ => LinkSpeed::Disconnected,
-            }
-        }
-    } else {
-        LinkSpeed::Disconnected
-    }
-}
 
 /// Ethernet error types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -737,33 +681,60 @@ pub mod research {
     //! - Performance optimization
 }
 
-/// Helper functions for MMIO
-mod mmio_helpers {
-    use super::*;
-    
-    pub unsafe fn read8(addr: usize) -> u8 {
-        mmio::read32(addr) as u8
-    }
-    
-    pub unsafe fn read16(addr: usize) -> u16 {
-        mmio::read32(addr) as u16
-    }
-    
-    pub unsafe fn write8(addr: usize, value: u8) {
-        let current = mmio::read32(addr & !0x3);
-        let shift = (addr & 0x3) * 8;
-        let mask = 0xFF << shift;
-        let new_value = (current & !mask) | ((value as u32) << shift);
-        mmio::write32(addr & !0x3, new_value);
-    }
-    
-    pub unsafe fn write16(addr: usize, value: u16) {
-        let current = mmio::read32(addr & !0x3);
-        let shift = (addr & 0x2) * 8;
-        let mask = 0xFFFF << shift;
-        let new_value = (current & !mask) | ((value as u32) << shift);
-        mmio::write32(addr & !0x3, new_value);
+/// Read MAC address from controller
+fn read_mac_address(info: &EtherControllerInfo) -> Result<MacAddress, EtherError> {
+    unsafe {
+        let mut mac = [0u8; 6];
+        
+        for i in 0..6 {
+            mac[i] = mmio::read8(info.base_addr + rtl8168_regs::MAC_ADDR + i);
+        }
+        
+        let addr = MacAddress::new(mac);
+        
+        if addr.is_valid() {
+            Ok(addr)
+        } else {
+            // Return a default local MAC if none programmed
+            Ok(MacAddress::new([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]))
+        }
     }
 }
 
-use mmio_helpers::*;
+/// Check link status
+fn check_link_status() -> bool {
+    let drv = driver();
+    
+    if let Some(ref info) = drv.controller {
+        unsafe {
+            let phystatus = mmio::read8(info.base_addr + rtl8168_regs::PHYSTATUS);
+            // Link status bit is typically bit 1
+            (phystatus & 0x02) != 0
+        }
+    } else {
+        false
+    }
+}
+
+/// Get current link speed
+fn get_link_speed() -> LinkSpeed {
+    let drv = driver();
+    
+    if let Some(ref info) = drv.controller {
+        unsafe {
+            let phystatus = mmio::read8(info.base_addr + rtl8168_regs::PHYSTATUS);
+            
+            // Speed bits are typically in bits 2-3
+            let speed_bits = (phystatus >> 2) & 0x3;
+            
+            match speed_bits {
+                0 => LinkSpeed::Speed10M,
+                1 => LinkSpeed::Speed100M,
+                2 => LinkSpeed::Speed1G,
+                _ => LinkSpeed::Disconnected,
+            }
+        }
+    } else {
+        LinkSpeed::Disconnected
+    }
+}

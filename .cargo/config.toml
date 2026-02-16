@@ -3,12 +3,12 @@ target = "x86_64-unknown-none"
 
 # Override host linker for build scripts
 [target.x86_64-pc-windows-msvc]
-linker = "rust-lld.exe"
+linker = "rust-lld"
 
 # x86_64 Kernel target
 [target.x86_64-unknown-none]
 runner = "bootimage runner"
-linker = "rust-lld.exe"
+linker = "rust-lld"
 rustflags = [
     "-C", "link-arg=-Tkernel/src/arch/linker.ld",
     "-C", "relocation-model=static",
@@ -31,7 +31,7 @@ rustflags = [
 
 # Bootloader target
 [target.x86_64-unknown-uefi]
-linker = "rust-lld.exe"
+linker = "rust-lld"
 rustflags = [
     "-C", "link-arg=/subsystem:efi_application",
     "-C", "link-arg=/entry:efi_main",

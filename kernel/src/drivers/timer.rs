@@ -2,6 +2,8 @@
 //!
 //! Provides timing services and preemptive scheduling.
 
+#![cfg_attr(target_arch = "aarch64", allow(dead_code))]
+
 use crate::println;
 
 /// PIT frequency (Hz)
@@ -11,44 +13,53 @@ const TIMER_FREQUENCY: u32 = 1000;
 
 /// Initialize the timer
 pub fn init() {
-    println!("[timer] Initializing PIT timer at {}Hz...", TIMER_FREQUENCY);
+    #[cfg(target_arch = "x86_64")]
+    {
+        println!("[timer] Initializing PIT timer at {}Hz...", TIMER_FREQUENCY);
 
-    unsafe {
-        // Timer handler is now registered in interrupts::init()
-        crate::println!("[timer] Timer handler already registered in interrupts module");
-        
-        // Calculate PIT divisor
-        let divisor = PIT_FREQUENCY / TIMER_FREQUENCY;
-        
-        // Set PIT channel 0 to mode 3 (square wave generator)
-        // Command: 0b00110110 = Channel 0, Access mode: lobyte/hibyte, Mode 3, Binary
-        core::arch::asm!(
-            "mov al, 0x36",
-            "out 0x43, al",
-            options(nomem, nostack)
-        );
+        unsafe {
+            // Timer handler is now registered in interrupts::init()
+            crate::println!("[timer] Timer handler already registered in interrupts module");
+            
+            // Calculate PIT divisor
+            let divisor = PIT_FREQUENCY / TIMER_FREQUENCY;
+            
+            // Set PIT channel 0 to mode 3 (square wave generator)
+            // Command: 0b00110110 = Channel 0, Access mode: lobyte/hibyte, Mode 3, Binary
+            core::arch::asm!(
+                "mov al, 0x36",
+                "out 0x43, al",
+                options(nomem, nostack)
+            );
 
-        // Set divisor
-        let low = (divisor & 0xFF) as u8;
-        let high = ((divisor >> 8) & 0xFF) as u8;
-        
-        core::arch::asm!(
-            "out 0x40, al",
-            in("al") low,
-            options(nomem, nostack)
-        );
-        
-        core::arch::asm!(
-            "out 0x40, al",
-            in("al") high,
-            options(nomem, nostack)
-        );
+            // Set divisor
+            let low = (divisor & 0xFF) as u8;
+            let high = ((divisor >> 8) & 0xFF) as u8;
+            
+            core::arch::asm!(
+                "out 0x40, al",
+                in("al") low,
+                options(nomem, nostack)
+            );
+            
+            core::arch::asm!(
+                "out 0x40, al",
+                in("al") high,
+                options(nomem, nostack)
+            );
 
-        // Unmask IRQ0 (timer interrupt)
-        crate::arch::interrupts::unmask_irq(0);
+            // Unmask IRQ0 (timer interrupt)
+            crate::arch::interrupts::unmask_irq(0);
+        }
+
+        println!("[timer] PIT timer initialized and IRQ0 unmasked");
     }
 
-    println!("[timer] PIT timer initialized and IRQ0 unmasked");
+    #[cfg(target_arch = "aarch64")]
+    {
+        println!("[timer] ARM64 timer initialization not yet implemented");
+        // TODO: Implement ARM64 timer using CNTVCT_EL0 and CNTP_CTL_EL0
+    }
 }
 
 /// Get current tick count
@@ -90,8 +101,9 @@ pub unsafe fn timer_interrupt() {
     crate::process::scheduler::timer_tick();
 }
 
-/// Read current time from CMOS RTC
+/// Read current time from CMOS RTC (x86_64) or return default (aarch64)
 pub fn read_rtc() -> RtcTime {
+    #[cfg(target_arch = "x86_64")]
     unsafe {
         // Read CMOS registers
         let second = read_cmos(0x00);
@@ -110,9 +122,23 @@ pub fn read_rtc() -> RtcTime {
             year: 2000 + bcd_to_binary(year) as u16,
         }
     }
+
+    #[cfg(target_arch = "aarch64")]
+    {
+        // TODO: Implement ARM64 RTC reading
+        RtcTime {
+            second: 0,
+            minute: 0,
+            hour: 0,
+            day: 1,
+            month: 1,
+            year: 2024,
+        }
+    }
 }
 
-/// Read CMOS register
+/// Read CMOS register (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 unsafe fn read_cmos(reg: u8) -> u8 {
     // Select register
     core::arch::asm!(
@@ -138,6 +164,7 @@ unsafe fn read_cmos(reg: u8) -> u8 {
 }
 
 /// Convert BCD to binary
+#[cfg(target_arch = "x86_64")]
 fn bcd_to_binary(bcd: u8) -> u8 {
     ((bcd >> 4) * 10) + (bcd & 0x0F)
 }

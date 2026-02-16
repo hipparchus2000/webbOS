@@ -1,6 +1,9 @@
 //! PCI/PCIe bus driver
 //!
 //! Enumerates PCI devices and provides access to configuration space.
+//! NOTE: This is x86_64-specific (uses x86 I/O ports).
+
+#![cfg_attr(target_arch = "aarch64", allow(dead_code))]
 
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
@@ -38,6 +41,7 @@ pub struct PciDevice {
 
 impl PciDevice {
     /// Read configuration space
+    #[cfg(target_arch = "x86_64")]
     pub fn read_config(&self, offset: u8) -> u32 {
         let address = pci_address(self.bus, self.device, self.function, offset);
         unsafe {
@@ -61,8 +65,15 @@ impl PciDevice {
             val
         }
     }
+    
+    /// Read configuration space stub (aarch64)
+    #[cfg(target_arch = "aarch64")]
+    pub fn read_config(&self, _offset: u8) -> u32 {
+        0xFFFFFFFF // Return invalid vendor/device ID
+    }
 
     /// Write configuration space
+    #[cfg(target_arch = "x86_64")]
     pub fn write_config(&self, offset: u8, value: u32) {
         let address = pci_address(self.bus, self.device, self.function, offset);
         unsafe {
@@ -83,6 +94,10 @@ impl PciDevice {
             );
         }
     }
+    
+    /// Write configuration space stub (aarch64)
+    #[cfg(target_arch = "aarch64")]
+    pub fn write_config(&self, _offset: u8, _value: u32) {}
 
     /// Get device description
     pub fn description(&self) -> &'static str {
@@ -185,6 +200,7 @@ pub fn init() {
 }
 
 /// Read 8-bit value from PCI config space
+#[cfg(target_arch = "x86_64")]
 pub fn read_config8(bus: u8, device: u8, function: u8, offset: u8) -> u8 {
     let address = pci_address(bus, device, function, offset);
     unsafe {
@@ -207,7 +223,14 @@ pub fn read_config8(bus: u8, device: u8, function: u8, offset: u8) -> u8 {
     }
 }
 
+/// Read 8-bit value from PCI config space stub (aarch64)
+#[cfg(target_arch = "aarch64")]
+pub fn read_config8(_bus: u8, _device: u8, _function: u8, _offset: u8) -> u8 {
+    0xFF
+}
+
 /// Read 16-bit value from PCI config space
+#[cfg(target_arch = "x86_64")]
 pub fn read_config16(bus: u8, device: u8, function: u8, offset: u8) -> u16 {
     let address = pci_address(bus, device, function, offset);
     unsafe {
@@ -230,7 +253,14 @@ pub fn read_config16(bus: u8, device: u8, function: u8, offset: u8) -> u16 {
     }
 }
 
+/// Read 16-bit value from PCI config space stub (aarch64)
+#[cfg(target_arch = "aarch64")]
+pub fn read_config16(_bus: u8, _device: u8, _function: u8, _offset: u8) -> u16 {
+    0xFFFF
+}
+
 /// Read 32-bit value from PCI config space
+#[cfg(target_arch = "x86_64")]
 pub fn read_config32(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
     let address = pci_address(bus, device, function, offset);
     unsafe {
@@ -251,6 +281,12 @@ pub fn read_config32(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
         
         val
     }
+}
+
+/// Read 32-bit value from PCI config space stub (aarch64)
+#[cfg(target_arch = "aarch64")]
+pub fn read_config32(_bus: u8, _device: u8, _function: u8, _offset: u8) -> u32 {
+    0xFFFFFFFF
 }
 
 /// Find device by class/subclass

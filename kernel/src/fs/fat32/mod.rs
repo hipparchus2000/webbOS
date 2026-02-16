@@ -6,10 +6,12 @@
 //! - Cluster allocation and FAT table management
 //! - Long filename (LFN) support
 
-use crate::error::VFatError;
+use crate::error::{VFatError, IoError};
+use alloc::format;
 use crate::fs::block::BlockDevice;
 use crate::fs::cache::{BlockCache, CachePolicy};
-use alloc::string::String;
+use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -111,11 +113,14 @@ pub struct DirEntry {
 
 impl fmt::Debug for DirEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Copy fields to local variables to avoid unaligned references
+        let attr = self.attr;
+        let file_size = self.file_size;
         f.debug_struct("DirEntry")
             .field("name", &self.short_name())
-            .field("attr", &self.attr)
+            .field("attr", &attr)
             .field("cluster", &self.cluster())
-            .field("file_size", &self.file_size)
+            .field("file_size", &file_size)
             .finish()
     }
 }
@@ -523,10 +528,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
             }
         }
         
-        Err(VFatError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "No free clusters available",
-        )))
+        Err(VFatError::io(IoError::other("No free clusters available")))
     }
 
     /// Free a cluster chain
@@ -860,6 +862,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
             bytes_per_sector: self.bpb.bytes_per_sector,
             sectors_per_cluster: self.bpb.sectors_per_cluster,
             volume_label: String::from_utf8_lossy(&self.ext_bpb.volume_label).trim().to_string(),
+            root_cluster: self.ext_bpb.root_cluster,
         }
     }
 
@@ -894,10 +897,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
     pub fn create_file(&mut self, dir_cluster: u32, name: &str) -> Result<FileInfo, VFatError> {
         // Check if file already exists
         if self.find_entry(dir_cluster, name)?.is_some() {
-            return Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                "File already exists",
-            )));
+            return Err(VFatError::io(IoError::already_exists("File already exists")));
         }
 
         // Allocate a cluster for the file
@@ -934,10 +934,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
         }
 
         if free_positions.len() < num_entries {
-            return Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Directory full",
-            )));
+            return Err(VFatError::io(IoError::other("Directory full")));
         }
 
         // Write LFN entries
@@ -970,10 +967,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
     pub fn create_directory(&mut self, parent_cluster: u32, name: &str) -> Result<FileInfo, VFatError> {
         // Check if directory already exists
         if self.find_entry(parent_cluster, name)?.is_some() {
-            return Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                "Directory already exists",
-            )));
+            return Err(VFatError::io(IoError::already_exists("Directory already exists")));
         }
 
         // Allocate cluster for new directory
@@ -1036,10 +1030,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
     /// Delete a file or directory
     pub fn delete(&mut self, dir_cluster: u32, name: &str) -> Result<(), VFatError> {
         let (entry, cluster, offset) = self.find_entry(dir_cluster, name)?
-            .ok_or_else(|| VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "File not found",
-            )))?;
+            .ok_or_else(|| VFatError::not_found("File not found"))?;
 
         // Free cluster chain
         self.free_cluster_chain(entry.cluster())?;
@@ -1064,10 +1055,7 @@ impl<B: BlockDevice> Fat32Filesystem<B> {
     /// Write file contents
     pub fn write_file(&mut self, dir_cluster: u32, name: &str, data: &[u8]) -> Result<(), VFatError> {
         let (mut entry, cluster, offset) = self.find_entry(dir_cluster, name)?
-            .ok_or_else(|| VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "File not found",
-            )))?;
+            .ok_or_else(|| VFatError::not_found("File not found"))?;
 
         // Free old cluster chain
         if entry.cluster() >= cluster::FIRST_DATA {
@@ -1152,6 +1140,8 @@ pub struct Fat32Info {
     pub sectors_per_cluster: u8,
     /// Volume label
     pub volume_label: String,
+    /// Root directory cluster
+    pub root_cluster: u32,
 }
 
 /// File information

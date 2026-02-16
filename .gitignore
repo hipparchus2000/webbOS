@@ -29,3 +29,9 @@ KIMI_CONTEXT.md
 serial.log
 1048576
 qemu_out.txt
+
+# --- Build Logs & Analysis ---
+/build_logs/
+/build_logs_x64/
+# Note: Documentation in docs/build-results/ IS tracked (buglists, summaries)
+# Only raw build logs (*.log files) are ignored

@@ -3,9 +3,11 @@
 //! Implements read-ahead, write-behind, FAT table caching, and
 //! directory entry caching for optimal filesystem performance.
 
-use crate::error::VFatError;
+use crate::error::{VFatError, IoError};
 use crate::fs::block::BlockDevice;
 use alloc::collections::VecDeque;
+use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 use core::time::Duration;
 
@@ -301,15 +303,13 @@ impl<B: BlockDevice> ReadAheadCache<B> {
         let is_sequential = self.last_block.map(|last| block == last + 1).unwrap_or(false);
         self.last_block = Some(block);
 
-        // Perform read
-        let result = self.cache.read_sector(device, block);
-
-        // Trigger read-ahead if sequential
+        // Trigger read-ahead if sequential (before the main read to avoid borrow issues)
         if is_sequential {
             self.trigger_read_ahead(device, block);
         }
 
-        result
+        // Perform read
+        self.cache.read_sector(device, block)
     }
 
     /// Trigger read-ahead for sequential reads
@@ -446,10 +446,7 @@ impl FatCache {
         if let Some(idx) = self.fat_sectors.iter().position(|s| s.sector == sector) {
             Ok(&mut self.fat_sectors[idx].data)
         } else {
-            Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to load FAT sector",
-            )))
+            Err(VFatError::io(IoError::device_error("Failed to load FAT sector")))
         }
     }
 
@@ -469,10 +466,7 @@ impl FatCache {
         if let Some(idx) = self.fat_sectors.iter().position(|s| s.sector == sector) {
             Ok(&self.fat_sectors[idx].data)
         } else {
-            Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to load FAT sector",
-            )))
+            Err(VFatError::io(IoError::device_error("Failed to load FAT sector")))
         }
     }
 
@@ -585,10 +579,7 @@ impl DirEntryCache {
         if let Some(idx) = self.dir_clusters.iter().position(|c| c.cluster == cluster) {
             Ok(&self.dir_clusters[idx].data)
         } else {
-            Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to load directory cluster",
-            )))
+            Err(VFatError::io(IoError::device_error("Failed to load directory cluster")))
         }
     }
 
@@ -609,10 +600,7 @@ impl DirEntryCache {
             self.dir_clusters[idx].dirty = true;
             Ok(&mut self.dir_clusters[idx].data)
         } else {
-            Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to load directory cluster",
-            )))
+            Err(VFatError::io(IoError::device_error("Failed to load directory cluster")))
         }
     }
 

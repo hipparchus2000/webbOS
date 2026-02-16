@@ -397,7 +397,7 @@ fn init_mini_uart(base: usize, config: &UartConfig) {
         // Calculate baud rate
         let info = platform_info();
         let uart_clock = info.uart_clock_hz;
-        let baud_reg = (uart_clock / (8 * config.baud_rate)) - 1;
+        let baud_reg = ((uart_clock / (8 * config.baud_rate as u64)) - 1) as u32;
         
         mmio::write32(base + mini_uart_regs::MU_BAUD, baud_reg);
         

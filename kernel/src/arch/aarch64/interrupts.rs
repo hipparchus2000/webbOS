@@ -3,8 +3,168 @@
 //! This module handles exceptions and interrupts on ARM64 architecture.
 //! ARM uses a unified exception model with different exception types.
 
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 use crate::println;
+
+// Include the exception vector table assembly
+global_asm!(
+    r#"
+    .section .exception_vectors, "ax"
+    .align 11 // 2KB aligned for VBAR_EL1
+    
+    .global __exception_vectors_start
+    __exception_vectors_start:
+    
+    // Current EL with SP0
+    .align 7
+    b vector_sync_sp0
+    
+    .align 7
+    b vector_irq_sp0
+    
+    .align 7
+    b vector_fiq_sp0
+    
+    .align 7
+    b vector_serror_sp0
+    
+    // Current EL with SPx
+    .align 7
+    b vector_sync_spx
+    
+    .align 7
+    b vector_irq_spx
+    
+    .align 7
+    b vector_fiq_spx
+    
+    .align 7
+    b vector_serror_spx
+    
+    // Lower EL using AArch64
+    .align 7
+    b vector_sync_lower64
+    
+    .align 7
+    b vector_irq_lower64
+    
+    .align 7
+    b vector_fiq_lower64
+    
+    .align 7
+    b vector_serror_lower64
+    
+    // Lower EL using AArch32
+    .align 7
+    b vector_sync_lower32
+    
+    .align 7
+    b vector_irq_lower32
+    
+    .align 7
+    b vector_fiq_lower32
+    
+    .align 7
+    b vector_serror_lower32
+    "#
+);
+
+// Handler functions that delegate to Rust
+#[no_mangle]
+pub extern "C" fn vector_sync_sp0() {
+    panic!("Synchronous exception with SP0");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_irq_sp0() {
+    panic!("IRQ with SP0");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_fiq_sp0() {
+    panic!("FIQ with SP0");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_serror_sp0() {
+    panic!("SError with SP0");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_sync_spx() {
+    vector_handle_exception();
+}
+
+#[no_mangle]
+pub extern "C" fn vector_irq_spx() {
+    vector_handle_irq();
+}
+
+#[no_mangle]
+pub extern "C" fn vector_fiq_spx() {
+    vector_handle_fiq();
+}
+
+#[no_mangle]
+pub extern "C" fn vector_serror_spx() {
+    panic!("SError with SPx");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_sync_lower64() {
+    vector_handle_exception();
+}
+
+#[no_mangle]
+pub extern "C" fn vector_irq_lower64() {
+    vector_handle_irq();
+}
+
+#[no_mangle]
+pub extern "C" fn vector_fiq_lower64() {
+    vector_handle_fiq();
+}
+
+#[no_mangle]
+pub extern "C" fn vector_serror_lower64() {
+    panic!("SError from lower EL (AArch64)");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_sync_lower32() {
+    panic!("Synchronous exception from lower EL (AArch32)");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_irq_lower32() {
+    panic!("IRQ from lower EL (AArch32)");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_fiq_lower32() {
+    panic!("FIQ from lower EL (AArch32)");
+}
+
+#[no_mangle]
+pub extern "C" fn vector_serror_lower32() {
+    panic!("SError from lower EL (AArch32)");
+}
+
+fn vector_handle_exception() {
+    // TODO: Implement proper exception handling
+    println!("Exception occurred!");
+    loop { unsafe { asm!("wfi", options(nomem, nostack)); } }
+}
+
+fn vector_handle_irq() {
+    // TODO: Implement proper IRQ handling
+    println!("IRQ occurred!");
+}
+
+fn vector_handle_fiq() {
+    // TODO: Implement proper FIQ handling
+    println!("FIQ occurred!");
+}
 
 /// Exception Class (EC) values for ESR_EL1
 #[repr(u32)]
@@ -17,22 +177,24 @@ pub enum ExceptionClass {
     CP14RTTrap = 0x05,
     CP14RRTrap = 0x06,
     CP14DTTrap = 0x07,
-    AdvSIMDFPAccessTrap = 0x07,
+    AdvSIMDFPAccessTrap = 0x09,
     FPTrap = 0x08,
     SError = 0x2F,
     Breakpoint = 0x30,
     Step = 0x32,
     Watchpoint = 0x34,
     BKPTInstruction = 0x38,
-    SVC64 = 0x42,
-    HVC64 = 0x43,
-    SMC64 = 0x44,
-    SystemRegisterTrap = 0x48,
-    InstructionAbort = 0x60,
-    PCAlignmentFault = 0x62,
-    DataAbort = 0x64,
-    SPAlignmentFault = 0x66,
-    TrappedFPException = 0x7C,
+    SVC64 = 0x15,
+    HVC64 = 0x16,
+    SMC64 = 0x17,
+    SystemRegisterTrap = 0x18,
+    InstructionAbort = 0x20,
+    PCAlignmentFault = 0x22,
+    DataAbort = 0x24,
+    SPAlignmentFault = 0x26,
+    TrappedFPException = 0x2C,
+    IRQSPx = 0x1E,
+    IRQLower64 = 0x1F,
 }
 
 impl ExceptionClass {
@@ -46,20 +208,23 @@ impl ExceptionClass {
             0x06 => Self::CP14RRTrap,
             0x07 => Self::CP14DTTrap,
             0x08 => Self::FPTrap,
+            0x09 => Self::AdvSIMDFPAccessTrap,
+            0x15 => Self::SVC64,
+            0x16 => Self::HVC64,
+            0x17 => Self::SMC64,
+            0x18 => Self::SystemRegisterTrap,
+            0x1E => Self::IRQSPx,
+            0x1F => Self::IRQLower64,
+            0x20 => Self::InstructionAbort,
+            0x22 => Self::PCAlignmentFault,
+            0x24 => Self::DataAbort,
+            0x26 => Self::SPAlignmentFault,
+            0x2C => Self::TrappedFPException,
             0x2F => Self::SError,
             0x30 => Self::Breakpoint,
             0x32 => Self::Step,
             0x34 => Self::Watchpoint,
             0x38 => Self::BKPTInstruction,
-            0x42 => Self::SVC64,
-            0x43 => Self::HVC64,
-            0x44 => Self::SMC64,
-            0x48 => Self::SystemRegisterTrap,
-            0x60 => Self::InstructionAbort,
-            0x62 => Self::PCAlignmentFault,
-            0x64 => Self::DataAbort,
-            0x66 => Self::SPAlignmentFault,
-            0x7C => Self::TrappedFPException,
             _ => Self::Unknown,
         }
     }
@@ -180,11 +345,20 @@ pub fn init() {
         // Set exception vector table address
         set_vector_table();
         
-        // Enable interrupts
-        enable_interrupts();
+        // Note: Don't enable interrupts here - they will be enabled after all handlers are set up
     }
     
     println!("[Interrupts] Interrupt handling initialized");
+}
+
+/// Enable interrupts (wrapper for compatibility with x86_64 API)
+pub fn enable() {
+    enable_interrupts();
+}
+
+/// Disable interrupts (wrapper for compatibility with x86_64 API)
+pub fn disable() {
+    disable_interrupts();
 }
 
 /// Set the exception vector table address
@@ -374,4 +548,31 @@ pub fn register_handler(_irq_num: u32, _handler: fn()) {
 pub fn timer_handler() {
     println!("[TIMER] Timer interrupt");
     // TODO: Handle timer interrupt and schedule next tick
+}
+
+/// Timer tick counter (static for get_timer_ticks)
+static mut TIMER_TICKS: u64 = 0;
+
+/// Get the current timer tick count
+/// 
+/// This provides a compatible API with x86_64
+pub fn get_timer_ticks() -> u64 {
+    unsafe { TIMER_TICKS }
+}
+
+/// Increment timer ticks (called from timer interrupt handler)
+pub unsafe fn increment_timer_ticks() {
+    TIMER_TICKS += 1;
+}
+
+/// Unmask a specific IRQ (for compatibility with x86_64 API)
+/// 
+/// On ARM64, this would configure the GIC (Generic Interrupt Controller).
+/// For now, this is a no-op placeholder.
+/// 
+/// # Safety
+/// Should only be called after the interrupt handler is registered
+pub unsafe fn unmask_irq(_irq: u8) {
+    // TODO: Implement GIC interrupt unmasking for ARM64
+    // For now, just a placeholder
 }

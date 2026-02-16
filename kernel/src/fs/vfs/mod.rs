@@ -3,11 +3,12 @@
 //! Provides a unified interface for multiple filesystem implementations,
 //! file descriptor management, and system call integration.
 
-use crate::error::VFatError;
+use crate::error::{VFatError, IoError};
 use crate::fs::block::BlockDevice;
 use crate::fs::fat32::{Fat32Filesystem, FileInfo};
 use alloc::collections::BTreeMap;
-use alloc::string::String;
+use alloc::format;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 /// Maximum number of open files
@@ -174,7 +175,7 @@ impl<B: BlockDevice> Vfs<B> {
     }
 
     /// Parse path and return components
-    fn parse_path(&self, path: &str) -> Vec<&str> {
+    fn parse_path<'a>(&self, path: &'a str) -> Vec<&'a str> {
         path.split('/')
             .filter(|s| !s.is_empty() && *s != ".")
             .collect()
@@ -182,39 +183,41 @@ impl<B: BlockDevice> Vfs<B> {
 
     /// Resolve path to directory cluster and entry name
     fn resolve_path(&mut self, path: &str) -> Result<(u32, String), VFatError> {
-        let components = self.parse_path(path);
+        let is_absolute = path.starts_with('/');
+        let components: Vec<&str> = path.split('/')
+            .filter(|s| !s.is_empty() && *s != ".")
+            .collect();
         
         if components.is_empty() || path == "/" {
             return Ok((self.fs.info().root_cluster, String::new()));
         }
 
-        let mut current_cluster = if path.starts_with('/') {
+        let mut current_cluster = if is_absolute {
             self.fs.info().root_cluster
         } else {
             self.current_dir
         };
 
-        // Navigate through path components
-        for i in 0..components.len() - 1 {
-            let name = components[i];
-            
-            if name == ".." {
-                // Handle parent directory
-                // In a real implementation, we'd track parent cluster
-                continue;
-            }
+        // Navigate through path components (excluding the last one which is the target)
+        if components.len() > 1 {
+            for i in 0..components.len() - 1 {
+                let name = components[i];
+                
+                if name == ".." {
+                    // Handle parent directory
+                    // In a real implementation, we'd track parent cluster
+                    continue;
+                }
 
-            // Find directory entry
-            let entries = self.fs.list_directory(current_cluster)?;
-            let found = entries.iter()
-                .find(|e| e.is_directory && e.name.eq_ignore_ascii_case(name));
+                // Find directory entry
+                let entries = self.fs.list_directory(current_cluster)?;
+                let found = entries.iter()
+                    .find(|e| e.is_directory && e.name.eq_ignore_ascii_case(name));
 
-            match found {
-                Some(entry) => current_cluster = entry.cluster,
-                None => return Err(VFatError::Io(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("Directory not found: {}", name),
-                ))),
+                match found {
+                    Some(entry) => current_cluster = entry.cluster,
+                    None => return Err(VFatError::io(IoError::not_found(&format!("Directory not found: {}", name)))),
+                }
             }
         }
 
@@ -228,10 +231,7 @@ impl<B: BlockDevice> Vfs<B> {
         
         if file_name.is_empty() {
             // Path is a directory
-            return Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "Path is a directory",
-            )));
+            return Err(VFatError::io(IoError::invalid_input("Path is a directory")));
         }
 
         let entries = self.fs.list_directory(dir_cluster)?;
@@ -243,10 +243,7 @@ impl<B: BlockDevice> Vfs<B> {
                 // Find entry offset (simplified - would need actual offset tracking)
                 Ok((entry.clone(), dir_cluster, 0))
             }
-            None => Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("File not found: {}", file_name),
-            ))),
+            None => Err(VFatError::io(IoError::not_found(&format!("File not found: {}", file_name)))),
         }
     }
 }
@@ -266,10 +263,7 @@ impl<B: BlockDevice> VfsOperations for Vfs<B> {
 
         let (file_info, entry_offset) = if let Some(entry) = existing {
             if flags.exclusive {
-                return Err(VFatError::Io(std::io::Error::new(
-                    std::io::ErrorKind::AlreadyExists,
-                    "File already exists",
-                )));
+                return Err(VFatError::io(IoError::already_exists("File already exists")));
             }
 
             if flags.truncate {
@@ -280,10 +274,7 @@ impl<B: BlockDevice> VfsOperations for Vfs<B> {
             (entry.clone(), 0) // Would need actual offset
         } else {
             if !flags.create {
-                return Err(VFatError::Io(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "File not found",
-                )));
+                return Err(VFatError::io(IoError::not_found("File not found")));
             }
 
             // Create new file
@@ -338,10 +329,7 @@ impl<B: BlockDevice> VfsOperations for Vfs<B> {
             .clone();
 
         if !handle.flags.read {
-            return Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "File not open for reading",
-            )));
+            return Err(VFatError::io(IoError::permission_denied("File not open for reading")));
         }
 
         // Read file data
@@ -378,10 +366,7 @@ impl<B: BlockDevice> VfsOperations for Vfs<B> {
             .clone();
 
         if !handle.flags.write {
-            return Err(VFatError::Io(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "File not open for writing",
-            )));
+            return Err(VFatError::io(IoError::permission_denied("File not open for writing")));
         }
 
         // Read existing data
@@ -490,10 +475,7 @@ impl<B: BlockDevice> VfsOperations for Vfs<B> {
         // Check if file is open
         for handle in self.handles.values() {
             if handle.path == path {
-                return Err(VFatError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "File is open",
-                )));
+                return Err(VFatError::io(IoError::other("File is open")));
             }
         }
 

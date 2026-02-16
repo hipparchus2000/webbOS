@@ -5,6 +5,7 @@
 #![feature(fn_align)]
 #![feature(alloc_error_handler)]
 #![cfg_attr(target_arch = "x86_64", feature(abi_x86_interrupt))]
+#![cfg_attr(target_arch = "aarch64", feature(stdarch_arm_hints))]
 
 //! WebbOS Kernel
 //!
@@ -14,6 +15,8 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 #[cfg(target_arch = "x86_64")]
+use core::arch::naked_asm;
+#[cfg(target_arch = "aarch64")]
 use core::arch::naked_asm;
 use webbos_shared::bootinfo::BootInfo;
 
@@ -35,6 +38,7 @@ mod testing;
 mod users;
 mod desktop;
 mod login_screen;
+pub mod error;
 
 // Hardware Abstraction Layer (ARM64 only)
 #[cfg(target_arch = "aarch64")]
@@ -43,12 +47,16 @@ mod hal;
 use arch::cpu;
 use arch::interrupts;
 
+// arch::gdt only exists on x86_64
+#[cfg(target_arch = "x86_64")]
+use arch::gdt;
+
 /// Test FAT32 root directory reading
 fn test_fat32_root() {
     println!("[fs] Testing FAT32 root directory...");
     
     // Try to read root directory entries
-    use crate::fs::{FileSystem, INode};
+    // use crate::fs::{FileSystem, INode};  // These types don't exist yet
     
     // Get the root filesystem (should be FAT32 mounted at /)
     // For now just print a success message
@@ -142,12 +150,15 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     cpu::init();
     println!("[cpu] CPU features detected");
 
-    // Initialize GDT and TSS
-    println!("\n[gdt] Initializing GDT and TSS...");
-    arch::gdt::init();
-    // Set kernel stack in TSS (use current stack top from boot info)
-    arch::gdt::set_kernel_stack(boot_info.stack_top.as_u64());
-    println!("[gdt] GDT and TSS initialized");
+    // Initialize GDT and TSS (x86_64 only)
+    #[cfg(target_arch = "x86_64")]
+    {
+        println!("\n[gdt] Initializing GDT and TSS...");
+        arch::gdt::init();
+        // Set kernel stack in TSS (use current stack top from boot info)
+        arch::gdt::set_kernel_stack(boot_info.stack_top.as_u64());
+        println!("[gdt] GDT and TSS initialized");
+    }
 
     // Initialize memory management
     println!("\n[mm] Initializing memory management...");
@@ -166,7 +177,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
 
     // Initialize VFS
     println!("\n[fs] Initializing VFS...");
-    fs::init();
+    // fs::init(); // TODO: Implement fs::init()
     
     // Create and mount initrd (temporarily disabled)
     // let initrd = fs::initrd::create_basic_initrd();
@@ -624,7 +635,8 @@ fn process_command(cmd: &[u8]) {
             process::scheduler::print_stats();
         }
         "vfs" => {
-            fs::print_stats();
+            // fs::print_stats(); // TODO: Implement fs::print_stats()
+            println!("fs::print_stats() not implemented yet");
         }
         "pci" => {
             drivers::pci::print_devices();
@@ -741,10 +753,11 @@ fn process_command(cmd: &[u8]) {
     }
 }
 
-/// Kernel entry trampoline
+/// Kernel entry trampoline (x86_64 version)
 /// 
 /// This is the actual entry point from the bootloader.
 /// It sets up the stack and calls kernel_entry.
+#[cfg(target_arch = "x86_64")]
 #[naked]
 #[no_mangle]
 #[repr(align(16))]
@@ -772,6 +785,39 @@ pub unsafe extern "C" fn _start() -> ! {
         "cli",
         "hlt",
         "jmp 2b",
+        
+        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x500000u64, // Top of 2MB stack at 3MB
+        kernel_entry = sym kernel_entry,
+    );
+}
+
+/// Kernel entry trampoline (AArch64 version)
+/// 
+/// This is the actual entry point from the bootloader for ARM64.
+#[cfg(target_arch = "aarch64")]
+#[naked]
+#[no_mangle]
+#[repr(align(16))]
+pub unsafe extern "C" fn _start() -> ! {
+    naked_asm!(
+        // Save boot info pointer (passed in x0 from bootloader)
+        "mov x19, x0",
+        
+        // Set up kernel stack
+        "ldr x1, ={stack_top}",
+        "mov sp, x1",
+        
+        // Clear frame pointer
+        "mov x29, xzr",
+        
+        // Restore boot info pointer and call kernel entry
+        "mov x0, x19",
+        "bl {kernel_entry}",
+        
+        // Should never return, but halt just in case
+        "2:",
+        "wfi",
+        "b 2b",
         
         stack_top = const 0xFFFF_8000_0000_0000u64 + 0x500000u64, // Top of 2MB stack at 3MB
         kernel_entry = sym kernel_entry,

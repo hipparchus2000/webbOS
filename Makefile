@@ -1,20 +1,24 @@
 # WebbOS Build System
 
-.PHONY: all clean run test bootloader kernel iso qemu
+.PHONY: all clean run test bootloader kernel iso qemu qemu-aarch64 run-x64 run-aarch64
 
 # Directories
 BUILD_DIR := build
 ISO_DIR := $(BUILD_DIR)/iso
 OVMF_DIR := $(BUILD_DIR)/ovmf
+AARCH64_DIR := $(BUILD_DIR)/aarch64
 
 # Tools
 CARGO := cargo
-QEMU := qemu-system-x86_64
+QEMU_X64 := qemu-system-x86_64
+QEMU_AARCH64 := qemu-system-aarch64
 
 # QEMU Flags
-QEMU_FLAGS := -m 512M -smp 4 -cpu qemu64
-QEMU_UEFI_FLAGS := $(QEMU_FLAGS) -bios $(OVMF_DIR)/OVMF.fd
+QEMU_X64_FLAGS := -m 512M -smp 4 -cpu qemu64
+QEMU_UEFI_FLAGS := $(QEMU_X64_FLAGS) -bios $(OVMF_DIR)/OVMF.fd
 QEMU_DEBUG_FLAGS := -S -s -serial stdio
+
+QEMU_AARCH64_FLAGS := -M virt,highmem=off -cpu cortex-a72 -m 1024M -smp 4
 
 all: $(BUILD_DIR)/webbos.iso
 
@@ -99,3 +103,33 @@ coverage:
 	cd shared && $(CARGO) tarpaulin --out Html --output-dir ../$(BUILD_DIR)/coverage/shared
 	cd kernel && $(CARGO) tarpaulin --out Html --output-dir ../$(BUILD_DIR)/coverage/kernel
 	@echo "Coverage reports generated in $(BUILD_DIR)/coverage/"
+
+# AArch64 builds
+aarch64-kernel:
+	cd kernel && $(CARGO) build --target aarch64-unknown-none --release
+
+aarch64-image: aarch64-kernel | $(AARCH64_DIR)
+	objcopy -O binary kernel/target/aarch64-unknown-none/release/kernel $(AARCH64_DIR)/kernel8.img
+	cp kernel/target/aarch64-unknown-none/release/kernel $(AARCH64_DIR)/webbos-kernel.elf
+	@echo "AArch64 kernel image created: $(AARCH64_DIR)/kernel8.img"
+
+# QEMU runs
+run-x64: kernel | $(ISO_DIR)
+	@echo "Running x86_64 in QEMU..."
+	@cp target/x86_64-unknown-none/release/kernel $(ISO_DIR)/kernel.elf 2>/dev/null || \
+		cp target/x86_64-unknown-none/debug/kernel $(ISO_DIR)/kernel.elf
+	$(QEMU_X64) $(QEMU_X64_FLAGS) -kernel $(ISO_DIR)/kernel.elf -serial stdio -no-reboot
+
+run-aarch64: aarch64-image
+	@echo "Running AArch64 in QEMU..."
+	$(QEMU_AARCH64) $(QEMU_AARCH64_FLAGS) -kernel $(AARCH64_DIR)/webbos-kernel.elf -serial stdio -no-reboot
+
+# Direct kernel run (debug builds)
+run-x64-debug:
+	cd kernel && cargo run --target x86_64-unknown-none 2>&1 | head -100
+
+run-aarch64-debug:
+	cd kernel && cargo run --target aarch64-unknown-none 2>&1 | head -100
+
+$(AARCH64_DIR):
+	mkdir -p $(AARCH64_DIR)

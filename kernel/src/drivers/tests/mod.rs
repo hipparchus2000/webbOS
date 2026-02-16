@@ -43,7 +43,7 @@ fn run_aarch64_tests() {
     
     // HAL tests
     println!("[TEST] Hardware Abstraction Layer");
-    hal::print_info();
+    println!("  Platform: {:?}", hal::platform_info().platform_type);
     println!("[PASS] HAL info displayed\n");
     
     // GPIO tests
@@ -123,6 +123,7 @@ pub fn test_uart_echo() {
 }
 
 /// Test platform detection
+#[cfg(target_arch = "aarch64")]
 pub fn test_platform_detection() {
     use crate::hal;
     
@@ -141,4 +142,12 @@ pub fn test_platform_detection() {
     } else if hal::is_qemu() {
         println!("  Detected: QEMU virt machine");
     }
+}
+
+/// Test platform detection (x86_64 stub)
+#[cfg(target_arch = "x86_64")]
+pub fn test_platform_detection() {
+    println!("Platform Detection Test:");
+    println!("  Platform Type: x86_64 PC");
+    println!("  Detected: x86_64 PC (no HAL available)");
 }

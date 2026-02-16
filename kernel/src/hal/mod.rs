@@ -47,7 +47,7 @@ impl DeviceTreeHeader {
 }
 
 /// Platform information
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlatformInfo {
     /// Platform type
     pub platform_type: PlatformType,
@@ -161,16 +161,18 @@ pub fn init() {
     // Detect platform based on device tree or CPU features
     let platform_info = detect_platform();
     
-    unsafe {
-        PLATFORM_INFO = Some(platform_info);
-    }
-    
+    // Print platform info before storing
     println!("[HAL] Platform detected: {:?}", platform_info.platform_type);
     println!("  CPU frequency: {} MHz", platform_info.cpu_freq_hz / 1_000_000);
     println!("  Peripheral base: 0x{:016X}", platform_info.peripheral_base);
     
     // Initialize platform-specific drivers
     init_platform_drivers(&platform_info);
+    
+    // Store platform info
+    unsafe {
+        PLATFORM_INFO = Some(platform_info);
+    }
 }
 
 /// Detect the current platform
@@ -334,6 +336,18 @@ pub fn is_qemu() -> bool {
 
 /// Memory-mapped I/O helper functions
 pub mod mmio {
+    /// Read an 8-bit value from a memory-mapped register
+    #[inline]
+    pub unsafe fn read8(addr: usize) -> u8 {
+        core::ptr::read_volatile(addr as *const u8)
+    }
+    
+    /// Read a 16-bit value from a memory-mapped register
+    #[inline]
+    pub unsafe fn read16(addr: usize) -> u16 {
+        core::ptr::read_volatile(addr as *const u16)
+    }
+    
     /// Read a 32-bit value from a memory-mapped register
     #[inline]
     pub unsafe fn read32(addr: usize) -> u32 {
@@ -344,6 +358,18 @@ pub mod mmio {
     #[inline]
     pub unsafe fn read64(addr: usize) -> u64 {
         core::ptr::read_volatile(addr as *const u64)
+    }
+    
+    /// Write an 8-bit value to a memory-mapped register
+    #[inline]
+    pub unsafe fn write8(addr: usize, value: u8) {
+        core::ptr::write_volatile(addr as *mut u8, value);
+    }
+    
+    /// Write a 16-bit value to a memory-mapped register
+    #[inline]
+    pub unsafe fn write16(addr: usize, value: u16) {
+        core::ptr::write_volatile(addr as *mut u16, value);
     }
     
     /// Write a 32-bit value to a memory-mapped register

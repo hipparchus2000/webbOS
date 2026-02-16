@@ -1,6 +1,9 @@
 //! ATA/IDE Driver
 //!
 //! Supports legacy ATA/IDE hard disk controllers.
+//! NOTE: This is x86_64-specific (uses x86 I/O ports).
+
+#![cfg_attr(target_arch = "aarch64", allow(dead_code))]
 
 use core::arch::asm;
 use alloc::vec::Vec;
@@ -391,7 +394,8 @@ pub fn init() {
     }
 }
 
-/// Read byte from I/O port
+/// Read byte from I/O port (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 unsafe fn read_port(port: u16) -> u8 {
     let val: u8;
     asm!(
@@ -403,7 +407,11 @@ unsafe fn read_port(port: u16) -> u8 {
     val
 }
 
-/// Read word from I/O port
+#[cfg(target_arch = "aarch64")]
+unsafe fn read_port(_port: u16) -> u8 { 0 }
+
+/// Read word from I/O port (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 unsafe fn read_port_word(port: u16) -> u16 {
     let val: u16;
     asm!(
@@ -415,7 +423,11 @@ unsafe fn read_port_word(port: u16) -> u16 {
     val
 }
 
-/// Write byte to I/O port
+#[cfg(target_arch = "aarch64")]
+unsafe fn read_port_word(_port: u16) -> u16 { 0 }
+
+/// Write byte to I/O port (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 unsafe fn write_port(port: u16, val: u8) {
     asm!(
         "out dx, al",
@@ -425,7 +437,11 @@ unsafe fn write_port(port: u16, val: u8) {
     );
 }
 
-/// Write word to I/O port
+#[cfg(target_arch = "aarch64")]
+unsafe fn write_port(_port: u16, _val: u8) {}
+
+/// Write word to I/O port (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 unsafe fn write_port_word(port: u16, val: u16) {
     asm!(
         "out dx, ax",
@@ -434,6 +450,9 @@ unsafe fn write_port_word(port: u16, val: u16) {
         options(nomem, nostack)
     );
 }
+
+#[cfg(target_arch = "aarch64")]
+unsafe fn write_port_word(_port: u16, _val: u16) {}
 
 /// Wait ~400ns
 fn wait_400ns(control_port: u16) {

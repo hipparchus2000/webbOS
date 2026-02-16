@@ -1,4 +1,8 @@
 //! Serial port driver (UART 16550)
+//!
+//! NOTE: This is x86_64-specific. ARM64 uses a different UART implementation.
+
+#![cfg_attr(target_arch = "aarch64", allow(dead_code))]
 
 use core::fmt;
 
@@ -46,7 +50,8 @@ impl SerialPort {
         Self { port }
     }
 
-    /// Output byte to port
+    /// Output byte to port (x86_64 only)
+    #[cfg(target_arch = "x86_64")]
     unsafe fn outb(port: u16, val: u8) {
         core::arch::asm!(
             "out dx, al",
@@ -56,7 +61,8 @@ impl SerialPort {
         );
     }
 
-    /// Input byte from port
+    /// Input byte from port (x86_64 only)
+    #[cfg(target_arch = "x86_64")]
     unsafe fn inb(port: u16) -> u8 {
         let val: u8;
         core::arch::asm!(
@@ -67,6 +73,14 @@ impl SerialPort {
         );
         val
     }
+    
+    /// Output byte to port stub (aarch64)
+    #[cfg(target_arch = "aarch64")]
+    unsafe fn outb(_port: u16, _val: u8) {}
+
+    /// Input byte from port stub (aarch64)
+    #[cfg(target_arch = "aarch64")]
+    unsafe fn inb(_port: u16) -> u8 { 0 }
 
     /// Check if transmit buffer is empty
     fn is_transmit_empty(&self) -> bool {
@@ -113,7 +127,8 @@ impl fmt::Write for SerialPort {
     }
 }
 
-/// Try to receive a byte from COM1
+/// Try to receive a byte from COM1 (x86_64 only)
+#[cfg(target_arch = "x86_64")]
 pub fn try_receive() -> Option<u8> {
     // Simple implementation - just check COM1
     unsafe {
@@ -141,4 +156,10 @@ pub fn try_receive() -> Option<u8> {
             None
         }
     }
+}
+
+/// Try to receive a byte from COM1 stub (aarch64)
+#[cfg(target_arch = "aarch64")]
+pub fn try_receive() -> Option<u8> {
+    None
 }

@@ -4,6 +4,10 @@
 //! SD cards, virtual block devices for testing, and future storage backends.
 
 use crate::error::VFatError;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 
 pub mod sdhost;
 
@@ -45,6 +49,16 @@ impl SdCardBlockDevice {
         let mut inner = sdhost::SdBlockDevice::new(base_addr);
         inner.init()?;
         Ok(Self { inner })
+    }
+
+    /// Get device capacity in blocks
+    pub fn capacity(&self) -> u64 {
+        self.inner.capacity()
+    }
+
+    /// Get block size in bytes
+    pub fn block_size(&self) -> usize {
+        self.inner.block_size()
     }
 }
 
