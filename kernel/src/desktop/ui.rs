@@ -693,7 +693,7 @@ impl DesktopUI {
     }
 
     fn draw_dock_icon(&self, driver: &mut VesaDriver, icon: &Icon) {
-        use crate::desktop::embedded_icons;
+        use crate::desktop::{embedded_icons, icon_cache};
 
         // Icon background
         driver.fill_rect(
@@ -713,26 +713,19 @@ impl DesktopUI {
             palette::DOCK_BORDER
         );
 
-        // Draw embedded icon if available based on icon_path
-        let icon_drawn = if let Some(ref path) = icon.icon_path {
-            if path.contains("globe") {
-                self.draw_rgba_icon(driver, icon.x, icon.y,
-                    embedded_icons::GLOBE_ICON_DATA,
-                    embedded_icons::GLOBE_ICON_WIDTH,
-                    embedded_icons::GLOBE_ICON_HEIGHT);
-                true
-            } else if path.contains("filemanager") {
-                self.draw_rgba_icon(driver, icon.x, icon.y,
-                    embedded_icons::FILEMANAGER_ICON_DATA,
-                    embedded_icons::FILEMANAGER_ICON_WIDTH,
-                    embedded_icons::FILEMANAGER_ICON_HEIGHT);
-                true
+        // Try to load and draw PNG icon from filesystem first
+        let mut icon_drawn = false;
+        
+        if let Some(ref path) = icon.icon_path {
+            // Try to load from icon cache
+            if let Some(cached) = icon_cache::get_icon(path) {
+                self.draw_rgba_icon(driver, icon.x, icon.y, &cached.rgba_data, cached.width, cached.height);
+                icon_drawn = true;
             } else {
-                false
+                // Fall back to embedded icons
+                icon_drawn = self.draw_embedded_icon(driver, icon, path);
             }
-        } else {
-            false
-        };
+        }
 
         // Fallback to character display if no icon was drawn
         if !icon_drawn {
@@ -744,6 +737,33 @@ impl DesktopUI {
         // Label (below icon)
         let label_x = icon.x + (icon.width as i32 / 2) - ((icon.label.len() as i32 * 4));
         driver.draw_text(&icon.label, label_x, icon.y + icon.height as i32 + 4, palette::TEXT_WHITE, 1);
+    }
+
+    /// Draw embedded icon based on path
+    fn draw_embedded_icon(&self, driver: &mut VesaDriver, icon: &Icon, path: &str) -> bool {
+        use crate::desktop::embedded_icons;
+        
+        if path.contains("globe") {
+            self.draw_rgba_icon(driver, icon.x, icon.y,
+                embedded_icons::GLOBE_ICON_DATA,
+                embedded_icons::GLOBE_ICON_WIDTH,
+                embedded_icons::GLOBE_ICON_HEIGHT);
+            true
+        } else if path.contains("filemanager") {
+            self.draw_rgba_icon(driver, icon.x, icon.y,
+                embedded_icons::FILEMANAGER_ICON_DATA,
+                embedded_icons::FILEMANAGER_ICON_WIDTH,
+                embedded_icons::FILEMANAGER_ICON_HEIGHT);
+            true
+        } else if path.contains("folder") {
+            self.draw_rgba_icon(driver, icon.x, icon.y,
+                embedded_icons::FOLDER_ICON_DATA,
+                embedded_icons::FOLDER_ICON_WIDTH,
+                embedded_icons::FOLDER_ICON_HEIGHT);
+            true
+        } else {
+            false
+        }
     }
 
     /// Draw an RGBA icon from embedded data
@@ -771,7 +791,7 @@ impl DesktopUI {
     }
 
     fn draw_desktop_icon(&self, driver: &mut VesaDriver, icon: &Icon) {
-        use crate::desktop::embedded_icons;
+        use crate::desktop::{embedded_icons, icon_cache};
 
         // Draw selection highlight if selected
         if icon.is_selected {
@@ -793,20 +813,23 @@ impl DesktopUI {
             palette::ICON_BG
         );
 
-        // Draw embedded icon based on file type
-        let icon_drawn = if let Some(ref path) = icon.icon_path {
-            if path.contains("folder") {
+        // Try to load and draw PNG icon from filesystem first
+        let mut icon_drawn = false;
+        
+        if let Some(ref path) = icon.icon_path {
+            // Try to load from icon cache
+            if let Some(cached) = icon_cache::get_icon(path) {
+                self.draw_rgba_icon(driver, icon.x, icon.y, &cached.rgba_data, cached.width, cached.height);
+                icon_drawn = true;
+            } else if path.contains("folder") {
+                // Fall back to embedded folder icon
                 self.draw_rgba_icon(driver, icon.x, icon.y,
                     embedded_icons::FOLDER_ICON_DATA,
                     embedded_icons::FOLDER_ICON_WIDTH,
                     embedded_icons::FOLDER_ICON_HEIGHT);
-                true
-            } else {
-                false
+                icon_drawn = true;
             }
-        } else {
-            false
-        };
+        }
 
         // Fallback to character display if no icon was drawn
         if !icon_drawn {

@@ -4,6 +4,7 @@
 
 pub mod ui;
 pub mod embedded_icons;
+pub mod icon_cache;
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -661,6 +662,9 @@ lazy_static! {
 /// Initialize desktop environment
 pub fn init() {
     println!("[desktop] Initializing desktop environment...");
+    
+    // Initialize icon cache
+    icon_cache::init();
     
     let manager = DESKTOP_MANAGER.lock();
     println!("[desktop] {} applications registered", manager.applications.len());

@@ -14,6 +14,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 #[cfg(target_arch = "x86_64")]
 use core::arch::naked_asm;
 #[cfg(target_arch = "aarch64")]
@@ -615,6 +616,9 @@ fn process_command(cmd: &[u8]) {
             println!("  launch     - Launch application (e.g., launch notepad)");
             println!("  browser    - Show browser engine status");
             println!("  navigate   - Navigate to URL (e.g., navigate file:///test.html)");
+            println!("  browsertest- Test browser rendering engine");
+            println!("  loadhtml   - Load HTML file (e.g., loadhtml system/apps/calculator/index.html)");
+            println!("  save       - Save file to Desktop (e.g., save notes.txt Hello World)");
             println!("  pwa        - Show PWA system status");
             println!("  apps       - List installed PWA apps");
             println!("  install    - Install PWA app (e.g., install calculator)");
@@ -739,10 +743,58 @@ fn process_command(cmd: &[u8]) {
             browser::print_stats();
         }
         "navigate" => {
-            println!("Usage: navigate <url>");
-            println!("Examples:");
-            println!("  navigate file:///test.html");
-            println!("  navigate http://example.com");
+            let args = &cmd_str[cmd_str.len().min(8)..];
+            let url = args.trim();
+            if !url.is_empty() {
+                match browser::navigate(url) {
+                    Ok(_) => println!("Navigated to: {}", url),
+                    Err(e) => println!("Navigation failed: {:?}", e),
+                }
+            } else {
+                println!("Usage: navigate <url>");
+                println!("Examples:");
+                println!("  navigate file:///test.html");
+                println!("  navigate http://example.com");
+            }
+        }
+        "browsertest" => {
+            println!("Running browser engine test...");
+            match browser::test_render() {
+                Ok(_) => println!("Browser test passed!"),
+                Err(e) => println!("Browser test failed: {:?}", e),
+            }
+        }
+        "loadhtml" => {
+            let args = &cmd_str[cmd_str.len().min(8)..];
+            let path = args.trim();
+            if !path.is_empty() {
+                match browser::load_file(path) {
+                    Ok(_) => println!("Loaded HTML file: {}", path),
+                    Err(e) => println!("Failed to load file: {:?}", e),
+                }
+            } else {
+                println!("Usage: loadhtml <path>");
+                println!("Example: loadhtml system/apps/calculator/index.html");
+            }
+        }
+        "save" => {
+            let args = &cmd_str[cmd_str.len().min(4)..];
+            let args = args.trim();
+            
+            // Parse filename and content
+            let parts: Vec<&str> = args.splitn(2, ' ').collect();
+            if parts.len() >= 1 && !parts[0].is_empty() {
+                let filename = parts[0];
+                let content = if parts.len() > 1 { parts[1] } else { "" };
+                
+                match crate::fs::boot_disk::save_to_desktop(filename, content.as_bytes()) {
+                    Ok(_) => println!("Saved to Desktop: {}", filename),
+                    Err(e) => println!("Save failed: {}", e),
+                }
+            } else {
+                println!("Usage: save <filename> <content>");
+                println!("Example: save notes.txt Hello World");
+            }
         }
         "pwa" => {
             pwa::print_stats();

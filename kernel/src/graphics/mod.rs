@@ -10,6 +10,8 @@ use lazy_static::lazy_static;
 
 use crate::println;
 
+pub mod png;
+
 /// Framebuffer info
 #[derive(Debug, Clone, Copy)]
 pub struct FramebufferInfo {

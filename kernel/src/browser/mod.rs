@@ -4,6 +4,7 @@
 //! Supports HTML, CSS, JavaScript, and WebAssembly.
 
 use alloc::string::String;
+use alloc::format;
 use alloc::vec;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -357,5 +358,88 @@ pub fn print_stats() {
         }
     } else {
         println!("  Browser not initialized");
+    }
+}
+
+/// Test the browser engine with a simple HTML page
+pub fn test_render() -> Result<(), BrowserError> {
+    println!("[browser] Testing browser rendering...");
+    
+    // Create a simple test HTML page
+    let test_html = r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+    <style>
+        body { background: #f0f0f0; font-family: sans-serif; }
+        h1 { color: #333; }
+        p { color: #666; }
+    </style>
+</head>
+<body>
+    <h1>WebbOS Browser Test</h1>
+    <p>This is a test page to verify the browser engine works correctly.</p>
+    <p>Features tested:</p>
+    <ul>
+        <li>HTML parsing</li>
+        <li>CSS styling</li>
+        <li>Layout engine</li>
+        <li>Rendering</li>
+    </ul>
+</body>
+</html>"#;
+
+    // Parse the HTML
+    println!("[browser] Parsing HTML...");
+    let document = html::parse(test_html.as_bytes())?;
+    println!("[browser] Parsed {} elements", document.element_count());
+    
+    // Apply CSS
+    println!("[browser] Applying styles...");
+    let mut document = document;
+    css::apply_styles(&mut document)?;
+    
+    // Layout
+    println!("[browser] Performing layout...");
+    let layout_tree = layout::layout(&document, 1024, 768)?;
+    println!("[browser] Layout tree created");
+    
+    // Render
+    println!("[browser] Rendering...");
+    let mut framebuffer = render::Framebuffer::new(1024, 768);
+    render::render(&layout_tree, &mut framebuffer)?;
+    println!("[browser] Rendered to framebuffer");
+    
+    println!("[browser] Browser test completed successfully!");
+    Ok(())
+}
+
+/// Load and display a local HTML file
+pub fn load_file(path: &str) -> Result<(), BrowserError> {
+    println!("[browser] Loading file: {}", path);
+    
+    // Read file using boot_disk
+    match crate::fs::boot_disk::read_file(path) {
+        Some(data) => {
+            println!("[browser] Read {} bytes", data.len());
+            
+            // Parse HTML
+            let document = html::parse(&data)?;
+            println!("[browser] Parsed {} elements", document.element_count());
+            
+            // Store in browser
+            if let Some(ref mut browser) = *BROWSER.lock() {
+                browser.document = Some(document);
+                browser.current_url = format!("file://{}", path);
+                browser.title = String::from("Loaded Page");
+            }
+            
+            println!("[browser] File loaded successfully");
+            Ok(())
+        }
+        None => {
+            println!("[browser] Failed to read file: {}", path);
+            Err(BrowserError::NotFound)
+        }
     }
 }

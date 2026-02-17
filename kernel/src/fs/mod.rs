@@ -41,6 +41,7 @@
 #![cfg_attr(target_arch = "x86_64", feature(llvm_asm))]
 
 pub mod block;
+pub mod boot_disk;
 pub mod cache;
 pub mod fat32;
 pub mod partition;
