@@ -99,6 +99,8 @@ static MOUSE_BTNS: AtomicU64 = AtomicU64::new(0);
 static MOUSE_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
 /// Keyboard IRQ counter (for diagnostics)
 static KEYBOARD_IRQ_COUNT: AtomicU64 = AtomicU64::new(0);
+/// USB Keyboard event counter (for diagnostics)
+static USB_KEYBOARD_EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
 /// Last reported X (for delta calculation)
 static LAST_MOUSE_X: AtomicI32 = AtomicI32::new(400);
 /// Last reported Y (for delta calculation)
@@ -145,6 +147,7 @@ pub const MOD_CTRL: u8 = 0x02;
 pub const MOD_ALT: u8 = 0x04;
 pub const MOD_CAPS: u8 = 0x08;
 pub const MOD_NUM: u8 = 0x10;
+pub const MOD_GUI: u8 = 0x40; // Windows/Super key
 
 /// Keyboard driver
 pub struct KeyboardDriver {
@@ -596,6 +599,146 @@ impl MouseDriver {
     }
 }
 
+// =============================================================================
+// USB KEYBOARD SUPPORT
+// =============================================================================
+
+/// USB Keyboard driver - receives events from USB HID subsystem
+pub struct UsbKeyboardDriver {
+    shift_pressed: bool,
+    ctrl_pressed: bool,
+    alt_pressed: bool,
+    gui_pressed: bool,
+    caps_lock: bool,
+    num_lock: bool,
+    key_states: [bool; 256],
+}
+
+impl UsbKeyboardDriver {
+    pub const fn new() -> Self {
+        Self {
+            shift_pressed: false,
+            ctrl_pressed: false,
+            alt_pressed: false,
+            gui_pressed: false,
+            caps_lock: false,
+            num_lock: true,
+            key_states: [false; 256],
+        }
+    }
+
+    /// Handle USB key event from HID driver
+    fn handle_usb_key_event(&mut self, event: crate::drivers::usb::hid::UsbKeyEvent) {
+        // Update modifier state
+        let mods = event.modifiers;
+        self.ctrl_pressed = (mods & 0x11) != 0;   // Left or Right Ctrl
+        self.shift_pressed = (mods & 0x22) != 0;  // Left or Right Shift
+        self.alt_pressed = (mods & 0x44) != 0;    // Left or Right Alt
+        self.gui_pressed = (mods & 0x88) != 0;    // Left or Right GUI
+
+        // Track key state (keycode is u8, so always < 256)
+        self.key_states[event.keycode as usize] = event.pressed;
+
+        // Handle caps lock toggle on key release
+        if !event.pressed && event.keycode == 0x39 { // Caps Lock
+            self.caps_lock = !self.caps_lock;
+        }
+
+        // Handle num lock toggle on key release
+        if !event.pressed && event.keycode == 0x53 { // Num Lock
+            self.num_lock = !self.num_lock;
+        }
+    }
+
+    /// Convert USB HID keycode to internal InputEvent
+    fn to_input_event(&self, event: crate::drivers::usb::hid::UsbKeyEvent) -> Option<InputEvent> {
+        use crate::drivers::usb::hid;
+
+        // Build modifiers byte
+        let mut modifiers = 0u8;
+        if self.shift_pressed { modifiers |= MOD_SHIFT; }
+        if self.ctrl_pressed { modifiers |= MOD_CTRL; }
+        if self.alt_pressed { modifiers |= MOD_ALT; }
+        if self.gui_pressed { modifiers |= MOD_GUI; }
+        if self.caps_lock { modifiers |= MOD_CAPS; }
+        if self.num_lock { modifiers |= MOD_NUM; }
+
+        // Convert USB keycode to scancode
+        let scancode = hid::keycode_to_scancode(event.keycode);
+        let keycode = scancode.unwrap_or(event.keycode as u16);
+
+        // Calculate ASCII if this is a key press
+        let ascii = if event.pressed {
+            hid::keycode_to_ascii(event.keycode, self.shift_pressed)
+                .map(|c| c as u8)
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        Some(InputEvent {
+            event_type: if event.pressed { EventType::KeyPress } else { EventType::KeyRelease },
+            keycode,
+            ascii,
+            x: 0,
+            y: 0,
+            button: 0,
+            scroll: 0,
+            modifiers,
+        })
+    }
+}
+
+/// Global USB keyboard driver instance (for IRQ handler)
+static mut USB_KEYBOARD_DRIVER: UsbKeyboardDriver = UsbKeyboardDriver::new();
+
+/// Callback function registered with USB HID subsystem
+/// This is called from USB context when a keyboard event occurs
+fn usb_keyboard_event_callback(event: crate::drivers::usb::hid::UsbKeyEvent) {
+    USB_KEYBOARD_EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
+
+    unsafe {
+        // Update driver state
+        USB_KEYBOARD_DRIVER.handle_usb_key_event(event);
+
+        // Convert to input event and add to queue
+        if let Some(input_event) = USB_KEYBOARD_DRIVER.to_input_event(event) {
+            // Try to add to the main event queue
+            // Use try_lock to avoid deadlock in interrupt context
+            if let Some(mut manager) = INPUT_MANAGER.try_lock() {
+                if manager.events.len() < MAX_EVENTS {
+                    manager.events.push_back(input_event);
+                }
+            }
+        }
+    }
+}
+
+/// Initialize USB keyboard support
+/// This registers our callback with the USB HID subsystem
+pub fn init_usb_keyboard() {
+    println!("[input] Initializing USB keyboard support...");
+
+    // Register our callback with the USB HID subsystem
+    crate::drivers::usb::hid::register_usb_keyboard_callback(usb_keyboard_event_callback);
+
+    println!("[input] USB keyboard support initialized");
+}
+
+/// Check if USB keyboard is registered
+pub fn is_usb_keyboard_active() -> bool {
+    crate::drivers::usb::hid::is_usb_keyboard_registered()
+}
+
+/// Get USB keyboard event count (for diagnostics)
+pub fn get_usb_keyboard_event_count() -> u64 {
+    USB_KEYBOARD_EVENT_COUNT.load(Ordering::Relaxed)
+}
+
+// =============================================================================
+// INPUT MANAGER
+// =============================================================================
+
 /// Input manager
 pub struct InputManager {
     keyboard: KeyboardDriver,
@@ -658,6 +801,9 @@ pub fn init() {
     LAST_MOUSE_Y.store(MOUSE_Y.load(Ordering::Relaxed), Ordering::Relaxed);
     
     println!("[input] Input subsystem ready (timer-based mouse polling)");
+    
+    // Initialize USB keyboard support
+    init_usb_keyboard();
 }
 
 // Separate static drivers for interrupt handlers
@@ -749,8 +895,12 @@ pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
 }
 
 /// Get interrupt counters for diagnostics
-pub fn get_irq_counts() -> (u64, u64) {
-    (KEYBOARD_IRQ_COUNT.load(Ordering::Relaxed), MOUSE_IRQ_COUNT.load(Ordering::Relaxed))
+pub fn get_irq_counts() -> (u64, u64, u64) {
+    (
+        KEYBOARD_IRQ_COUNT.load(Ordering::Relaxed),
+        MOUSE_IRQ_COUNT.load(Ordering::Relaxed),
+        USB_KEYBOARD_EVENT_COUNT.load(Ordering::Relaxed)
+    )
 }
 
 /// Poll keyboard from timer (20Hz) - generates events
@@ -796,8 +946,13 @@ pub fn get_key() -> Option<InputEvent> {
 pub fn print_info() {
     let manager = INPUT_MANAGER.lock();
     let (x, y) = manager.mouse_position();
+    let (kb_irq, mouse_irq, usb_events) = get_irq_counts();
+    
     println!("Input Status:");
     println!("  Mouse position: ({}, {})", x, y);
     println!("  Mouse buttons: {:03b}", manager.mouse_buttons());
     println!("  Events in queue: {}", manager.events.len());
+    println!("  PS/2 IRQs - Keyboard: {}, Mouse: {}", kb_irq, mouse_irq);
+    println!("  USB keyboard events: {}", usb_events);
+    println!("  USB keyboard active: {}", is_usb_keyboard_active());
 }

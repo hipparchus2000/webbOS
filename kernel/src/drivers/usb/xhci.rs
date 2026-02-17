@@ -10,7 +10,8 @@ use alloc::vec::Vec;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::format;
-use core::ptr::{read_volatile, write_volatile};
+use alloc::alloc::{alloc_zeroed, Layout};
+use core::ptr::{read_volatile, write_volatile, write_bytes};
 
 use crate::println;
 use crate::error::UsbError;
@@ -65,6 +66,21 @@ const ERDP: usize = 0x18;
 /// USB Command register bits
 const CMD_RUN_STOP: u32 = 1 << 0;
 const CMD_RESET: u32 = 1 << 1;
+
+/// Completion codes
+const COMP_SUCCESS: u8 = 1;
+const COMP_DATA_BUFFER_ERROR: u8 = 2;
+const COMP_BABBLE_DETECTED: u8 = 3;
+const COMP_USB_TRANSACTION_ERROR: u8 = 4;
+const COMP_TRB_ERROR: u8 = 5;
+const COMP_STALL_ERROR: u8 = 6;
+const COMP_RESOURCE_ERROR: u8 = 7;
+const COMP_SHORT_PACKET: u8 = 13;
+
+/// Size of a transfer ring (number of TRBs)
+const TRANSFER_RING_SIZE: usize = 256;
+const COMMAND_RING_SIZE: usize = 64;
+const EVENT_RING_SIZE: usize = 256;
 
 /// USB Status register bits
 const STS_HALTED: u32 = 1 << 0;
@@ -244,6 +260,152 @@ impl Trb {
     pub fn completion_code(&self) -> u8 {
         ((self.status >> 24) & 0xFF) as u8
     }
+
+    /// Get slot ID from control field
+    pub fn slot_id(&self) -> u8 {
+        ((self.control >> 24) & 0xFF) as u8
+    }
+
+    /// Get endpoint ID from control field
+    pub fn endpoint_id(&self) -> u8 {
+        ((self.control >> 16) & 0x1F) as u8
+    }
+
+    /// Set cycle bit
+    pub fn set_cycle_bit(&mut self, cycle: bool) {
+        if cycle {
+            self.control |= 1;
+        } else {
+            self.control &= !1;
+        }
+    }
+
+    /// Check if cycle bit is set
+    pub fn cycle_bit(&self) -> bool {
+        (self.control & 1) != 0
+    }
+
+    /// Set chain bit
+    pub fn set_chain_bit(&mut self, chain: bool) {
+        if chain {
+            self.control |= 1 << 4;
+        } else {
+            self.control &= !(1 << 4);
+        }
+    }
+
+    /// Set interrupt on completion (IOC)
+    pub fn set_ioc(&mut self, ioc: bool) {
+        if ioc {
+            self.control |= 1 << 5;
+        } else {
+            self.control &= !(1 << 5);
+        }
+    }
+
+    /// Set immediate data flag
+    pub fn set_immediate_data(&mut self, immediate: bool) {
+        if immediate {
+            self.control |= 1 << 6;
+        } else {
+            self.control &= !(1 << 6);
+        }
+    }
+
+    /// Create a Normal TRB for bulk transfers
+    pub fn create_normal(data_buffer: u64, length: u16, ioc: bool, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = data_buffer;
+        trb.status = length as u32;
+        trb.set_trb_type(TrbType::Normal);
+        trb.set_cycle_bit(cycle);
+        trb.set_ioc(ioc);
+        trb
+    }
+
+    /// Create a Setup Stage TRB for control transfers
+    pub fn create_setup_stage(setup_data: [u8; 8], transfer_length: u16, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = u64::from_le_bytes(setup_data);
+        trb.status = (transfer_length as u32) & 0xFFFF;
+        trb.control = (2 << 16); // TRT = IN Data Stage
+        trb.set_trb_type(TrbType::SetupStage);
+        trb.set_immediate_data(true);
+        trb.set_cycle_bit(cycle);
+        trb
+    }
+
+    /// Create a Data Stage TRB for control transfers
+    pub fn create_data_stage(data_buffer: u64, length: u16, is_in: bool, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = data_buffer;
+        trb.status = length as u32;
+        trb.control = if is_in { 1 << 16 } else { 0 };
+        trb.set_trb_type(TrbType::DataStage);
+        trb.set_cycle_bit(cycle);
+        trb
+    }
+
+    /// Create a Status Stage TRB for control transfers
+    pub fn create_status_stage(is_in: bool, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.control = if is_in { 1 << 16 } else { 0 };
+        trb.set_trb_type(TrbType::StatusStage);
+        trb.set_cycle_bit(cycle);
+        trb.set_ioc(true);
+        trb
+    }
+
+    /// Create a Link TRB to link rings
+    pub fn create_link(next_ring_phys: u64, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = next_ring_phys;
+        trb.status = 0;
+        trb.control = 0;
+        trb.set_trb_type(TrbType::Link);
+        trb.set_cycle_bit(cycle);
+        trb.control |= 1 << 1; // Toggle cycle bit
+        trb
+    }
+
+    /// Create Enable Slot command
+    pub fn create_enable_slot(slot_type: u8, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = 0;
+        trb.status = 0;
+        trb.control = ((slot_type as u32) << 16);
+        trb.set_trb_type(TrbType::EnableSlot);
+        trb.set_cycle_bit(cycle);
+        trb
+    }
+
+    /// Create Address Device command
+    pub fn create_address_device(slot: u8, input_ctx_phys: u64, block_set_addr: bool, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = input_ctx_phys;
+        trb.status = 0;
+        trb.control = (slot as u32) << 24;
+        if block_set_addr {
+            trb.control |= 1 << 9;
+        }
+        trb.set_trb_type(TrbType::AddressDevice);
+        trb.set_cycle_bit(cycle);
+        trb
+    }
+
+    /// Create Configure Endpoint command
+    pub fn create_configure_endpoint(slot: u8, input_ctx_phys: u64, deconfigure: bool, cycle: bool) -> Self {
+        let mut trb = Self::new();
+        trb.parameter = input_ctx_phys;
+        trb.status = 0;
+        trb.control = (slot as u32) << 24;
+        if deconfigure {
+            trb.control |= 1;
+        }
+        trb.set_trb_type(TrbType::ConfigureEndpoint);
+        trb.set_cycle_bit(cycle);
+        trb
+    }
 }
 
 /// xHCI Event
@@ -254,11 +416,11 @@ pub enum XhciEvent {
     /// Port disconnected
     PortDisconnect { port: u8 },
     /// Transfer completed
-    TransferComplete { slot: u8, endpoint: u8, success: bool },
+    TransferComplete { slot: u8, endpoint: u8, success: bool, completion_code: u8 },
     /// Command completed
-    CommandComplete { command: TrbType, success: bool },
+    CommandComplete { slot: u8, command: TrbType, success: bool, completion_code: u8 },
     /// Port reset complete
-    PortResetComplete { port: u8 },
+    PortResetComplete { port: u8, success: bool },
 }
 
 /// xHCI Controller
@@ -481,7 +643,7 @@ impl XhciController {
 
     /// Poll for events
     pub fn poll_event(&mut self) -> Option<XhciEvent> {
-        // Check all ports for connect/disconnect
+        // Check all ports for connect/disconnect/reset
         for port in 0..self.num_ports {
             let op = OperationalRegisters::new(self.op_base());
             let portsc = op.portsc(port);
@@ -499,6 +661,14 @@ impl XhciController {
                     // Device disconnected
                     return Some(XhciEvent::PortDisconnect { port });
                 }
+            }
+
+            // Check for port reset completion
+            if portsc & PORTSC_PRC != 0 {
+                // Clear the change bit
+                op.set_portsc(port, portsc | PORTSC_PRC);
+                let success = (portsc & PORTSC_PED) != 0;
+                return Some(XhciEvent::PortResetComplete { port, success });
             }
         }
 
@@ -550,6 +720,131 @@ impl XhciController {
             }
         }
     }
+
+    /// Power on a port
+    pub fn power_port(&self, port: u8) {
+        let op = OperationalRegisters::new(self.op_base());
+        let portsc = op.portsc(port);
+        op.set_portsc(port, portsc | PORTSC_PP);
+    }
+
+    /// Reset a port
+    pub fn reset_port(&mut self, port: u8) -> Result<(), UsbError> {
+        let op = OperationalRegisters::new(self.op_base());
+        
+        // Set PR (Port Reset) bit
+        let portsc = op.portsc(port);
+        op.set_portsc(port, portsc | PORTSC_PR);
+        
+        Ok(())
+    }
+
+    /// Enable a slot for new device
+    pub fn enable_slot(&mut self) -> Result<u8, UsbError> {
+        // Find first free slot
+        for slot_id in 1..=self.max_slots {
+            // For now, just return the first available slot ID
+            // In a real implementation, we'd track slot allocation
+            return Ok(slot_id);
+        }
+        Err(UsbError::ControllerError(String::from("No free slots")))
+    }
+
+    /// Create a device slot
+    pub fn create_device_slot(&mut self, slot_id: u8, port: u8, speed: UsbSpeed) -> Result<(), UsbError> {
+        // Store slot information for later use
+        // In a full implementation, this would allocate device context
+        println!("[xhci] Created device slot {} for port {} at speed {:?}", slot_id, port, speed);
+        Ok(())
+    }
+
+    /// Address device - assign USB address
+    pub fn address_device(&mut self, slot_id: u8) -> Result<u8, UsbError> {
+        // Return slot_id as address for simplicity
+        println!("[xhci] Addressed device in slot {} with address {}", slot_id, slot_id);
+        Ok(slot_id)
+    }
+
+    /// Remove a device slot
+    pub fn remove_slot(&mut self, slot_id: u8) -> Result<(), UsbError> {
+        println!("[xhci] Removed slot {}", slot_id);
+        Ok(())
+    }
+
+    /// Get device descriptor (first 8 bytes during init)
+    pub fn get_device_descriptor_init(&mut self, slot_id: u8) -> Result<DeviceDescriptor, UsbError> {
+        // Placeholder implementation
+        // In a real implementation, this would perform a control transfer
+        Err(UsbError::UnsupportedDevice)
+    }
+
+    /// Get full device descriptor
+    pub fn get_device_descriptor(&mut self, slot_id: u8) -> Result<DeviceDescriptor, UsbError> {
+        // Placeholder implementation
+        Err(UsbError::UnsupportedDevice)
+    }
+
+    /// Get configuration descriptor
+    pub fn get_configuration_descriptor(&mut self, slot_id: u8, index: u8) -> Result<Vec<u8>, UsbError> {
+        // Placeholder implementation
+        Err(UsbError::UnsupportedDevice)
+    }
+
+    /// Set device configuration
+    pub fn set_configuration(&mut self, slot_id: u8, config: u8) -> Result<(), UsbError> {
+        // Placeholder implementation
+        println!("[xhci] Set configuration {} for slot {}", config, slot_id);
+        Ok(())
+    }
+
+    /// Get controller version
+    pub fn version(&self) -> u16 {
+        self.caps.hci_version
+    }
+
+    /// Get MMIO base address
+    pub fn mmio_base(&self) -> usize {
+        self.mmio_base
+    }
+
+    /// Check if controller is running
+    pub fn is_running(&self) -> bool {
+        let op = OperationalRegisters::new(self.op_base());
+        let cmd = op.usb_cmd();
+        let sts = op.usb_sts();
+        (cmd & CMD_RUN_STOP) != 0 && (sts & STS_HALTED) == 0
+    }
+
+    /// Get max slots
+    pub fn max_slots(&self) -> u8 {
+        self.max_slots
+    }
+
+    /// Get port status information
+    pub fn get_port_status(&self, port: u8) -> PortStatusInfo {
+        let op = OperationalRegisters::new(self.op_base());
+        let portsc = op.portsc(port);
+        
+        PortStatusInfo {
+            port,
+            connected: (portsc & PORTSC_CCS) != 0,
+            enabled: (portsc & PORTSC_PED) != 0,
+            reset_complete: (portsc & PORTSC_PRC) != 0,
+            speed: Self::decode_speed((portsc >> PORTSC_SPEED_SHIFT) & PORTSC_SPEED_MASK),
+            powered: (portsc & PORTSC_PP) != 0,
+        }
+    }
+}
+
+/// Port status information
+#[derive(Debug, Clone, Copy)]
+pub struct PortStatusInfo {
+    pub port: u8,
+    pub connected: bool,
+    pub enabled: bool,
+    pub reset_complete: bool,
+    pub speed: UsbSpeed,
+    pub powered: bool,
 }
 
 impl Drop for XhciController {

@@ -492,7 +492,7 @@ fn desktop_event_loop() {
         let last_print = LAST_PRINT.load(Ordering::Relaxed);
         if current_tick >= last_print + 50 {
             let events = EVENT_COUNT.load(Ordering::Relaxed);
-            let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
+            let (kb_irq, mouse_irq, _usb_kb_irq) = drivers::input::get_irq_counts();
             let (mx, my) = drivers::input::mouse_position();
             println!("[hb] loops={} evt={} irq(m)={} mouse=({},{})", 
                 loop_num, events, mouse_irq, mx, my);
@@ -578,6 +578,191 @@ fn kernel_main() -> ! {
     }
 }
 
+/// Print detailed USB status
+fn print_usb_detailed_status() {
+    use drivers::usb::{get_controller_info, devices, UsbSpeed};
+    
+    println!("╔══════════════════════════════════════════════════╗");
+    println!("║              USB Subsystem Status                ║");
+    println!("╚══════════════════════════════════════════════════╝");
+    
+    // Controller information
+    if let Some(info) = get_controller_info() {
+        println!("\n[Controller]");
+        println!("  Type: xHCI (USB 3.0)");
+        println!("  Version: {}", info.version_string());
+        println!("  Max Ports: {}", info.num_ports);
+        println!("  Max Device Slots: {}", info.max_slots);
+        println!("  Status: {}", if info.running { "Running ✓" } else { "Stopped ✗" });
+        println!("  MMIO Base: 0x{:016X}", info.mmio_base);
+    } else {
+        println!("\n[Controller]");
+        println!("  No USB controller found!");
+        return;
+    }
+    
+    // Connected devices
+    let devs = devices();
+    println!("\n[Connected Devices: {}]", devs.len());
+    
+    if devs.is_empty() {
+        println!("  No devices connected");
+    } else {
+        for dev in &devs {
+            let class_name = match dev.class {
+                0x00 => "Interface",
+                0x01 => "Audio",
+                0x02 => "Communications",
+                0x03 => "HID",
+                0x05 => "Physical",
+                0x06 => "Image",
+                0x07 => "Printer",
+                0x08 => "Mass Storage",
+                0x09 => "Hub",
+                0x0A => "CDC Data",
+                0x0B => "Smart Card",
+                0x0D => "Content Security",
+                0x0E => "Video",
+                0x0F => "Personal Healthcare",
+                0x10 => "Audio/Video",
+                0xDC => "Diagnostic",
+                0xE0 => "Wireless",
+                0xEF => "Miscellaneous",
+                0xFF => "Vendor Specific",
+                _ => "Unknown",
+            };
+            
+            let speed_str = match dev.speed {
+                UsbSpeed::Low => "1.5 Mbps (Low)",
+                UsbSpeed::Full => "12 Mbps (Full)",
+                UsbSpeed::High => "480 Mbps (High)",
+                UsbSpeed::Super => "5 Gbps (Super)",
+                UsbSpeed::SuperPlus => "10 Gbps (SuperPlus)",
+            };
+            
+            println!("  Device @ Address {}:", dev.address);
+            println!("    VID/PID: {:04X}:{:04X}", dev.vendor_id, dev.product_id);
+            println!("    Class: {} (0x{:02X})", class_name, dev.class);
+            println!("    Speed: {}", speed_str);
+        }
+    }
+    
+    // Port summary
+    let ports = drivers::usb::list_ports();
+    let connected_count = ports.iter().filter(|p| p.connected).count();
+    println!("\n[Port Summary: {}/{} connected]", connected_count, ports.len());
+}
+
+/// Print USB port status
+fn print_usb_ports() {
+    use drivers::usb::list_ports;
+    
+    println!("USB Port Status:");
+    println!("════════════════════════════════════════════════════");
+    
+    let ports = list_ports();
+    
+    if ports.is_empty() {
+        println!("No USB ports available.");
+        return;
+    }
+    
+    for port in &ports {
+        println!("\nPort {}:", port.port);
+        println!("  Status: {}", port.connection_string());
+        println!("  Speed: {}", port.speed_string());
+        println!("  Enabled: {}", if port.enabled { "Yes" } else { "No" });
+        println!("  Powered: {}", if port.powered { "Yes" } else { "No" });
+        
+        if port.in_reset {
+            println!("  State: Reset in progress");
+        }
+        if port.over_current {
+            println!("  ⚠ OVER-CURRENT DETECTED!");
+        }
+        
+        if let Some(ref dev) = port.device {
+            println!("  Device: {:04X}:{:04X} (Addr: {})", 
+                dev.vendor_id, dev.product_id, dev.address);
+        }
+    }
+    
+    println!("\n════════════════════════════════════════════════════");
+    let connected = ports.iter().filter(|p| p.connected).count();
+    println!("Total: {} ports, {} connected", ports.len(), connected);
+}
+
+/// Run USB tests
+fn run_usb_tests() {
+    use drivers::usb::test_controller;
+    
+    println!("Running USB functionality tests...");
+    println!("════════════════════════════════════════════════════");
+    
+    match test_controller() {
+        Ok(result) => {
+            println!("\n[Test Results]");
+            println!("  Controller Registers: {}", 
+                if result.register_check { "✓ PASS" } else { "✗ FAIL" });
+            println!("  Port Reset Test: {}", 
+                if result.port_reset_test { "✓ PASS" } else { "✗ FAIL" });
+            println!("  Transfer Ring Status: {}", 
+                if result.transfer_ring_ok { "✓ PASS" } else { "✗ FAIL" });
+            
+            if result.passed {
+                println!("\n✓ All tests PASSED!");
+            } else {
+                println!("\n✗ Some tests FAILED!");
+                if let Some(msg) = result.error_message {
+                    println!("  Error: {}", msg);
+                }
+            }
+        }
+        Err(e) => {
+            println!("✗ Test failed with error: {:?}", e);
+        }
+    }
+    
+    println!("════════════════════════════════════════════════════");
+}
+
+/// Print USB storage devices
+fn print_usb_storage() {
+    use drivers::usb::list_storage_devices;
+    
+    println!("USB Mass Storage Devices:");
+    println!("════════════════════════════════════════════════════");
+    
+    let devices = list_storage_devices();
+    
+    if devices.is_empty() {
+        println!("No USB mass storage devices found.");
+        println!("\nNote: Connect a USB flash drive or external HDD.");
+    } else {
+        for (i, dev) in devices.iter().enumerate() {
+            println!("\nDevice {}:", i + 1);
+            println!("  USB Address: {}", dev.address);
+            println!("  Vendor: {} (0x{:04X})", dev.vendor_name, dev.vendor_id);
+            println!("  Product: {} (0x{:04X})", dev.product_name, dev.product_id);
+            
+            if dev.capacity_mb > 0 {
+                if dev.capacity_mb >= 1024 {
+                    println!("  Capacity: {:.2} GB", dev.capacity_mb as f64 / 1024.0);
+                } else {
+                    println!("  Capacity: {} MB", dev.capacity_mb);
+                }
+            } else {
+                println!("  Capacity: Unknown (device not fully initialized)");
+            }
+            
+            println!("  Status: {}", if dev.ready { "Ready" } else { "Not Ready" });
+        }
+    }
+    
+    println!("\n════════════════════════════════════════════════════");
+    println!("Total: {} storage device(s)", devices.len());
+}
+
 /// Process a user command
 fn process_command(cmd: &[u8]) {
     let cmd_str = core::str::from_utf8(cmd).unwrap_or("").trim();
@@ -600,6 +785,10 @@ fn process_command(cmd: &[u8]) {
             println!("  netstat    - Show network connections");
             println!("  storage    - Show storage devices");
             println!("  usb        - Show USB devices and status");
+            println!("  usbreset   - Reset USB controller");
+            println!("  usbports   - Show USB port status");
+            println!("  usbtest    - Run USB tests");
+            println!("  usbstorage - List USB mass storage devices");
             println!("  tls        - Test TLS connection");
             println!("  http       - HTTP client usage");
             println!("  fetch      - Fetch a URL (e.g., fetch http://example.com)");
@@ -672,7 +861,21 @@ fn process_command(cmd: &[u8]) {
             storage::print_devices();
         }
         "usb" => {
-            drivers::usb::print_status();
+            print_usb_detailed_status();
+        }
+        "usbreset" => {
+            println!("Resetting USB controller...");
+            drivers::usb::reset_controller();
+            println!("USB controller reset complete.");
+        }
+        "usbports" => {
+            print_usb_ports();
+        }
+        "usbtest" => {
+            run_usb_tests();
+        }
+        "usbstorage" => {
+            print_usb_storage();
         }
         "tls" => {
             let _ = tls::connect("example.com");

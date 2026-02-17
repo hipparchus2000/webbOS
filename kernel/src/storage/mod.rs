@@ -14,6 +14,7 @@ pub mod ahci;
 pub mod nvme;
 pub mod boot_disk;
 pub mod simple_disk;
+pub mod usb_storage;
 
 use crate::drivers::pci::PciDevice;
 use crate::println;
@@ -94,6 +95,9 @@ pub fn init() {
 
     // Initialize boot disk wrapper after ATA is ready
     boot_disk::init();
+    
+    // Initialize USB storage subsystem
+    usb_storage::init();
 
     println!("[storage] Storage subsystem initialized");
 }
