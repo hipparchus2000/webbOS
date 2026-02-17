@@ -39,6 +39,7 @@ mod users;
 mod desktop;
 mod login_screen;
 pub mod error;
+mod pwa;
 
 // Hardware Abstraction Layer (ARM64 only)
 #[cfg(target_arch = "aarch64")]
@@ -292,6 +293,11 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[input] Initializing input subsystem...");
     drivers::input::init();
     println!("[input] Input subsystem initialized");
+
+    // Initialize PWA subsystem
+    println!("\n[pwa] Initializing PWA subsystem...");
+    pwa::init();
+    println!("[pwa] PWA subsystem initialized");
 
     // Initialize desktop environment
     println!("\n[desktop] Initializing desktop environment...");
@@ -609,6 +615,10 @@ fn process_command(cmd: &[u8]) {
             println!("  launch     - Launch application (e.g., launch notepad)");
             println!("  browser    - Show browser engine status");
             println!("  navigate   - Navigate to URL (e.g., navigate file:///test.html)");
+            println!("  pwa        - Show PWA system status");
+            println!("  apps       - List installed PWA apps");
+            println!("  install    - Install PWA app (e.g., install calculator)");
+            println!("  appstore   - Open app store");
             println!("  reboot     - Reboot the system");
             println!("  shutdown   - Shutdown the system");
         }
@@ -733,6 +743,38 @@ fn process_command(cmd: &[u8]) {
             println!("Examples:");
             println!("  navigate file:///test.html");
             println!("  navigate http://example.com");
+        }
+        "pwa" => {
+            pwa::print_stats();
+        }
+        "apps" => {
+            let apps = pwa::list_apps();
+            println!("\nInstalled PWA Apps ({}):", apps.len());
+            for app in apps {
+                let status = if pwa::launcher::is_running(&app.id) { " [RUNNING]" } else { "" };
+                println!("  {} - {}{}", app.id, app.manifest.name, status);
+            }
+        }
+        "install" => {
+            let args = &cmd_str[cmd_str.len().min(7)..];
+            let app_name = args.trim();
+            if !app_name.is_empty() {
+                match pwa::appstore::install(app_name) {
+                    Ok(app) => println!("Installed {} v{}", app.manifest.name, app.manifest.version),
+                    Err(e) => println!("Install failed: {:?}", e),
+                }
+            } else {
+                println!("Usage: install <app_name>");
+                println!("Available apps:");
+                for app in pwa::appstore::list_available(None) {
+                    println!("  {} - {}", app.id, app.name);
+                }
+            }
+        }
+        "appstore" => {
+            println!("Opening App Store...");
+            let html = pwa::appstore::get_html();
+            println!("App Store HTML generated ({} bytes)", html.len());
         }
         "reboot" => {
             println!("Rebooting...");

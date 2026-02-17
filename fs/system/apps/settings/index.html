@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="System settings and preferences">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Settings">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' fill='white' text-anchor='middle'%3E%26%23x2699%3B%3C/text%3E%3C/svg%3E">
+    <title>Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --settings-bg: #ffffff;
+            --settings-text: #333333;
+            --section-bg: #f8f9fa;
+            --border-color: #e0e0e0;
+            --accent-color: #667eea;
+            --accent-hover: #5a6fd6;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --muted-text: #666;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --settings-bg: #1e1e1e;
+                --settings-text: #d4d4d4;
+                --section-bg: #2d2d2d;
+                --border-color: #444;
+                --muted-text: #aaa;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--settings-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .settings-content {
+            padding: 20px;
+        }
+
+        .settings-section {
+            background: var(--section-bg);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 16px 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-content {
+            padding: 16px 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info {
+            flex: 1;
+        }
+
+        .setting-label {
+            font-weight: 600;
+            color: var(--settings-text);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .setting-description {
+            font-size: 13px;
+            color: var(--muted-text);
+        }
+
+        .setting-control {
+            margin-left: 16px;
+        }
+
+        /* Toggle Switch */
+        .toggle {
+            position: relative;
+            width: 52px;
+            height: 28px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 28px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background-color: var(--accent-color);
+        }
+
+        .toggle input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Select */
+        select {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--settings-bg);
+            color: var(--settings-text);
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        input[type="range"] {
+            width: 120px;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        /* Color picker */
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="color"] {
+            width: 44px;
+            height: 44px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 2px;
+            background: var(--settings-bg);
+        }
+
+        /* Button */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-secondary {
+            background: var(--section-bg);
+            color: var(--settings-text);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        /* Info display */
+        .info-value {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Storage bar */
+        .storage-bar {
+            width: 100%;
+            height: 24px;
+            background: var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .storage-used {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+            border-radius: 12px;
+            transition: width 0.3s;
+        }
+
+        .storage-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--muted-text);
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--settings-text);
+            color: var(--settings-bg);
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .settings-content {
+                padding: 12px;
+            }
+
+            .setting-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .setting-control {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            select, .slider-container {
+                width: 100%;
+            }
+
+            input[type="range"] {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="header">
+            <h1>⚙️ Settings</h1>
+            <p>Customize your WebbOS experience</p>
+        </div>
+
+        <div class="settings-content">
+            <!-- Appearance Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>🎨 Appearance</h2>
+                </div>
+                <div class="section-content">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Theme</span>
+                            <span class="setting-description">Choose your preferred color scheme</span>
+                        </div>
+                        <div class="setting-control">
+                            <select id="themeSelect" onchange="setTheme(this.value)">
+                                <option value="system">System Default</option>
+                                <option value="light">Light</option>
+                                <option value="dark">Dark</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Accent Color</span>
+                            <span class="setting-description">Choose your accent color</span>
+                        </div>
+                        <div class="setting-control">
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="accentColor" value="#667eea" onchange="setAccentColor(this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Animations</span>
+                            <span class="setting-description">Enable smooth animations</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle">
+                                <input type="checkbox" id="animationsToggle" checked onchange="toggleAnimations(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Display Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>🖥️ Display</h2>
+                </div>
+                <div class="section-content">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Font Size</span>
+                            <span class="setting-description">Adjust the text size</span>
+                        </div>
+                        <div class="setting-control">
+                            <div class="slider-container">
+                                <input type="range" id="fontSize" min="12" max="24" value="16" oninput="setFontSize(this.value)">
+                                <span class="slider-value" id="fontSizeValue">16px</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Reduce Motion</span>
+                            <span class="setting-description">Minimize animations for accessibility</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle">
+                                <input type="checkbox" id="reduceMotion" onchange="toggleReduceMotion(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>🔔 Notifications</h2>
+                </div>
+                <div class="section-content">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Enable Notifications</span>
+                            <span class="setting-description">Show system notifications</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle">
+                                <input type="checkbox" id="notificationsToggle" checked onchange="toggleNotifications(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Sound Effects</span>
+                            <span class="setting-description">Play sounds for actions</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle">
+                                <input type="checkbox" id="soundToggle" onchange="toggleSound(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storage Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>💾 Storage</h2>
+                </div>
+                <div class="section-content">
+                    <div class="setting-item">
+                        <div class="setting-info" style="width: 100%;">
+                            <span class="setting-label">Local Storage Usage</span>
+                            <div class="storage-bar">
+                                <div class="storage-used" id="storageBar" style="width: 0%"></div>
+                            </div>
+                            <div class="storage-info">
+                                <span id="storageUsed">0 KB used</span>
+                                <span id="storageTotal">~5 MB available</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Clear All Data</span>
+                            <span class="setting-description">Delete all saved settings and app data</span>
+                        </div>
+                        <div class="setting-control">
+                            <button class="btn btn-danger" onclick="clearAllData()">Clear Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>ℹ️ About</h2>
+                </div>
+                <div class="section-content">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">WebbOS Version</span>
+                            <span class="setting-description">Current system version</span>
+                        </div>
+                        <div class="setting-control">
+                            <span class="info-value">1.0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">User Agent</span>
+                            <span class="setting-description">Your browser information</span>
+                        </div>
+                        <div class="setting-control">
+                            <span class="info-value" style="font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="userAgent"></span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Screen Resolution</span>
+                            <span class="setting-description">Current display size</span>
+                        </div>
+                        <div class="setting-control">
+                            <span class="info-value" id="screenRes"></span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Online Status</span>
+                            <span class="setting-description">Network connectivity</span>
+                        </div>
+                        <div class="setting-control">
+                            <span class="info-value" id="onlineStatus">Checking...</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-label">Reset to Defaults</span>
+                            <span class="setting-description">Restore all settings to default values</span>
+                        </div>
+                        <div class="setting-control">
+                            <button class="btn btn-secondary" onclick="resetSettings()">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="./settings.js"></script>
+</body>
+</html>

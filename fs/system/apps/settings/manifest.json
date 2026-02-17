@@ -1,0 +1,33 @@
+{
+  "name": "WebbOS Settings",
+  "short_name": "Settings",
+  "description": "System settings and preferences",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea'/%3E%3Cstop offset='100%25' style='stop-color:%23764ba2'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='192' height='192' rx='24' fill='url(%23bg)'/%3E%3Ccircle cx='96' cy='96' r='35' fill='none' stroke='white' stroke-width='8'/%3E%3Cpath d='M96 46 L96 28 M96 164 L96 146 M46 96 L28 96 M164 96 L146 96 M130.6 61.4 L143.4 48.6 M48.6 143.4 L61.4 130.6 M130.6 130.6 L143.4 143.4 M48.6 48.6 L61.4 61.4' stroke='white' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea'/%3E%3Cstop offset='100%25' style='stop-color:%23764ba2'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='48' fill='url(%23bg)'/%3E%3Ccircle cx='256' cy='256' r='95' fill='none' stroke='white' stroke-width='20'/%3E%3Cpath d='M256 122 L256 74 M256 438 L256 390 M122 256 L74 256 M438 256 L390 256 M348.6 163.4 L382.4 129.6 M129.6 382.4 L163.4 348.6 M348.6 348.6 L382.4 382.4 M129.6 129.6 L163.4 163.4' stroke='white' stroke-width='20' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["system", "utilities"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'%3E%3Cdefs%3E%3ClinearGradient id='bgGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea'/%3E%3Cstop offset='100%25' style='stop-color:%23764ba2'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='540' height='720' fill='url(%23bgGrad)'/%3E%3Ctext x='270' y='360' font-size='80' fill='white' text-anchor='middle'%3E%26%23x2699%3B%3C/text%3E%3C/svg%3E",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
+}

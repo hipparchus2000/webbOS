@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A simple text editor for notes">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Notepad">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23667eea'/%3E%3Crect x='25' y='20' width='50' height='60' rx='4' fill='white'/%3E%3Cline x1='35' y1='35' x2='65' y2='35' stroke='%23333' stroke-width='3'/%3E%3Cline x1='35' y1='45' x2='65' y2='45' stroke='%23666' stroke-width='2'/%3E%3C/svg%3E">
+    <title>Notepad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --editor-bg: #ffffff;
+            --editor-text: #333333;
+            --toolbar-bg: #f5f5f5;
+            --border-color: #ddd;
+            --button-bg: #667eea;
+            --button-hover: #5a6fd6;
+            --button-text: #ffffff;
+            --status-bg: #f0f0f0;
+            --status-text: #666;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --editor-bg: #1e1e1e;
+                --editor-text: #d4d4d4;
+                --toolbar-bg: #2d2d2d;
+                --border-color: #444;
+                --status-bg: #2d2d2d;
+                --status-text: #aaa;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .notepad-container {
+            background: var(--editor-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .toolbar {
+            background: var(--toolbar-bg);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding-right: 12px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .toolbar-section:last-child {
+            border-right: none;
+        }
+
+        .toolbar-btn {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--button-hover);
+            transform: translateY(-1px);
+        }
+
+        .toolbar-btn:active {
+            transform: translateY(0);
+        }
+
+        .toolbar-btn.secondary {
+            background: transparent;
+            color: var(--editor-text);
+            border: 1px solid var(--border-color);
+        }
+
+        .toolbar-btn.secondary:hover {
+            background: var(--border-color);
+        }
+
+        .toolbar-btn.danger {
+            background: #e74c3c;
+        }
+
+        .toolbar-btn.danger:hover {
+            background: #c0392b;
+        }
+
+        .toolbar select {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--editor-bg);
+            color: var(--editor-text);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .editor {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            padding: 20px;
+            border: none;
+            outline: none;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+            background: var(--editor-bg);
+            color: var(--editor-text);
+        }
+
+        .status-bar {
+            background: var(--status-bg);
+            padding: 8px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: var(--status-text);
+        }
+
+        .status-left, .status-right {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .unsaved-indicator {
+            color: #e74c3c;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .unsaved-indicator.show {
+            opacity: 1;
+        }
+
+        .saved-indicator {
+            color: #2ecc71;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .saved-indicator.show {
+            opacity: 1;
+        }
+
+        /* Dialog styles */
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .dialog-overlay.show {
+            display: flex;
+        }
+
+        .dialog {
+            background: var(--editor-bg);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 300px;
+            max-width: 90vw;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .dialog h3 {
+            margin-bottom: 16px;
+            color: var(--editor-text);
+        }
+
+        .dialog input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 16px;
+            background: var(--editor-bg);
+            color: var(--editor-text);
+        }
+
+        .dialog-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        /* File list styles */
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .file-item {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            background: var(--toolbar-bg);
+        }
+
+        .file-item.selected {
+            border-color: var(--button-bg);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--editor-text);
+        }
+
+        .file-date {
+            font-size: 12px;
+            color: var(--status-text);
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .toolbar {
+                padding: 8px;
+            }
+
+            .toolbar-section {
+                padding-right: 8px;
+            }
+
+            .toolbar-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .editor {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="notepad-container">
+        <div class="toolbar">
+            <div class="toolbar-section">
+                <button class="toolbar-btn" onclick="newFile()">🆕 New</button>
+                <button class="toolbar-btn" onclick="saveFile()">💾 Save</button>
+                <button class="toolbar-btn secondary" onclick="openFileDialog()">📂 Open</button>
+            </div>
+            <div class="toolbar-section">
+                <button class="toolbar-btn secondary" onclick="downloadFile()">⬇️ Download</button>
+                <button class="toolbar-btn secondary" onclick="uploadFile()">⬆️ Upload</button>
+                <input type="file" id="fileInput" accept=".txt,.md,.js,.html,.css,.json" style="display: none;" onchange="handleFileUpload(event)">
+            </div>
+            <div class="toolbar-section">
+                <button class="toolbar-btn danger" onclick="clearAll()">🗑️ Clear</button>
+            </div>
+        </div>
+        
+        <div class="editor-wrapper">
+            <textarea class="editor" id="editor" placeholder="Start typing your notes here..."></textarea>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-left">
+                <span id="filename">Untitled</span>
+                <span class="unsaved-indicator" id="unsaved">● Unsaved</span>
+                <span class="saved-indicator" id="saved">✓ Saved</span>
+            </div>
+            <div class="status-right">
+                <span id="wordCount">0 words</span>
+                <span id="charCount">0 chars</span>
+                <span id="cursorPos">Ln 1, Col 1</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Dialog -->
+    <div class="dialog-overlay" id="saveDialog">
+        <div class="dialog">
+            <h3>Save File</h3>
+            <input type="text" id="saveFilename" placeholder="Enter filename (e.g., notes.txt)">
+            <div class="dialog-buttons">
+                <button class="toolbar-btn secondary" onclick="closeDialog('saveDialog')">Cancel</button>
+                <button class="toolbar-btn" onclick="confirmSave()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Dialog -->
+    <div class="dialog-overlay" id="openDialog">
+        <div class="dialog">
+            <h3>Open File</h3>
+            <div class="file-list" id="fileList"></div>
+            <div class="dialog-buttons">
+                <button class="toolbar-btn secondary" onclick="closeDialog('openDialog')">Cancel</button>
+                <button class="toolbar-btn danger" onclick="deleteSelectedFile()">Delete</button>
+                <button class="toolbar-btn" onclick="confirmOpen()">Open</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./notepad.js"></script>
+</body>
+</html>

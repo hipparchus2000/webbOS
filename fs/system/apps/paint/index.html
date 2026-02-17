@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A simple drawing and painting application">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Paint">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23667eea'/%3E%3Crect x='25' y='25' width='50' height='50' rx='4' fill='white'/%3E%3Ccircle cx='40' cy='40' r='8' fill='%23ff6b6b'/%3E%3C/svg%3E">
+    <title>Paint</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --toolbar-bg: #f5f5f5;
+            --toolbar-text: #333;
+            --border-color: #ddd;
+            --canvas-bg: #ffffff;
+            --button-bg: #667eea;
+            --button-hover: #5a6fd6;
+            --button-text: #ffffff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --toolbar-bg: #2d2d2d;
+                --toolbar-text: #d4d4d4;
+                --border-color: #444;
+                --canvas-bg: #1e1e1e;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .paint-container {
+            background: var(--toolbar-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .toolbar {
+            background: var(--toolbar-bg);
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding-right: 12px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .toolbar-section:last-child {
+            border-right: none;
+        }
+
+        .toolbar-label {
+            font-size: 12px;
+            color: var(--toolbar-text);
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        .toolbar-btn {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--button-hover);
+            transform: translateY(-1px);
+        }
+
+        .toolbar-btn:active {
+            transform: translateY(0);
+        }
+
+        .toolbar-btn.active {
+            background: #2ecc71;
+        }
+
+        .toolbar-btn.secondary {
+            background: transparent;
+            color: var(--toolbar-text);
+            border: 1px solid var(--border-color);
+        }
+
+        .toolbar-btn.secondary:hover {
+            background: var(--border-color);
+        }
+
+        .toolbar-btn.danger {
+            background: #e74c3c;
+        }
+
+        .toolbar-btn.danger:hover {
+            background: #c0392b;
+        }
+
+        .color-picker {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .color-picker::-webkit-color-swatch {
+            border: none;
+        }
+
+        .size-slider {
+            width: 100px;
+            cursor: pointer;
+        }
+
+        .preset-colors {
+            display: flex;
+            gap: 4px;
+        }
+
+        .preset-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .preset-color:hover {
+            transform: scale(1.1);
+        }
+
+        .preset-color.active {
+            border-color: var(--toolbar-text);
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #ddd 25%, transparent 25%),
+                        linear-gradient(-45deg, #ddd 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #ddd 75%),
+                        linear-gradient(-45deg, transparent 75%, #ddd 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #fff;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        .canvas-wrapper.transparent-bg {
+            background: var(--canvas-bg);
+        }
+
+        #canvas {
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .status-bar {
+            background: var(--toolbar-bg);
+            padding: 8px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: var(--toolbar-text);
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                padding: 8px;
+            }
+
+            .toolbar-section {
+                padding-right: 8px;
+            }
+
+            .toolbar-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .toolbar-label {
+                display: none;
+            }
+
+            .size-slider {
+                width: 60px;
+            }
+
+            .preset-color {
+                width: 22px;
+                height: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="paint-container">
+        <div class="toolbar">
+            <div class="toolbar-section">
+                <button class="toolbar-btn active" onclick="setTool('brush')" id="btn-brush" title="Brush">🖌️ Brush</button>
+                <button class="toolbar-btn" onclick="setTool('eraser')" id="btn-eraser" title="Eraser">🧹 Eraser</button>
+                <button class="toolbar-btn" onclick="setTool('line')" id="btn-line" title="Line">? Line</button>
+                <button class="toolbar-btn" onclick="setTool('rect')" id="btn-rect" title="Rectangle">? Rect</button>
+                <button class="toolbar-btn" onclick="setTool('circle')" id="btn-circle" title="Circle">? Circle</button>
+            </div>
+            
+            <div class="toolbar-section">
+                <span class="toolbar-label">Colors:</span>
+                <input type="color" class="color-picker" id="colorPicker" value="#000000" onchange="setColor(this.value)">
+                <div class="preset-colors">
+                    <div class="preset-color active" style="background: #000000;" onclick="setColor('#000000')"></div>
+                    <div class="preset-color" style="background: #ff0000;" onclick="setColor('#ff0000')"></div>
+                    <div class="preset-color" style="background: #00ff00;" onclick="setColor('#00ff00')"></div>
+                    <div class="preset-color" style="background: #0000ff;" onclick="setColor('#0000ff')"></div>
+                    <div class="preset-color" style="background: #ffff00;" onclick="setColor('#ffff00')"></div>
+                    <div class="preset-color" style="background: #ff00ff;" onclick="setColor('#ff00ff')"></div>
+                    <div class="preset-color" style="background: #00ffff;" onclick="setColor('#00ffff')"></div>
+                    <div class="preset-color" style="background: #ffffff;" onclick="setColor('#ffffff')"></div>
+                </div>
+            </div>
+            
+            <div class="toolbar-section">
+                <span class="toolbar-label">Size:</span>
+                <input type="range" class="size-slider" id="brushSize" min="1" max="50" value="5" onchange="setBrushSize(this.value)">
+                <span id="sizeValue">5px</span>
+            </div>
+            
+            <div class="toolbar-section">
+                <button class="toolbar-btn secondary" onclick="undo()" title="Undo">↩️ Undo</button>
+                <button class="toolbar-btn secondary" onclick="redo()" title="Redo">↪️ Redo</button>
+            </div>
+            
+            <div class="toolbar-section">
+                <button class="toolbar-btn danger" onclick="clearCanvas()">🗑️ Clear</button>
+                <button class="toolbar-btn secondary" onclick="saveImage()">💾 Save</button>
+            </div>
+        </div>
+        
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="status-bar">
+            <span id="statusText">Ready</span>
+            <span id="coords">X: 0, Y: 0</span>
+        </div>
+    </div>
+
+    <script src="./paint.js"></script>
+</body>
+</html>

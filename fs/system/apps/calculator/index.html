@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A simple and elegant calculator">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Calculator">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' fill='white' text-anchor='middle'%3E%2B%3C/text%3E%3C/svg%3E">
+    <title>Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --calc-bg: #2a2a2a;
+            --display-bg: #0a0a0a;
+            --display-text: #ff3333;
+            --btn-number: #4a4a4a;
+            --btn-operator: #ff6b6b;
+            --btn-function: #5f72bd;
+            --btn-clear: #f39c12;
+            --btn-equals: #2ecc71;
+            --text-light: #ffffff;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --calc-bg: #f5f5f5;
+                --display-bg: #e8e8e8;
+                --display-text: #333333;
+                --btn-number: #ffffff;
+                --text-light: #333333;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .calculator {
+            background: var(--calc-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .brand {
+            color: #ff6b6b;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .display {
+            background: var(--display-bg);
+            color: var(--display-text);
+            font-size: 48px;
+            padding: 20px;
+            text-align: right;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            min-height: 80px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            font-size: 24px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-number {
+            background: var(--btn-number);
+            color: var(--text-light);
+        }
+
+        .btn-number:hover {
+            background: #5a5a5a;
+        }
+
+        .btn-operator {
+            background: var(--btn-operator);
+            color: white;
+        }
+
+        .btn-operator:hover {
+            background: #ff5252;
+        }
+
+        .btn-function {
+            background: var(--btn-function);
+            color: white;
+            font-size: 18px;
+        }
+
+        .btn-function:hover {
+            background: #4f5f9f;
+        }
+
+        .btn-clear {
+            background: var(--btn-clear);
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #e67e22;
+        }
+
+        .btn-equals {
+            background: var(--btn-equals);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .btn-equals:hover {
+            background: #27ae60;
+        }
+
+        .btn-zero {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 400px) {
+            .calculator {
+                padding: 15px;
+            }
+
+            .display {
+                font-size: 36px;
+                padding: 15px;
+                min-height: 60px;
+            }
+
+            button {
+                padding: 15px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div class="brand">🔢 Calculator</div>
+        <div class="display" id="display">0</div>
+        <div class="button-grid">
+            <button class="btn-clear" onclick="clearAll()">C</button>
+            <button class="btn-function" onclick="toggleSign()">+/-</button>
+            <button class="btn-function" onclick="percentage()">%</button>
+            <button class="btn-operator" onclick="setOperator('/')">÷</button>
+
+            <button class="btn-number" onclick="inputDigit('7')">7</button>
+            <button class="btn-number" onclick="inputDigit('8')">8</button>
+            <button class="btn-number" onclick="inputDigit('9')">9</button>
+            <button class="btn-operator" onclick="setOperator('*')">×</button>
+
+            <button class="btn-number" onclick="inputDigit('4')">4</button>
+            <button class="btn-number" onclick="inputDigit('5')">5</button>
+            <button class="btn-number" onclick="inputDigit('6')">6</button>
+            <button class="btn-operator" onclick="setOperator('-')">−</button>
+
+            <button class="btn-number" onclick="inputDigit('1')">1</button>
+            <button class="btn-number" onclick="inputDigit('2')">2</button>
+            <button class="btn-number" onclick="inputDigit('3')">3</button>
+            <button class="btn-operator" onclick="setOperator('+')">+</button>
+
+            <button class="btn-number btn-zero" onclick="inputDigit('0')">0</button>
+            <button class="btn-number" onclick="inputDecimal()">.</button>
+            <button class="btn-equals" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+    <script src="./calculator.js"></script>
+</body>
+</html>
