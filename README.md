@@ -2,7 +2,7 @@
 
 A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management.
 
-> **Status:** ~95% Complete | [See Detailed Status](STATUS.md) | **✅ FULLY BOOTING!**
+> **Status:** ~95% Complete | [See Detailed Status](STATUS.md) | [Build Status](BUILD_STATUS.md) | **✅ FULLY BOOTING on x86_64 & ARM64!**
 
 ![WebbOS](docs/assets/webbos-logo.png)
 
@@ -16,12 +16,28 @@ A web browser operating system that boots directly into a desktop environment wi
 - **🔒 Security** - SHA-256 password hashing, ChaCha20-Poly1305, X25519 key exchange
 - **🎮 Input** - PS/2 keyboard and mouse support
 - **🖼️ Graphics** - VESA framebuffer 1024x768 @ 32-bit color
+- **🏗️ Multi-Architecture Support** - x86_64 (Intel/AMD) and ARM64 (Raspberry Pi)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-**Windows 11 (Primary Development Platform):**
+**Linux/macOS:**
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install QEMU
+# Ubuntu/Debian: sudo apt install qemu-system-x86 qemu-system-arm
+# macOS: brew install qemu
+
+# Install nightly toolchain
+rustup toolchain install nightly-2025-01-15
+rustup component add rust-src --toolchain nightly-2025-01-15
+rustup target add x86_64-unknown-none x86_64-unknown-uefi aarch64-unknown-none --toolchain nightly-2025-01-15
+```
+
+**Windows 11:**
 ```powershell
 # Install Rust
 irm https://win.rustup.rs | iex
@@ -37,38 +53,51 @@ rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-20
 
 ### Quick Build & Run
 
-**Windows 11 (PowerShell):**
-```powershell
+**Using Makefile (Linux/macOS/Windows with Make):**
+```bash
+# Build and run x86_64 version
+make run-x64
+
+# Build and run AArch64 (Raspberry Pi) version
+make run-aarch64
+
+# Build all components
+make kernel
+make bootloader
+make aarch64-kernel
+```
+
+**Manual Build (All Platforms):**
+```bash
 # First time: Create disk image
 python scripts/create-image.py
 
-# Build
+# Build x86_64
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
-# Update disk image (Python script - no WSL required)
+# Update disk image
 python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
 python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
-# Run
+# Run x86_64
 qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
 ```
 
-**Linux/macOS:**
+**Raspberry Pi (ARM64):**
 ```bash
-# First time: Create disk image
-python3 create-image.py
+# Build image for Raspberry Pi 4/5
+./scripts/create-pi-image.sh
 
-# Build (same commands)
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+# The script creates:
+#   build/aarch64/kernel8.img    - Combined bootloader+kernel
+#   build/aarch64/config.txt     - Pi configuration
+#   build/aarch64/cmdline.txt    - Kernel command line
 
-# Update disk image with Python (or use mtools if preferred)
-python3 update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python3 update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+# Test in QEMU (Raspberry Pi 3B mode)
+qemu-system-aarch64 -M raspi3b -kernel build/aarch64/kernel8.img -serial stdio -display none
 
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+# Or copy files to SD card for real hardware
 ```
 
 ### Default Login
@@ -129,6 +158,7 @@ shutdown      - Shutdown system
 
 ## 🏗️ Architecture
 
+### System Overview
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Desktop Environment (7 Applications)                   │
@@ -157,18 +187,29 @@ shutdown      - Shutdown system
 │  ├── VFS (EXT2, FAT32), Storage (ATA/NVMe/AHCI)       │
 │  └── Interrupt Handling (IDT)                          │
 ├─────────────────────────────────────────────────────────┤
-│  UEFI Bootloader                                        │
-│  ├── ELF64 Kernel Loading                              │
-│  ├── Page Table Setup (4KB pages)                      │
-│  └── Higher-Half Kernel Mapping                        │
+│  Bootloader                                             │
+│  ├── x86_64: UEFI Bootloader                           │
+│  │   └── ELF64 Loading, Page Tables, GOP Framebuffer   │
+│  └── aarch64: Pi Bootloader                            │
+│      └── DTB Parsing, EL1 Drop, PL011 UART             │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### Supported Architectures
+
+| Architecture | Target | Boot Method | Status |
+|--------------|--------|-------------|--------|
+| **x86_64** | `x86_64-unknown-none` | UEFI (OVMF) | ✅ Complete |
+| **ARM64** | `aarch64-unknown-none` | Raspberry Pi GPU Firmware | ✅ Complete |
+
+See [BUILD_STATUS.md](BUILD_STATUS.md) for detailed build and boot information.
 
 ## 📊 Implementation Status
 
 | Component | Status |
 |-----------|--------|
 | UEFI Bootloader | ✅ Complete |
+| Raspberry Pi Bootloader | ✅ Complete |
 | Kernel Core | ✅ Complete |
 | Memory Management | ✅ Complete (8MB heap) |
 | Process Scheduler | ✅ Complete |
@@ -193,16 +234,30 @@ See [STATUS.md](STATUS.md) for detailed status and [TODO.md](TODO.md) for planne
 
 ## 🛠️ Development
 
-### Platform
+### Platform Support
 
-This project was developed and tested on **Windows 11** using:
-- PowerShell for build scripts
-- Python 3 for disk image updates (`update-image.py`)
-- Native Windows toolchain (no WSL required)
+This project supports development on:
+- **Linux** - Primary development platform with full Makefile support
+- **macOS** - Supported via Homebrew packages
+- **Windows 11** - Supported with PowerShell and Python build scripts
 
-### Build Commands
+### Makefile Targets
 
-```powershell
+```bash
+make kernel           # Build x86_64 kernel
+make bootloader       # Build UEFI bootloader
+make run-x64          # Run x86_64 in QEMU
+make run-x64-debug    # Run x86_64 with debug output
+make aarch64-kernel   # Build aarch64 kernel
+make aarch64-image    # Create aarch64 kernel image
+make run-aarch64      # Run aarch64 in QEMU
+make test             # Run test suite
+make clean            # Clean build artifacts
+```
+
+### Manual Build Commands
+
+```bash
 # Build kernel
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
@@ -210,7 +265,7 @@ cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-
 cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
 
 # Update disk image
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
 
 # Run with network
 qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio -netdev user,id=net0 -device virtio-net-pci,netdev=net0
@@ -224,21 +279,22 @@ qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 
 - [Build Instructions](docs/BUILD.md) - Detailed build process
 - [Running Guide](docs/RUNNING.md) - How to run WebbOS
 - [Status](STATUS.md) - Current implementation status
+- [Build Status](BUILD_STATUS.md) - Architecture-specific build info
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [Features](docs/FEATURES.md) - Complete feature list
 
 ## 📊 Specifications
 
-| Component | Specification |
-|-----------|---------------|
-| **Architecture** | x86_64 |
-| **Boot** | UEFI |
-| **Kernel Base** | 0xFFFF800000100000 |
-| **Heap** | 8MB |
-| **Resolution** | 1024x768 (32-bit color) |
-| **Memory** | 128MB minimum |
-| **Storage** | 64MB disk image (FAT32) |
-| **Network** | VirtIO networking |
+| Component | x86_64 Specification | ARM64 Specification |
+|-----------|---------------------|---------------------|
+| **Architecture** | x86_64 | ARM64 (AArch64) |
+| **Boot** | UEFI | Raspberry Pi GPU Firmware |
+| **Kernel Base** | 0xFFFF800000100000 | 0x100000 |
+| **Heap** | 8MB | 8MB |
+| **Resolution** | 1024x768 (32-bit color) | 1024x768 (32-bit color) |
+| **Memory** | 128MB minimum | 128MB minimum |
+| **Storage** | 64MB disk image (FAT32) | SD card (FAT32) |
+| **Network** | VirtIO networking | USB Ethernet (RTL8168) |
 
 ## 📝 Requirements Compliance
 

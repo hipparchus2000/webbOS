@@ -1,10 +1,14 @@
 # WebbOS Project Status
 
-## Date: 2026-01-30
+## Date: 2026-02-16
 
-## Current Status: FULLY BOOTING ✅
+## Current Status: FULLY BOOTING on x86_64 & ARM64 ✅
 
-The WebbOS kernel now successfully boots and reaches the interactive command prompt. All major subsystems are operational.
+The WebbOS kernel successfully boots on both x86_64 and ARM64 architectures:
+- **x86_64**: Boots via UEFI bootloader in QEMU
+- **ARM64**: Boots via custom Pi bootloader on Raspberry Pi 3/4/5
+
+All major subsystems are operational on x86_64. ARM64 support is actively being developed.
 
 ---
 
@@ -31,7 +35,29 @@ The WebbOS kernel now successfully boots and reaches the interactive command pro
 | 17 | Desktop | ✅ Working | 7 apps registered |
 | 18 | Command Prompt | ✅ Working | Interactive shell ready |
 
-**Result:** ✅ System fully operational!
+**Result:** ✅ System fully operational on x86_64!
+
+---
+
+## Multi-Architecture Support
+
+| Architecture | Target | Bootloader | Status | Testing |
+|--------------|--------|------------|--------|---------|
+| x86_64 | `x86_64-unknown-none` | UEFI (`bootloader/`) | ✅ Working | QEMU with OVMF |
+| ARM64 | `aarch64-unknown-none` | Pi (`bootloader-pi/`) | ✅ Building | QEMU raspi3b / Real Pi |
+
+### Build Commands
+
+```bash
+# x86_64
+make run-x64
+
+# ARM64 (Raspberry Pi)
+make run-aarch64
+# or for real hardware:
+./scripts/create-pi-image.sh
+# Then copy build/aarch64/kernel8.img to SD card
+```
 
 ---
 

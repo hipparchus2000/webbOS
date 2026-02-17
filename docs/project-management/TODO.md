@@ -1,6 +1,30 @@
 # WebbOS TODO List
 
-**Last Updated:** 2026-02-06
+**Last Updated:** 2026-02-16
+
+**Status:** x86_64 & aarch64 building and booting ✅
+
+---
+
+## Currently In Progress
+
+- [ ] **FAT32 Desktop Integration** (IN PROGRESS)
+  - [ ] Show `/Desktop` folder from FAT32 image as the desktop
+  - [ ] Display files and folders from `/Desktop` on desktop
+  - [ ] Enable file creation/saving to Desktop from apps
+
+- [ ] **Device Tree Parsing for Raspberry Pi** (IN PROGRESS)
+  - [ ] Parse memory information from DTB
+  - [ ] Parse framebuffer information from DTB
+  - [ ] Parse UART configuration from DTB
+
+- [ ] **Desktop Wallpaper** (IN PROGRESS)
+  - [ ] Add wallpaper background to desktop
+  - [ ] Load wallpaper from FAT32 filesystem
+
+- [ ] **Fix Duplicate Init Messages** (IN PROGRESS)
+  - [ ] Fix browser init printing twice
+  - [ ] Fix crypto init printing twice
 
 ---
 

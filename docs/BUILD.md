@@ -2,139 +2,190 @@
 
 ## Overview
 
-WebbOS requires a cross-compilation toolchain to build the kernel and bootloader. This document provides platform-specific build instructions.
+WebbOS supports building on **Linux** (primary), **macOS**, and **Windows**. The project includes a Makefile for simplified building on Unix-like systems.
 
-> **Note:** This project was developed and tested on Windows 11. The build process uses native Windows tools (PowerShell, Python) rather than WSL.
+## Quick Start (Linux/macOS)
+
+```bash
+# Build and run x86_64
+make run-x64
+
+# Build and run aarch64 (Raspberry Pi)
+make run-aarch64
+
+# Build everything
+make kernel bootloader aarch64-kernel aarch64-image
+```
 
 ## Prerequisites
 
-### Required Tools
+### All Platforms
 
 1. **Rust nightly toolchain** (specified in `rust-toolchain.toml`):
-   ```powershell
+   ```bash
    rustup install nightly-2025-01-15
    rustup component add rust-src --toolchain nightly-2025-01-15
    rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
+   rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
    ```
 
 2. **QEMU** for testing:
-   - Windows: `choco install qemu` or download from https://www.qemu.org/download/#windows
+   - Linux: `sudo apt-get install qemu-system-x86 qemu-system-arm`
    - macOS: `brew install qemu`
-   - Linux: `sudo apt-get install qemu-system-x86`
+   - Windows: `choco install qemu`
 
-3. **Python 3** (for disk image updates on Windows):
-   - Windows: Usually pre-installed or from Microsoft Store
-   - Used by `update-image.py` script
+3. **LLD** linker (Linux):
+   ```bash
+   sudo apt-get install lld
+   ```
 
-## Windows 11 Toolchain (Primary Development Platform)
+## Supported Architectures
 
-This is the toolchain used for active development:
+| Architecture | Target | Bootloader | Status |
+|--------------|--------|------------|--------|
+| x86_64 | `x86_64-unknown-none` | UEFI (`bootloader/`) | ✅ Working |
+| ARM64 | `aarch64-unknown-none` | Pi Bootloader (`bootloader-pi/`) | ✅ Working |
 
-### 1. Build the Kernel
+## Linux (Recommended)
 
-```powershell
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-```
-
-**Output:** `target/x86_64-unknown-none/debug/kernel`
-
-### 2. Build the Bootloader
-
-```powershell
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-```
-
-**Output:** `target/x86_64-unknown-uefi/debug/bootloader.efi`
-
-### 3. Update Disk Image
-
-The disk image (`webbos.img`) is a FAT32 filesystem. Use the Python script to update files:
-
-```powershell
-# Update bootloader
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-
-# Update kernel
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-```
-
-> **Note:** The `update-image.py` script locates files by name in the FAT32 image and overwrites them. It automatically handles file growth by allocating new clusters. No WSL or `mtools` required.
-
-> **First time?** If you don't have `webbos.img`, create it with:
-> ```powershell
-> python scripts/create-image.py
-> ```
-
-See [docs/DISK_IMAGE.md](DISK_IMAGE.md) for complete disk image management documentation.
-
-### 4. Run in QEMU
-
-```powershell
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
-```
-
-### Complete Build Script
-
-```powershell
-# Build everything
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# Update disk image
-python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
-```
-
-## Alternative Platforms
-
-### Linux (Ubuntu/Debian)
+### Using Makefile
 
 ```bash
-# Install build dependencies
-sudo apt-get update
-sudo apt-get install -y build-essential lld qemu-system-x86 mtools
+# Build x86_64 kernel
+make kernel
 
-# Build
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+# Build x86_64 bootloader
+make bootloader
 
-# Create/update disk image with mtools
-mcopy -o -i webbos.img target/x86_64-unknown-uefi/debug/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI
-mcopy -o -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel.elf
+# Run x86_64 in QEMU
+make run-x64
 
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+# Build aarch64 kernel
+make aarch64-kernel
+
+# Create aarch64 image for Raspberry Pi
+make aarch64-image
+
+# Run aarch64 in QEMU
+make run-aarch64
 ```
 
-### macOS
+### Manual Build (x86_64)
+
+```bash
+# Build kernel
+cargo build --target x86_64-unknown-none --release -p kernel
+
+# Build bootloader
+cargo build --target x86_64-unknown-uefi --release -p bootloader
+
+# Prepare boot files
+mkdir -p build/iso/EFI/BOOT
+cp target/x86_64-unknown-uefi/release/bootloader.efi build/iso/EFI/BOOT/BOOTX64.EFI
+cp target/x86_64-unknown-none/release/kernel build/iso/kernel.elf
+
+# Run in QEMU
+qemu-system-x86_64 -m 512M -smp 2 -cpu qemu64 -bios OVMF.fd \
+    -drive format=raw,file=fat:rw:build/iso -serial stdio -display none
+```
+
+### Manual Build (aarch64)
+
+```bash
+# Build kernel
+cargo build --target aarch64-unknown-none --release -p kernel
+
+# Build Pi bootloader
+cargo build --target aarch64-unknown-none --release -p bootloader-pi
+
+# Create image (uses objcopy)
+./scripts/create-pi-image.sh
+
+# Run in QEMU (Raspberry Pi 3)
+qemu-system-aarch64 -M raspi3b -kernel build/aarch64/kernel8.img \
+    -serial stdio -display none
+```
+
+## Windows
+
+### Using PowerShell
+
+```powershell
+# Install Rust
+irm https://win.rustup.rs | iex
+
+# Install QEMU
+choco install qemu
+
+# Build (using same commands as Linux)
+cargo build --target x86_64-unknown-none --release -p kernel
+cargo build --target x86_64-unknown-uefi --release -p bootloader
+
+# Update disk image with Python
+python scripts/create-image.py
+python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/release/bootloader.efi
+python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/release/kernel
+
+# Run
+qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 512M -serial stdio
+```
+
+## macOS
 
 ```bash
 # Install dependencies
-brew install llvm qemu mtools
+brew install qemu llvm
 
-# Build
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# Use Python script or mtools for disk image
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+# Build (same as Linux)
+make kernel
+make bootloader
+make run-x64
 ```
+
+## Raspberry Pi Deployment
+
+### Create SD Card Image
+
+```bash
+# Build combined bootloader + kernel image
+./scripts/create-pi-image.sh
+
+# Output files:
+# - build/aarch64/kernel8.img
+# - build/aarch64/config.txt
+# - build/aarch64/cmdline.txt
+```
+
+### Deploy to SD Card
+
+1. Format SD card with FAT32
+2. Copy files to root:
+   - `build/aarch64/kernel8.img`
+   - `build/aarch64/config.txt`
+   - `build/aarch64/cmdline.txt`
+3. Insert into Raspberry Pi 4/5 and power on
 
 ## Build Output
 
-After a successful build, you should have:
+After successful build:
 
-- `target/x86_64-unknown-uefi/debug/bootloader.efi` - UEFI bootloader
-- `target/x86_64-unknown-none/debug/kernel` - Kernel binary
-- `webbos.img` - Bootable disk image (updated in place)
+```
+target/
+├── x86_64-unknown-none/release/kernel          # x86_64 kernel
+├── x86_64-unknown-uefi/release/bootloader.efi  # x86_64 UEFI bootloader
+└── aarch64-unknown-none/release/
+    ├── kernel                                  # aarch64 kernel
+    └── bootloader-pi                           # Pi bootloader
+
+build/
+├── iso/                                        # x86_64 boot files
+│   ├── EFI/BOOT/BOOTX64.EFI
+│   └── kernel.elf
+└── aarch64/                                    # aarch64 boot files
+    ├── kernel8.img                             # Combined Pi image
+    ├── config.txt
+    └── cmdline.txt
+```
 
 ## Build Configuration
 
@@ -155,30 +206,40 @@ Located in `.cargo/config.toml`:
 build-std = ["core", "compiler_builtins", "alloc"]
 ```
 
-### Kernel Entry Point
+## Makefile Targets
 
-The kernel entry point changes with each build. The bootloader reads the ELF header to get the correct address. Current entry point can be checked with:
-
-```powershell
-python -c "import struct; f=open('target/x86_64-unknown-none/debug/kernel','rb'); f.seek(0x18); print(f'Entry: {struct.unpack('<Q', f.read(8))[0]:#x}')"
-```
+| Target | Description |
+|--------|-------------|
+| `make kernel` | Build x86_64 kernel |
+| `make bootloader` | Build x86_64 UEFI bootloader |
+| `make run-x64` | Build and run x86_64 in QEMU |
+| `make aarch64-kernel` | Build aarch64 kernel |
+| `make aarch64-image` | Create Raspberry Pi image |
+| `make run-aarch64` | Build and run aarch64 in QEMU |
+| `make clean` | Clean all build artifacts |
+| `make test` | Run tests |
+| `make fmt` | Format code |
+| `make lint` | Run clippy |
 
 ## Troubleshooting
 
-### "cargo not found"
+### "linker rust-lld not found"
 
-```powershell
-# Ensure Rust is installed and in PATH
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-# Or restart your terminal
+Install LLD:
+```bash
+# Ubuntu/Debian
+sudo apt-get install lld
+
+# Fedora
+sudo dnf install lld
 ```
 
 ### "target not found"
 
 ```bash
-# Install the target
 rustup target add x86_64-unknown-none --toolchain nightly-2025-01-15
 rustup target add x86_64-unknown-uefi --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 ```
 
 ### "rust-src component not found"
@@ -187,22 +248,11 @@ rustup target add x86_64-unknown-uefi --toolchain nightly-2025-01-15
 rustup component add rust-src --toolchain nightly-2025-01-15
 ```
 
-### "cannot find -lgcc"
+### Kernel crashes in QEMU
 
-When using GNU toolchain, you may need to install the appropriate target libraries. The build uses `compiler_builtins` instead.
-
-### Kernel crashes immediately after boot
-
-Check that the entry point in `bootloader/src/main.rs` matches the actual kernel entry point:
-```rust
-const KERNEL_ENTRY_PHYS: u64 = 0xXXXXXX; // Must match kernel ELF entry point
-```
-
-### QEMU "cannot set up guest memory"
-
-Kill existing QEMU processes:
-```powershell
-taskkill /F /IM qemu-system-x86_64.exe
+Check that OVMF.fd exists:
+```bash
+ls -la OVMF.fd || curl -L -o OVMF.fd https://github.com/retrage/edk2-nightly/raw/master/bin/RELEASEX64_OVMF.fd
 ```
 
 ## Testing
@@ -211,15 +261,23 @@ taskkill /F /IM qemu-system-x86_64.exe
 # Run unit tests (host platform)
 cargo test -p webbos-shared
 
-# Run kernel tests (requires QEMU)
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+# Run kernel in QEMU (x86_64)
+make run-x64
+
+# Run kernel in QEMU (aarch64)
+make run-aarch64
 ```
 
 ## Release Builds
 
-For optimized builds:
+For optimized builds, use `--release`:
 
-```powershell
-cargo +nightly-2025-01-15 build --release -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build --release -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+```bash
+cargo build --release --target x86_64-unknown-none -p kernel
+cargo build --release --target x86_64-unknown-uefi -p bootloader
+```
+
+Or with make:
+```bash
+make kernel RELEASE=1
 ```
