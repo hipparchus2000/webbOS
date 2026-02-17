@@ -7,6 +7,7 @@ pub mod pci;
 pub mod storage;
 pub mod vesa;
 pub mod input;
+pub mod usb;
 
 // Raspberry Pi specific drivers (ARM64 only)
 #[cfg(target_arch = "aarch64")]

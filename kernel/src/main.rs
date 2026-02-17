@@ -300,6 +300,12 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     drivers::input::init();
     println!("[input] Input subsystem initialized");
 
+    // Initialize USB subsystem
+    println!("\n[usb] Initializing USB subsystem...");
+    if let Err(e) = drivers::usb::init() {
+        println!("[usb] USB initialization failed: {:?}", e);
+    }
+
     // Initialize PWA subsystem
     println!("\n[pwa] Initializing PWA subsystem...");
     pwa::init();
@@ -593,6 +599,7 @@ fn process_command(cmd: &[u8]) {
             println!("  ping       - Ping a host");
             println!("  netstat    - Show network connections");
             println!("  storage    - Show storage devices");
+            println!("  usb        - Show USB devices and status");
             println!("  tls        - Test TLS connection");
             println!("  http       - HTTP client usage");
             println!("  fetch      - Fetch a URL (e.g., fetch http://example.com)");
@@ -663,6 +670,9 @@ fn process_command(cmd: &[u8]) {
         }
         "storage" => {
             storage::print_devices();
+        }
+        "usb" => {
+            drivers::usb::print_status();
         }
         "tls" => {
             let _ = tls::connect("example.com");

@@ -102,3 +102,43 @@ impl IoError {
         IoError::DeviceError(msg.to_string())
     }
 }
+
+/// USB error type
+#[derive(Debug, Clone, PartialEq)]
+pub enum UsbError {
+    /// Controller not found
+    ControllerNotFound,
+    /// Invalid descriptor
+    InvalidDescriptor,
+    /// Device not responding
+    DeviceNotResponding,
+    /// Transfer error
+    TransferError(String),
+    /// Out of memory
+    OutOfMemory,
+    /// Unsupported device
+    UnsupportedDevice,
+    /// Invalid parameter
+    InvalidParameter(String),
+    /// Controller error
+    ControllerError(String),
+    /// Timeout
+    Timeout,
+}
+
+impl UsbError {
+    /// Create a new TransferError
+    pub fn transfer_error(msg: &str) -> Self {
+        UsbError::TransferError(msg.to_string())
+    }
+    
+    /// Create a new InvalidParameter error
+    pub fn invalid_param(msg: &str) -> Self {
+        UsbError::InvalidParameter(msg.to_string())
+    }
+    
+    /// Create a new ControllerError
+    pub fn controller_error(msg: &str) -> Self {
+        UsbError::ControllerError(msg.to_string())
+    }
+}
