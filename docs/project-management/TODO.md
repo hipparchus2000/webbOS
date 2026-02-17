@@ -135,7 +135,13 @@
 - [ ] **Additional Features**
   - [ ] Sound support (PC speaker or Intel HD Audio)
   - [ ] More file system drivers (NTFS read-only?)
-  - [ ] USB mass storage support
+  - [x] **USB Driver** ✅ COMPLETE (Basic)
+    - [x] xHCI (USB 3.0) controller driver
+    - [x] USB hub support
+    - [x] HID (keyboard/mouse) driver
+    - [x] Mass storage driver (BOT protocol)
+    - [ ] Full USB device enumeration (in progress)
+    - [ ] USB mass storage integration with filesystem
 
 ---
 

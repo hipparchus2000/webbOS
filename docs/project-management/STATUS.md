@@ -32,8 +32,9 @@ All major subsystems are operational on x86_64. ARM64 support is actively being 
 | 14 | HTTP/HTTPS | ✅ Working | Client initialized |
 | 15 | Graphics | ✅ Working | VESA 1024x768 framebuffer |
 | 16 | Input | ✅ Working | Keyboard, mouse drivers |
-| 17 | Desktop | ✅ Working | 7 apps registered |
-| 18 | Command Prompt | ✅ Working | Interactive shell ready |
+| 17 | USB | ✅ Working | xHCI controller, HID, mass storage |
+| 18 | Desktop | ✅ Working | 7 apps registered |
+| 19 | Command Prompt | ✅ Working | Interactive shell ready |
 
 **Result:** ✅ System fully operational on x86_64!
 
@@ -226,6 +227,13 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
    - App store with available apps listing
    - Sample PWAs: calculator, notepad, paint, settings
    - Kernel shell commands: `pwa`, `apps`, `install <app>`, `appstore`
+
+6. **USB Driver Subsystem** ✅ COMPLETED (2026-02-17)
+   - xHCI (USB 3.0) host controller driver
+   - USB hub driver
+   - HID driver (keyboard/mouse)
+   - Mass storage driver (BOT protocol)
+   - Shell command: `usb`
 
 ## Current Issues
 
