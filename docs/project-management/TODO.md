@@ -8,23 +8,12 @@
 
 ## Currently In Progress
 
-- [ ] **FAT32 Desktop Integration** (IN PROGRESS)
-  - [ ] Show `/Desktop` folder from FAT32 image as the desktop
-  - [ ] Display files and folders from `/Desktop` on desktop
-  - [ ] Enable file creation/saving to Desktop from apps
-
-- [ ] **Device Tree Parsing for Raspberry Pi** (IN PROGRESS)
-  - [ ] Parse memory information from DTB
-  - [ ] Parse framebuffer information from DTB
-  - [ ] Parse UART configuration from DTB
-
-- [ ] **Desktop Wallpaper** (IN PROGRESS)
-  - [ ] Add wallpaper background to desktop
-  - [ ] Load wallpaper from FAT32 filesystem
-
-- [ ] **Fix Duplicate Init Messages** (IN PROGRESS)
-  - [ ] Fix browser init printing twice
-  - [ ] Fix crypto init printing twice
+- [ ] **PNG Icon Display** (IN PROGRESS)
+  - [x] Icons added to FAT32 image (system/icons/*.png) - 8 files
+  - [x] Icon paths configured in desktop UI code
+  - [ ] Implement PNG decoder (no_std compatible)
+  - [ ] Load icon files from FAT32 filesystem
+  - [ ] Render PNG icons in icon drawing functions
 
 ---
 
@@ -49,11 +38,11 @@
   - [ ] Render PNG icons in icon drawing functions
   - Currently using character fallback display
 
-- [ ] **FAT32 Desktop Integration**
-  - [ ] Show `/Desktop` folder from FAT32 image as the desktop
-  - [ ] Display files and folders from `/Desktop` on desktop
-  - [ ] Enable file creation/saving to Desktop from apps
-  - [ ] Enable saving to Desktop subfolders
+- [x] **FAT32 Desktop Integration** ✅ COMPLETE
+  - [x] Show `/Desktop` folder from FAT32 image as the desktop
+  - [x] Display files and folders from `/Desktop` on desktop
+  - [ ] Enable file creation/saving to Desktop from apps (deferred)
+  - [ ] Enable saving to Desktop subfolders (deferred)
 
 - [ ] **Browser Improvements**
   - [x] Browser launches from desktop icon click
@@ -70,18 +59,14 @@
   - [ ] Test navigation (back/forward buttons)
   - [ ] Test saving downloaded files to Desktop
 
-- [x] **App Store** ✅ COMPLETE
-  - [x] Open App Store (apps.html) when App Store icon clicked
-  - [x] Created `\apps` folder in FAT32 with apps.html
-  - [x] Added games folder (tetris.html, snake.html, pong.html)
-  - [x] Added utils folder (calculator.html, clock.html, weather.html)
-  - [x] Build process copies all apps to FAT32 image
-  - [x] App Store displays available apps with descriptions
-  - [x] Categories: Games and Utilities
-  - [ ] Architecture: Progressive Web Apps (PWA) instead of native packages (deferred)
-  - [ ] PWA manifest parsing (JSON) (deferred)
-  - [ ] Service worker support (simplified) (deferred)
-  - [ ] Install to desktop from URLs (deferred)
+- [x] **App Store & PWA System** ✅ COMPLETE
+  - [x] Open App Store when App Store icon clicked
+  - [x] Created `/system/apps/` folder with PWA apps
+  - [x] Added PWA apps: calculator, notepad, paint, settings
+  - [x] PWA manifest parsing (JSON)
+  - [x] PWA registry with install/uninstall support
+  - [x] PWA launcher with browser integration
+  - [x] Kernel shell commands: pwa, apps, install, appstore
 
 ---
 
@@ -113,10 +98,14 @@
   - [ ] Remove debug print statements from browser init
   - [ ] Consistent logging format across modules
 
+- [x] **Desktop Wallpaper** ✅ COMPLETE
+  - [x] Add wallpaper background to desktop
+  - [x] Load wallpaper from FAT32 filesystem (BMP and PPM formats)
+  - [x] Gradient fallback when no wallpaper found
+
 - [ ] **Desktop Polish**
   - [ ] Window manager improvements (dragging, resizing)
   - [ ] Better app launching feedback
-  - [ ] Desktop wallpaper/background
 
 - [ ] **Command Line Improvements**
   - [ ] Tab completion for commands

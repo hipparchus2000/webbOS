@@ -202,13 +202,37 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
    - Character-based fallback display still in use (PNG decoding not yet implemented)
    - Created `add-files-to-image.py` script for adding files to FAT32
 
+2. **FAT32 Desktop Integration** ✅ COMPLETED (2026-02-17)
+   - Implemented `scan_desktop_folder()` to read `/Desktop` from FAT32
+   - Desktop icons created dynamically from filesystem contents
+   - Files and folders displayed on desktop
+
+3. **Device Tree Parser (Raspberry Pi)** ✅ COMPLETED (2026-02-17)
+   - DTB header parsing with magic number validation
+   - Platform detection (Raspberry Pi 4/5, QEMU)
+   - Memory, framebuffer, and UART configuration parsing
+   - HAL (Hardware Abstraction Layer) module for ARM64
+
+4. **Desktop Wallpaper** ✅ COMPLETED (2026-02-17)
+   - BMP (24-bit and 32-bit) and PPM format support
+   - Automatic scaling with cover mode
+   - Gradient fallback when no wallpaper found
+   - Filesystem loading from `/system/wallpapers/`
+
+5. **PWA (Progressive Web App) System** ✅ COMPLETED (2026-02-17)
+   - Manifest parsing (JSON)
+   - PWA registry with persistence
+   - App launcher with browser integration
+   - App store with available apps listing
+   - Sample PWAs: calculator, notepad, paint, settings
+   - Kernel shell commands: `pwa`, `apps`, `install <app>`, `appstore`
+
 ## Current Issues
 
-1. **Mouse Cursor Freezing** 🔥 CRITICAL - Mouse works but freezes after extended movement
-   - Multiple approaches attempted (redraw, save/restore, bounds checking)
-   - Simplified cursor drawing reduces frequency but doesn't eliminate freezing
-   - May be related to lock contention or interrupt handler issues
-   - Temporarily deferred for other work
+1. **Mouse Cursor Freezing** ✅ FIXED
+   - Migrated from IRQ-driven events to timer-based atomic polling
+   - Mouse IRQ handler updates AtomicI32 position values
+   - Main loop polls at 40Hz timer interval
 
 2. **Kernel Entry Point Changes** - The entry point address changes with each build and must be updated in `bootloader/src/main.rs`
 
@@ -243,18 +267,20 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
    - Load icon files from FAT32 filesystem
    - Render decoded pixels in icon drawing functions
 
-2. **Fix Mouse Cursor Freezing** 🔥 CRITICAL - Resolve mouse freezing issue
-   - Investigate interrupt handler timing
-   - Consider alternative cursor rendering approaches
-   - May need to reduce update frequency or use hardware cursor
+2. **Test Browser** - Verify browser works and can display web pages
 
-3. **Test Browser** - Verify browser works and can display web pages
+3. **File Saving from Apps** - Enable saving files to Desktop from browser/apps
+   - File picker dialog for save locations
+   - Desktop subfolder support
 
-4. **FAT32 Desktop Integration** - Show `/Desktop` folder as desktop, enable file saving
+4. **Real Hardware Testing** - Test on physical machines
+   - Raspberry Pi 4/5 boot testing
+   - x86_64 hardware testing
 
-5. **App Store Implementation** - Final requirement from urs.md
-5. **Real Hardware Testing** - Test on physical machines
-6. **Performance Optimization** - Profile and optimize hot paths
+5. **Performance Optimization** - Profile and optimize hot paths
+   - Reduce binary size
+   - Optimize memory allocation
+   - Implement caching where beneficial
 
 ---
 
