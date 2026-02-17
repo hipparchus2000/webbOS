@@ -77,6 +77,12 @@ pub enum Syscall {
     CreateThread = 32,
     /// Exit thread
     ExitThread = 33,
+    /// Play audio
+    AudioPlay = 34,
+    /// Stop audio
+    AudioStop = 35,
+    /// Set audio volume
+    AudioSetVolume = 36,
     /// Unknown syscall
     Unknown = 0xFF,
 }
@@ -119,6 +125,9 @@ impl Syscall {
             31 => Self::GetTid,
             32 => Self::CreateThread,
             33 => Self::ExitThread,
+            34 => Self::AudioPlay,
+            35 => Self::AudioStop,
+            36 => Self::AudioSetVolume,
             _ => Self::Unknown,
         }
     }
@@ -299,6 +308,9 @@ extern "C" fn syscall_handler(
         Syscall::GetTid => sys_gettid(),
         Syscall::Yield => sys_yield(),
         Syscall::Sleep => sys_sleep(arg1),
+        Syscall::AudioPlay => sys_audio_play(arg1 as *const u8, arg2 as usize, arg3 as u64),
+        Syscall::AudioStop => sys_audio_stop(),
+        Syscall::AudioSetVolume => sys_audio_set_volume(arg1 as u8),
         _ => {
             println!("[syscall] Unimplemented syscall: {:?}({})", syscall, num);
             -1
@@ -385,11 +397,62 @@ fn sys_sleep(ticks: u64) -> i64 {
     0
 }
 
+/// Audio play system call
+/// 
+/// Arguments:
+/// - buffer: pointer to audio data
+/// - length: length of audio data in bytes
+/// - format: packed audio format (sample_rate << 16 | channels << 8 | bits_per_sample)
+fn sys_audio_play(buffer: *const u8, length: usize, format: u64) -> i64 {
+    use crate::drivers::audio::{play, AudioFormat};
+    
+    if buffer.is_null() || length == 0 {
+        return -1;
+    }
+    
+    // Unpack format
+    let sample_rate = ((format >> 16) & 0xFFFFFFFF) as u32;
+    let channels = ((format >> 8) & 0xFF) as u8;
+    let bits_per_sample = (format & 0xFF) as u8;
+    
+    let audio_format = AudioFormat {
+        sample_rate,
+        channels,
+        bits_per_sample,
+    };
+    
+    unsafe {
+        let data = core::slice::from_raw_parts(buffer, length);
+        match play(data, &audio_format) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    }
+}
+
+/// Audio stop system call
+fn sys_audio_stop() -> i64 {
+    use crate::drivers::audio::stop;
+    stop();
+    0
+}
+
+/// Audio set volume system call
+/// 
+/// Argument:
+/// - volume: volume level (0-100)
+fn sys_audio_set_volume(volume: u8) -> i64 {
+    use crate::drivers::audio::set_volume;
+    set_volume(volume.min(100));
+    0
+}
+
 /// Print syscall statistics
 pub fn print_stats() {
     println!("System Call Statistics:");
-    println!("  Implemented: 7/34");
+    println!("  Implemented: 10/37");
     println!("  - exit, write, read");
     println!("  - getpid, gettid");
     println!("  - yield, sleep");
+    println!("  - audio_play, audio_stop, audio_set_volume");
 }

@@ -109,6 +109,82 @@ static LAST_MOUSE_Y: AtomicI32 = AtomicI32::new(300);
 static SCREEN_WIDTH: AtomicI32 = AtomicI32::new(1280);
 static SCREEN_HEIGHT: AtomicI32 = AtomicI32::new(800);
 
+// =============================================================================
+// MOUSE SETTINGS AND CONFIGURATION
+// =============================================================================
+
+/// Mouse cursor size in pixels (for edge clamping)
+pub const CURSOR_WIDTH: i32 = 16;
+pub const CURSOR_HEIGHT: i32 = 16;
+
+/// Edge behavior mode for mouse
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgeBehavior {
+    /// Hard clamp to screen edges (default)
+    Clamp,
+    /// Wrap around to opposite edge (for multi-monitor)
+    Wrap,
+    /// Resistance - harder to push past edge
+    Resistance,
+}
+
+/// Mouse settings configuration
+/// Note: This is a public API struct - fields may be used by external code
+#[allow(dead_code)]
+pub struct MouseSettings {
+    /// Mouse speed multiplier (1.0 = normal, 2.0 = double speed)
+    pub speed: f32,
+    /// Mouse acceleration exponent (1.0 = linear, 2.0 = accelerated)
+    pub acceleration: f32,
+    /// Edge behavior mode
+    pub edge_behavior: EdgeBehavior,
+    /// Edge resistance factor (0.0-1.0, only used with Resistance mode)
+    /// 1.0 = full resistance (can't push past), 0.5 = half resistance
+    pub edge_resistance: f32,
+    /// Margin from screen edge to keep cursor fully visible
+    pub edge_margin: i32,
+}
+
+impl MouseSettings {
+    /// Default mouse settings
+    pub const fn default() -> Self {
+        Self {
+            speed: 1.0,
+            acceleration: 1.0,
+            edge_behavior: EdgeBehavior::Clamp,
+            edge_resistance: 0.5,
+            edge_margin: 0, // No margin by default, cursor can touch edge
+        }
+    }
+    
+    /// Settings with cursor margin to keep it fully visible
+    pub const fn with_margin(margin: i32) -> Self {
+        Self {
+            speed: 1.0,
+            acceleration: 1.0,
+            edge_behavior: EdgeBehavior::Clamp,
+            edge_resistance: 0.5,
+            edge_margin: margin,
+        }
+    }
+}
+
+/// Global mouse settings (atomic for thread-safe access)
+/// Note: Using integer atomics since core::sync::atomic doesn't have AtomicF32
+
+/// Mouse speed (stored as fraction to avoid floating point in atomics)
+static MOUSE_SPEED_NUM: AtomicI32 = AtomicI32::new(10); // 10 = 1.0
+static MOUSE_SPEED_DENOM: AtomicI32 = AtomicI32::new(10);
+
+/// Edge behavior stored as u8 (0=Clamp, 1=Wrap, 2=Resistance)
+static MOUSE_EDGE_BEHAVIOR: AtomicU64 = AtomicU64::new(0);
+
+/// Edge resistance factor (0-100, where 100 = 1.0)
+static MOUSE_EDGE_RESISTANCE: AtomicU64 = AtomicU64::new(50);
+
+/// Edge margin in pixels
+static MOUSE_EDGE_MARGIN: AtomicI32 = AtomicI32::new(0);
+
 /// Input event types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventType {
@@ -319,9 +395,11 @@ impl MouseDriver {
     pub fn set_screen_dimensions(&mut self, width: i32, height: i32) {
         self.screen_width = width;
         self.screen_height = height;
-        // Clamp current position to new bounds
-        self.x = self.x.max(0).min(self.screen_width - 1);
-        self.y = self.y.max(0).min(self.screen_height - 1);
+        // Clamp current position to new bounds considering cursor size
+        let max_x = (self.screen_width - CURSOR_WIDTH).max(0);
+        let max_y = (self.screen_height - CURSOR_HEIGHT).max(0);
+        self.x = self.x.max(0).min(max_x);
+        self.y = self.y.max(0).min(max_y);
     }
     
     /// Flush the PS/2 data buffer to recover from desync
@@ -560,13 +638,78 @@ impl MouseDriver {
         let screen_w = SCREEN_WIDTH.load(Ordering::Relaxed);
         let screen_h = SCREEN_HEIGHT.load(Ordering::Relaxed);
         
-        // Update position
-        x += x_movement as i32;
-        y -= y_movement as i32;
+        // Apply mouse speed/acceleration settings
+        let speed_num = MOUSE_SPEED_NUM.load(Ordering::Relaxed) as f32;
+        let speed_denom = MOUSE_SPEED_DENOM.load(Ordering::Relaxed) as f32;
+        let speed = if speed_denom > 0.0 { speed_num / speed_denom } else { 1.0 };
         
-        // Clamp to screen
-        x = x.max(0).min(screen_w - 1);
-        y = y.max(0).min(screen_h - 1);
+        let x_delta = (x_movement as f32 * speed) as i32;
+        let y_delta = (y_movement as f32 * speed) as i32;
+        
+        // Update position
+        x += x_delta;
+        y -= y_delta;
+        
+        // Get edge behavior and clamp considering cursor size
+        let edge_behavior = MOUSE_EDGE_BEHAVIOR.load(Ordering::Relaxed);
+        let margin = MOUSE_EDGE_MARGIN.load(Ordering::Relaxed);
+        
+        // Calculate bounds considering cursor size and margin
+        let min_x = margin;
+        let min_y = margin;
+        let max_x = (screen_w - CURSOR_WIDTH - margin).max(min_x);
+        let max_y = (screen_h - CURSOR_HEIGHT - margin).max(min_y);
+        
+        match edge_behavior {
+            1 => {
+                // Wrap mode - for multi-monitor support
+                if x < min_x { x = max_x; }
+                else if x > max_x { x = min_x; }
+                if y < min_y { y = max_y; }
+                else if y > max_y { y = min_y; }
+            }
+            2 => {
+                // Resistance mode - apply resistance when approaching edges
+                let resistance = MOUSE_EDGE_RESISTANCE.load(Ordering::Relaxed) as f32 / 100.0;
+                let edge_threshold = 50; // Pixels from edge where resistance starts
+                
+                // Check if we're at edges and apply resistance
+                if x < min_x + edge_threshold {
+                    let dist = (x - min_x) as f32;
+                    if dist < 0.0 {
+                        // Trying to push past edge - apply resistance
+                        x = min_x + (dist * (1.0 - resistance)) as i32;
+                    }
+                }
+                if x > max_x - edge_threshold {
+                    let dist = (x - max_x) as f32;
+                    if dist > 0.0 {
+                        x = max_x + (dist * (1.0 - resistance)) as i32;
+                    }
+                }
+                if y < min_y + edge_threshold {
+                    let dist = (y - min_y) as f32;
+                    if dist < 0.0 {
+                        y = min_y + (dist * (1.0 - resistance)) as i32;
+                    }
+                }
+                if y > max_y - edge_threshold {
+                    let dist = (y - max_y) as f32;
+                    if dist > 0.0 {
+                        y = max_y + (dist * (1.0 - resistance)) as i32;
+                    }
+                }
+                
+                // Final clamp to ensure we don't go too far
+                x = x.max(min_x - edge_threshold).min(max_x + edge_threshold);
+                y = y.max(min_y - edge_threshold).min(max_y + edge_threshold);
+            }
+            _ => {
+                // Default clamp mode
+                x = x.max(min_x).min(max_x);
+                y = y.max(min_y).min(max_y);
+            }
+        }
         
         // Write back to atomics
         MOUSE_X.store(x, Ordering::Relaxed);
@@ -879,11 +1022,19 @@ pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
     SCREEN_WIDTH.store(width, Ordering::Relaxed);
     SCREEN_HEIGHT.store(height, Ordering::Relaxed);
     
-    // Re-clamp current mouse position to new bounds
+    // Re-clamp current mouse position to new bounds considering cursor size
+    let margin = MOUSE_EDGE_MARGIN.load(Ordering::Relaxed);
     let current_x = MOUSE_X.load(Ordering::Relaxed);
     let current_y = MOUSE_Y.load(Ordering::Relaxed);
-    let clamped_x = current_x.max(0).min(width - 1);
-    let clamped_y = current_y.max(0).min(height - 1);
+    
+    let min_x = margin;
+    let min_y = margin;
+    let max_x = (width - CURSOR_WIDTH - margin).max(min_x);
+    let max_y = (height - CURSOR_HEIGHT - margin).max(min_y);
+    
+    let clamped_x = current_x.max(min_x).min(max_x);
+    let clamped_y = current_y.max(min_y).min(max_y);
+    
     MOUSE_X.store(clamped_x, Ordering::Relaxed);
     MOUSE_Y.store(clamped_y, Ordering::Relaxed);
     LAST_MOUSE_X.store(clamped_x, Ordering::Relaxed);
@@ -892,6 +1043,92 @@ pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
     unsafe { 
         IRQ_MOUSE_DRIVER.set_screen_dimensions(width, height); 
     }
+}
+
+/// Clamp mouse position to screen bounds considering cursor size
+/// Returns clamped (x, y) coordinates
+pub fn clamp_mouse_position(x: i32, y: i32) -> (i32, i32) {
+    let screen_w = SCREEN_WIDTH.load(Ordering::Relaxed);
+    let screen_h = SCREEN_HEIGHT.load(Ordering::Relaxed);
+    let margin = MOUSE_EDGE_MARGIN.load(Ordering::Relaxed);
+    
+    let min_x = margin;
+    let min_y = margin;
+    let max_x = (screen_w - CURSOR_WIDTH - margin).max(min_x);
+    let max_y = (screen_h - CURSOR_HEIGHT - margin).max(min_y);
+    
+    (x.max(min_x).min(max_x), y.max(min_y).min(max_y))
+}
+
+/// Clamp mouse position to screen bounds (raw, no cursor size consideration)
+/// Use this for hit-testing where the cursor tip position matters
+pub fn clamp_mouse_position_raw(x: i32, y: i32) -> (i32, i32) {
+    let screen_w = SCREEN_WIDTH.load(Ordering::Relaxed);
+    let screen_h = SCREEN_HEIGHT.load(Ordering::Relaxed);
+    
+    (x.max(0).min(screen_w - 1), y.max(0).min(screen_h - 1))
+}
+
+/// Get current mouse settings
+pub fn get_mouse_settings() -> MouseSettings {
+    let speed_num = MOUSE_SPEED_NUM.load(Ordering::Relaxed);
+    let speed_denom = MOUSE_SPEED_DENOM.load(Ordering::Relaxed);
+    let speed = if speed_denom != 0 { 
+        speed_num as f32 / speed_denom as f32 
+    } else { 
+        1.0 
+    };
+    
+    let edge_behavior = match MOUSE_EDGE_BEHAVIOR.load(Ordering::Relaxed) {
+        1 => EdgeBehavior::Wrap,
+        2 => EdgeBehavior::Resistance,
+        _ => EdgeBehavior::Clamp,
+    };
+    
+    let edge_resistance = MOUSE_EDGE_RESISTANCE.load(Ordering::Relaxed) as f32 / 100.0;
+    let edge_margin = MOUSE_EDGE_MARGIN.load(Ordering::Relaxed);
+    
+    MouseSettings {
+        speed,
+        acceleration: 1.0, // TODO: Implement acceleration
+        edge_behavior,
+        edge_resistance,
+        edge_margin,
+    }
+}
+
+/// Set mouse speed (1.0 = normal)
+pub fn set_mouse_speed(speed: f32) {
+    // Store as fraction to avoid floating point in atomics
+    let scaled = (speed * 10.0) as i32;
+    MOUSE_SPEED_NUM.store(scaled.max(1), Ordering::Relaxed);
+    MOUSE_SPEED_DENOM.store(10, Ordering::Relaxed);
+}
+
+/// Set edge behavior mode
+pub fn set_mouse_edge_behavior(behavior: EdgeBehavior) {
+    let value = match behavior {
+        EdgeBehavior::Clamp => 0,
+        EdgeBehavior::Wrap => 1,
+        EdgeBehavior::Resistance => 2,
+    };
+    MOUSE_EDGE_BEHAVIOR.store(value, Ordering::Relaxed);
+}
+
+/// Set edge resistance factor (0.0 - 1.0)
+pub fn set_mouse_edge_resistance(resistance: f32) {
+    let clamped = resistance.max(0.0).min(1.0);
+    MOUSE_EDGE_RESISTANCE.store((clamped * 100.0) as u64, Ordering::Relaxed);
+}
+
+/// Set edge margin in pixels (keeps cursor fully visible)
+pub fn set_mouse_edge_margin(margin: i32) {
+    MOUSE_EDGE_MARGIN.store(margin.max(0), Ordering::Relaxed);
+    // Re-clamp current position with new margin
+    let (x, y) = mouse_position();
+    let (clamped_x, clamped_y) = clamp_mouse_position(x, y);
+    MOUSE_X.store(clamped_x, Ordering::Relaxed);
+    MOUSE_Y.store(clamped_y, Ordering::Relaxed);
 }
 
 /// Get interrupt counters for diagnostics

@@ -4,6 +4,7 @@
 //! Run these tests to verify driver functionality.
 
 use crate::println;
+use alloc::vec::Vec;
 
 /// Run all driver tests
 pub fn run_all_tests() {
@@ -88,6 +89,12 @@ fn run_generic_tests() {
     println!("[TEST] Input Driver");
     crate::drivers::input::print_info();
     println!("[PASS] Input info displayed\n");
+    
+    // Audio test
+    println!("[TEST] Audio Subsystem");
+    crate::drivers::audio::print_status();
+    crate::drivers::audio::run_tests();
+    println!("[PASS] Audio tests complete\n");
 }
 
 /// Print test summary
@@ -98,6 +105,7 @@ pub fn print_summary() {
     println!("  - USB: XHCI controller detection (USB 3.0)");
     println!("  - Ethernet: MAC address, link status");
     println!("  - HAL: Platform detection, MMIO helpers");
+    println!("  - Audio: Intel HD Audio codec initialization, playback");
 }
 
 /// Individual test functions for manual testing
@@ -150,4 +158,63 @@ pub fn test_platform_detection() {
     println!("Platform Detection Test:");
     println!("  Platform Type: x86_64 PC");
     println!("  Detected: x86_64 PC (no HAL available)");
+}
+
+/// Test audio beep
+pub fn test_audio_beep() {
+    use crate::drivers::audio::{self, AudioFormat};
+    
+    println!("Starting audio beep test...");
+    
+    // Generate 1kHz beep for 200ms
+    let beep = audio::generate_beep(1000, 200, 44100);
+    
+    // Convert mono to stereo
+    let mut stereo = Vec::with_capacity(beep.len() * 2);
+    for i in (0..beep.len()).step_by(2) {
+        if i + 1 < beep.len() {
+            stereo.push(beep[i]);
+            stereo.push(beep[i + 1]);
+            stereo.push(beep[i]);
+            stereo.push(beep[i + 1]);
+        }
+    }
+    
+    let format = AudioFormat {
+        sample_rate: 44100,
+        channels: 2,
+        bits_per_sample: 16,
+    };
+    
+    if let Err(e) = audio::play(&stereo, &format) {
+        println!("  Audio play failed: {:?}", e);
+    } else {
+        println!("  Beep playing...");
+        // Wait for playback (simple spin)
+        for _ in 0..10000000 {
+            core::hint::spin_loop();
+        }
+        audio::stop();
+        println!("  Beep test complete");
+    }
+}
+
+/// Test audio startup sound
+pub fn test_audio_startup() {
+    use crate::drivers::audio::{self, AudioFormat};
+    
+    println!("Playing startup sound...");
+    
+    let sound = audio::generate_startup_sound();
+    let format = AudioFormat {
+        sample_rate: 44100,
+        channels: 2,
+        bits_per_sample: 16,
+    };
+    
+    if let Err(e) = audio::play(&sound, &format) {
+        println!("  Startup sound failed: {:?}", e);
+    } else {
+        println!("  Startup sound playing...");
+    }
 }

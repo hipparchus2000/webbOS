@@ -8,6 +8,7 @@ pub mod storage;
 pub mod vesa;
 pub mod input;
 pub mod usb;
+pub mod audio;
 
 // Raspberry Pi specific drivers (ARM64 only)
 #[cfg(target_arch = "aarch64")]
@@ -30,6 +31,10 @@ pub fn init() {
     
     timer::init();
     pci::init();
+    
+    // Initialize audio subsystem after PCI enumeration
+    audio::init();
+    
     // Storage drivers initialized separately after PCI enumeration
     
     // Initialize Raspberry Pi specific drivers (ARM64 only)
