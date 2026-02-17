@@ -107,10 +107,11 @@
   - [ ] Window manager improvements (dragging, resizing)
   - [ ] Better app launching feedback
 
-- [ ] **Command Line Improvements**
-  - [ ] Tab completion for commands
-  - [ ] Command history (up/down arrows)
-  - [ ] Better `help` output with categories
+- [x] **Command Line Improvements** ✅ COMPLETE
+  - [x] Tab completion for commands
+  - [x] Command history (up/down arrows)
+  - [x] `history` command to show command history
+  - [ ] Better `help` output with categories (deferred)
 
 ---
 

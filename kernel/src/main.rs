@@ -500,8 +500,7 @@ fn desktop_event_loop() {
 
 /// Main kernel loop
 fn kernel_main() -> ! {
-    let mut buffer = [0u8; 256];
-    let mut pos = 0;
+    let mut line_editor = console::line_editor::LineEditor::new();
     let mut first_boot = true;
 
     loop {
@@ -525,7 +524,7 @@ fn kernel_main() -> ! {
             print!("$ ");
         }
         
-        // Simple command loop
+        // Command input loop with line editor
         loop {
             // Check for input
             let key_opt = console::getchar();
@@ -557,26 +556,13 @@ fn kernel_main() -> ! {
                     continue;
                 }
                 
-                match c {
-                    b'\n' | b'\r' => {
-                        println!();
-                        buffer[pos] = 0;
-                        process_command(&buffer[..pos]);
-                        pos = 0;
-                        break;
-                    }
-                    8 | 127 => { // Backspace
-                        if pos > 0 {
-                            pos -= 1;
-                            print!("\x08 \x08");
-                        }
-                    }
-                    c if pos < buffer.len() - 1 => {
-                        buffer[pos] = c;
-                        pos += 1;
-                        print!("{}", c as char);
-                    }
-                    _ => {}
+                // Use line editor for command input
+                if line_editor.handle_key(c) {
+                    // Command complete
+                    let cmd = line_editor.buffer();
+                    process_command(cmd);
+                    line_editor.finish();
+                    break;
                 }
             }
             
@@ -624,6 +610,7 @@ fn process_command(cmd: &[u8]) {
             println!("  browsertest- Test browser rendering engine");
             println!("  loadhtml   - Load HTML file (e.g., loadhtml system/apps/calculator/index.html)");
             println!("  save       - Save file to Desktop (e.g., save notes.txt Hello World)");
+            println!("  history    - Show command history");
             println!("  pwa        - Show PWA system status");
             println!("  apps       - List installed PWA apps");
             println!("  install    - Install PWA app (e.g., install calculator)");
@@ -832,6 +819,9 @@ fn process_command(cmd: &[u8]) {
             println!("Opening App Store...");
             let html = pwa::appstore::get_html();
             println!("App Store HTML generated ({} bytes)", html.len());
+        }
+        "history" => {
+            console::line_editor::print_history();
         }
         "reboot" => {
             println!("Rebooting...");

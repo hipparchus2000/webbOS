@@ -7,6 +7,7 @@ use spin::Mutex;
 
 mod vga;
 mod serial;
+pub mod line_editor;
 
 /// Global writer for console output
 static WRITER: Mutex<ConsoleWriter> = Mutex::new(ConsoleWriter::new());
