@@ -273,6 +273,37 @@ impl UserManager {
         }
     }
     
+    /// Set user admin status
+    pub fn set_admin(&mut self, user_id: UserId, is_admin: bool) -> Result<(), UserError> {
+        // Prevent removing admin from the last admin
+        if !is_admin {
+            if let Some(user) = self.users.get(&user_id) {
+                if user.is_admin {
+                    let admin_count = self.users.values().filter(|u| u.is_admin).count();
+                    if admin_count <= 1 {
+                        return Err(UserError::CannotDeleteLastAdmin);
+                    }
+                }
+            }
+        }
+        
+        if let Some(user) = self.users.get_mut(&user_id) {
+            user.is_admin = is_admin;
+            println!("[users] User '{}' admin status set to {}", 
+                user.username, is_admin);
+            Ok(())
+        } else {
+            Err(UserError::UserNotFound)
+        }
+    }
+    
+    /// Check if current user is admin
+    pub fn is_current_user_admin(&self) -> bool {
+        self.current_user()
+            .map(|u| u.is_admin)
+            .unwrap_or(false)
+    }
+    
     /// Get active sessions
     pub fn list_sessions(&self) -> Vec<&Session> {
         self.sessions.values().collect()
@@ -364,6 +395,16 @@ pub fn delete_user(user_id: UserId) -> Result<(), UserError> {
 /// Change password
 pub fn change_password(user_id: UserId, new_password: &str) -> Result<(), UserError> {
     USER_MANAGER.lock().change_password(user_id, new_password)
+}
+
+/// Set user admin status
+pub fn set_admin(user_id: UserId, is_admin: bool) -> Result<(), UserError> {
+    USER_MANAGER.lock().set_admin(user_id, is_admin)
+}
+
+/// Check if current user is admin
+pub fn is_current_user_admin() -> bool {
+    USER_MANAGER.lock().is_current_user_admin()
 }
 
 /// Print user info

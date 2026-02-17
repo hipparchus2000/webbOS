@@ -132,6 +132,36 @@ pub enum WindowState {
     Maximized,
 }
 
+/// Admin tool state
+#[derive(Debug, Clone)]
+pub enum AdminToolState {
+    UserList,
+    AddUser { username: String, password: String, confirm: String, is_admin: bool, error_msg: String },
+    ChangePassword { user_id: u32, username: String, new_password: String, confirm: String, error_msg: String },
+    DeleteConfirm { user_id: u32, username: String },
+}
+
+impl Default for AdminToolState {
+    fn default() -> Self {
+        AdminToolState::UserList
+    }
+}
+
+/// Input field focus for admin tool
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdminInputField {
+    None,
+    Username,
+    Password,
+    ConfirmPassword,
+}
+
+impl Default for AdminInputField {
+    fn default() -> Self {
+        AdminInputField::None
+    }
+}
+
 /// Window structure for desktop windows
 #[derive(Debug, Clone)]
 pub struct Window {
@@ -147,6 +177,15 @@ pub struct Window {
     pub is_browser: bool,      // Is this a browser window
     pub url_input_focused: bool, // Is URL input focused
     pub url_cursor_pos: usize,   // Cursor position in URL input
+    pub is_file_manager: bool,   // Is this a file manager window
+    pub current_path: String,    // Current path for file manager
+    pub is_admin_tool: bool,     // Is this an admin tool window
+    pub admin_state: AdminToolState, // Admin tool state
+    pub selected_user_id: Option<u32>, // Selected user in admin tool
+    pub input_focus: AdminInputField,  // Which input field is focused
+    pub is_appstore: bool,       // Is this an app store window
+    pub appstore_category: String, // Current category filter for appstore
+    pub appstore_scroll_y: i32,    // Scroll position for appstore
 }
 
 /// Title bar constants
@@ -259,6 +298,48 @@ const BROWSER_DEFAULT_HEIGHT: u32 = 700;
 const BROWSER_DEFAULT_X: i32 = 140;
 const BROWSER_DEFAULT_Y: i32 = 50;
 
+/// Default appstore window dimensions
+const APPSTORE_DEFAULT_WIDTH: u32 = 900;
+const APPSTORE_DEFAULT_HEIGHT: u32 = 650;
+const APPSTORE_DEFAULT_X: i32 = 180;
+const APPSTORE_DEFAULT_Y: i32 = 70;
+
+/// App store UI constants
+const APPSTORE_CATEGORY_TAB_WIDTH: u32 = 100;
+const APPSTORE_CATEGORY_TAB_HEIGHT: u32 = 32;
+const APPSTORE_APP_CARD_WIDTH: u32 = 280;
+const APPSTORE_APP_CARD_HEIGHT: u32 = 140;
+const APPSTORE_APP_CARD_PADDING: i32 = 20;
+const APPSTORE_SIDEBAR_WIDTH: u32 = 120;
+const APPSTORE_HEADER_HEIGHT: u32 = 60;
+
+/// Default file manager window dimensions
+const FILE_MANAGER_DEFAULT_WIDTH: u32 = 800;
+const FILE_MANAGER_DEFAULT_HEIGHT: u32 = 600;
+const FILE_MANAGER_DEFAULT_X: i32 = 180;
+const FILE_MANAGER_DEFAULT_Y: i32 = 80;
+
+/// File manager UI constants
+const FM_TOOLBAR_HEIGHT: u32 = 40;
+const FM_ICON_SIZE: u32 = 48;
+const FM_ICON_PADDING: i32 = 16;
+const FM_TEXT_HEIGHT: i32 = 16;
+const FM_ITEM_WIDTH: i32 = 80;
+const FM_ITEM_HEIGHT: i32 = 80;
+
+/// Default admin window dimensions
+const ADMIN_DEFAULT_WIDTH: u32 = 600;
+const ADMIN_DEFAULT_HEIGHT: u32 = 500;
+const ADMIN_DEFAULT_X: i32 = 200;
+const ADMIN_DEFAULT_Y: i32 = 100;
+
+/// Admin tool UI constants
+const ADMIN_ROW_HEIGHT: u32 = 36;
+const ADMIN_HEADER_HEIGHT: u32 = 40;
+const ADMIN_BUTTON_WIDTH: u32 = 100;
+const ADMIN_BUTTON_HEIGHT: u32 = 28;
+const ADMIN_INPUT_HEIGHT: u32 = 28;
+
 /// Desktop icon layout constants
 const DESKTOP_ICON_WIDTH: u32 = 64;
 const DESKTOP_ICON_HEIGHT: u32 = 80;
@@ -316,6 +397,7 @@ impl DesktopUI {
 
         // Create dock icons (centered at bottom)
         ui.setup_dock_icons();
+        ui.setup_admin_dock_icon();
         ui.setup_default_desktop_icons();
 
         ui
@@ -503,6 +585,15 @@ impl DesktopUI {
             is_browser: true,
             url_input_focused: false,
             url_cursor_pos: 0,
+            is_file_manager: false,
+            current_path: String::new(),
+            is_admin_tool: false,
+            admin_state: AdminToolState::UserList,
+            selected_user_id: None,
+            input_focus: AdminInputField::None,
+            is_appstore: false,
+            appstore_category: String::new(),
+            appstore_scroll_y: 0,
         };
 
         // Deactivate other windows
@@ -535,6 +626,114 @@ impl DesktopUI {
 
         // Request redraw of new window area
         self.request_redraw(Rect::new(x, y, BROWSER_DEFAULT_WIDTH, BROWSER_DEFAULT_HEIGHT));
+
+        id
+    }
+
+    /// Create a new file manager window
+    pub fn create_file_manager_window(&mut self, path: &str) -> u32 {
+        let id = self.next_window_id;
+        self.next_window_id += 1;
+
+        // Calculate position (cascade from default)
+        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let x = FILE_MANAGER_DEFAULT_X + offset;
+        let y = FILE_MANAGER_DEFAULT_Y + offset;
+
+        // Get folder name for title
+        let folder_name = if path == "/" || path.is_empty() {
+            String::from("Root")
+        } else {
+            path.split('/').last().unwrap_or("Folder").to_string()
+        };
+        let title = format!("{} - File Manager", folder_name);
+
+        let window = Window {
+            id,
+            title,
+            x,
+            y,
+            width: FILE_MANAGER_DEFAULT_WIDTH,
+            height: FILE_MANAGER_DEFAULT_HEIGHT,
+            state: WindowState::Normal,
+            is_active: true,
+            url: String::new(),
+            is_browser: false,
+            url_input_focused: false,
+            url_cursor_pos: 0,
+            is_file_manager: true,
+            current_path: path.to_string(),
+            is_admin_tool: false,
+            admin_state: AdminToolState::UserList,
+            selected_user_id: None,
+            input_focus: AdminInputField::None,
+            is_appstore: false,
+            appstore_category: String::new(),
+            appstore_scroll_y: 0,
+        };
+
+        // Deactivate other windows
+        for w in &mut self.windows {
+            w.is_active = false;
+        }
+
+        self.windows.push(window);
+        self.active_window_id = Some(id);
+
+        println!("[desktop] File manager opened: {}", path);
+
+        // Request redraw of new window area
+        self.request_redraw(Rect::new(x, y, FILE_MANAGER_DEFAULT_WIDTH, FILE_MANAGER_DEFAULT_HEIGHT));
+
+        id
+    }
+
+    /// Create a new appstore window
+    pub fn create_appstore_window(&mut self) -> u32 {
+        let id = self.next_window_id;
+        self.next_window_id += 1;
+
+        // Calculate position (cascade from default)
+        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let x = APPSTORE_DEFAULT_X + offset;
+        let y = APPSTORE_DEFAULT_Y + offset;
+
+        let window = Window {
+            id,
+            title: String::from("App Store"),
+            x,
+            y,
+            width: APPSTORE_DEFAULT_WIDTH,
+            height: APPSTORE_DEFAULT_HEIGHT,
+            state: WindowState::Normal,
+            is_active: true,
+            url: String::new(),
+            is_browser: false,
+            url_input_focused: false,
+            url_cursor_pos: 0,
+            is_file_manager: false,
+            current_path: String::new(),
+            is_admin_tool: false,
+            admin_state: AdminToolState::UserList,
+            selected_user_id: None,
+            input_focus: AdminInputField::None,
+            is_appstore: true,
+            appstore_category: String::from("all"),
+            appstore_scroll_y: 0,
+        };
+
+        // Deactivate other windows
+        for w in &mut self.windows {
+            w.is_active = false;
+        }
+
+        self.windows.push(window);
+        self.active_window_id = Some(id);
+
+        println!("[desktop] App Store window created");
+
+        // Request redraw of new window area
+        self.request_redraw(Rect::new(x, y, APPSTORE_DEFAULT_WIDTH, APPSTORE_DEFAULT_HEIGHT));
 
         id
     }
@@ -1040,6 +1239,88 @@ impl DesktopUI {
         ];
     }
 
+    /// Add admin icon to dock if current user is admin
+    fn setup_admin_dock_icon(&mut self) {
+        // Only add admin icon if user is admin
+        if !crate::users::is_current_user_admin() {
+            return;
+        }
+
+        // Calculate position for admin icon (after existing icons)
+        let screen_width = 1280;
+        let base_dock_width = (self.dock_icon_size + 16) * 3;
+        let admin_offset = base_dock_width + 64; // After the 3 default icons
+        let dock_x = (screen_width - (base_dock_width + 64)) / 2;
+        let dock_y = 800 - self.dock_height - 8;
+
+        // Add admin icon to dock
+        self.dock_icons.push(Icon {
+            x: dock_x as i32 + 8 + admin_offset as i32 - 64,
+            y: dock_y as i32 + 8,
+            width: self.dock_icon_size,
+            height: self.dock_icon_size,
+            label: "Admin".to_string(),
+            icon_char: '\u{2699}', // Gear icon ⚙
+            icon_path: None,
+            action: IconAction::LaunchApp("admin".to_string()),
+            is_folder: false,
+            file_type: FileType::Executable,
+            is_selected: false,
+        });
+
+        println!("[desktop] Admin icon added to dock for admin user");
+    }
+
+    /// Create a new admin tool window
+    pub fn create_admin_window(&mut self) -> u32 {
+        let id = self.next_window_id;
+        self.next_window_id += 1;
+
+        // Calculate position (cascade from default)
+        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let x = ADMIN_DEFAULT_X + offset;
+        let y = ADMIN_DEFAULT_Y + offset;
+
+        let window = Window {
+            id,
+            title: String::from("User Management"),
+            x,
+            y,
+            width: ADMIN_DEFAULT_WIDTH,
+            height: ADMIN_DEFAULT_HEIGHT,
+            state: WindowState::Normal,
+            is_active: true,
+            url: String::new(),
+            is_browser: false,
+            url_input_focused: false,
+            url_cursor_pos: 0,
+            is_file_manager: false,
+            current_path: String::new(),
+            is_admin_tool: true,
+            admin_state: AdminToolState::UserList,
+            selected_user_id: None,
+            input_focus: AdminInputField::None,
+            is_appstore: false,
+            appstore_category: String::new(),
+            appstore_scroll_y: 0,
+        };
+
+        // Deactivate other windows
+        for w in &mut self.windows {
+            w.is_active = false;
+        }
+
+        self.windows.push(window);
+        self.active_window_id = Some(id);
+
+        println!("[desktop] Admin window created with ID {}", id);
+
+        // Request redraw of new window area
+        self.request_redraw(Rect::new(x, y, ADMIN_DEFAULT_WIDTH, ADMIN_DEFAULT_HEIGHT));
+
+        id
+    }
+
     fn setup_default_desktop_icons(&mut self) {
         // Desktop icons on the right side - these are the default icons
         // FAT32 files will be added to the left side
@@ -1239,6 +1520,12 @@ impl DesktopUI {
         // Window content based on type
         if window.is_browser {
             self.draw_browser_content_to_back_buffer(window);
+        } else if window.is_appstore {
+            self.draw_appstore_content_to_back_buffer(window);
+        } else if window.is_file_manager {
+            self.draw_file_manager_content_to_back_buffer(window);
+        } else if window.is_admin_tool {
+            self.draw_admin_content_to_back_buffer(window);
         }
 
         // Resize handle (if not maximized)
@@ -1285,6 +1572,713 @@ impl DesktopUI {
                 (RESIZE_BORDER - i) as u32,
                 palette::RESIZE_HANDLE
             );
+        }
+    }
+
+    /// Read directory entries for file manager
+    fn read_directory_entries(&self, path: &str) -> Vec<FileEntry> {
+        let mut entries = Vec::new();
+        
+        // Try to read from global VFS
+        if let Ok(dir_entries) = crate::fs::global_vfs::read_dir(path) {
+            for entry in dir_entries {
+                let file_type = Self::get_file_type(&entry.name, entry.is_dir);
+                let icon_char = Self::get_icon_char_for_type(file_type);
+                let full_path = if path.ends_with('/') {
+                    format!("{}{}", path, entry.name)
+                } else {
+                    format!("{}/{}", path, entry.name)
+                };
+                
+                entries.push(FileEntry {
+                    name: entry.name,
+                    path: full_path,
+                    is_dir: entry.is_dir,
+                    size: entry.size,
+                    file_type,
+                    icon_char,
+                });
+            }
+        } else {
+            // Fallback: create some sample entries for demonstration
+            if path == "/home/user/documents" || path.contains("Documents") {
+                entries.push(FileEntry {
+                    name: String::from("Projects"),
+                    path: String::from("/home/user/documents/projects"),
+                    is_dir: true,
+                    size: 0,
+                    file_type: FileType::Folder,
+                    icon_char: '📁',
+                });
+                entries.push(FileEntry {
+                    name: String::from("notes.txt"),
+                    path: String::from("/home/user/documents/notes.txt"),
+                    is_dir: false,
+                    size: 1024,
+                    file_type: FileType::Text,
+                    icon_char: '📄',
+                });
+                entries.push(FileEntry {
+                    name: String::from("budget.xlsx"),
+                    path: String::from("/home/user/documents/budget.xlsx"),
+                    is_dir: false,
+                    size: 15360,
+                    file_type: FileType::Unknown,
+                    icon_char: '📊',
+                });
+            } else if path == "/home/user/downloads" || path.contains("Downloads") {
+                entries.push(FileEntry {
+                    name: String::from("WebbOS.iso"),
+                    path: String::from("/home/user/downloads/webbos.iso"),
+                    is_dir: false,
+                    size: 52428800,
+                    file_type: FileType::Executable,
+                    icon_char: '💿',
+                });
+                entries.push(FileEntry {
+                    name: String::from("readme.md"),
+                    path: String::from("/home/user/downloads/readme.md"),
+                    is_dir: false,
+                    size: 2048,
+                    file_type: FileType::Text,
+                    icon_char: '📄',
+                });
+            } else {
+                // Default folder contents
+                entries.push(FileEntry {
+                    name: String::from("New Folder"),
+                    path: String::from("/newfolder"),
+                    is_dir: true,
+                    size: 0,
+                    file_type: FileType::Folder,
+                    icon_char: '📁',
+                });
+                entries.push(FileEntry {
+                    name: String::from("sample.txt"),
+                    path: String::from("/sample.txt"),
+                    is_dir: false,
+                    size: 512,
+                    file_type: FileType::Text,
+                    icon_char: '📄',
+                });
+            }
+        }
+        
+        // Sort: directories first, then files alphabetically
+        entries.sort_by(|a, b| {
+            match (a.is_dir, b.is_dir) {
+                (true, false) => core::cmp::Ordering::Less,
+                (false, true) => core::cmp::Ordering::Greater,
+                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            }
+        });
+        
+        entries
+    }
+
+    /// Get parent directory path
+    fn get_parent_directory(&self, path: &str) -> Option<String> {
+        if path == "/" || path.is_empty() {
+            return None;
+        }
+        
+        let path = path.trim_end_matches('/');
+        path.rfind('/').map(|idx| {
+            if idx == 0 {
+                String::from("/")
+            } else {
+                path[..idx].to_string()
+            }
+        })
+    }
+
+    /// Draw file manager content
+    fn draw_file_manager_content_to_back_buffer(&mut self, window: &Window) {
+        let x = window.x;
+        let y = window.y;
+        let w = window.width;
+        let h = window.height;
+
+        // Clear content area with white background
+        let content_y = y + TITLE_BAR_HEIGHT as i32;
+        let content_h = h.saturating_sub(TITLE_BAR_HEIGHT);
+        self.fill_rect_back_buffer(x, content_y, w, content_h, palette::WINDOW_BG);
+
+        // Draw toolbar
+        self.draw_file_manager_toolbar(window);
+
+        // Read and draw directory entries
+        let entries = self.read_directory_entries(&window.current_path);
+        self.draw_file_entries(window, &entries);
+
+        // Draw status bar at bottom
+        self.draw_file_manager_status_bar(window, &entries);
+    }
+
+    /// Draw file manager toolbar with navigation buttons
+    fn draw_file_manager_toolbar(&mut self, window: &Window) {
+        let x = window.x;
+        let y = window.y + TITLE_BAR_HEIGHT as i32;
+        let w = window.width;
+
+        // Toolbar background
+        self.fill_rect_back_buffer(x, y, w, FM_TOOLBAR_HEIGHT, 0xFFF0F0F0);
+        self.draw_hline_to_back_buffer(x, y + FM_TOOLBAR_HEIGHT as i32 - 1, w, 0xFFCCCCCC);
+
+        // Navigation buttons
+        let btn_y = y + 6;
+        let btn_size = 28;
+        
+        // Back button (disabled for now)
+        self.fill_rect_back_buffer(x + 8, btn_y, btn_size as u32, btn_size as u32, 0xFFE0E0E0);
+        self.draw_rect_to_back_buffer(x + 8, btn_y, btn_size as u32, btn_size as u32, 0xFFAAAAAA);
+        self.draw_text_to_back_buffer("◀", x + 16, btn_y + 6, 0xFF888888, 1);
+
+        // Forward button (disabled for now)
+        self.fill_rect_back_buffer(x + 40, btn_y, btn_size as u32, btn_size as u32, 0xFFE0E0E0);
+        self.draw_rect_to_back_buffer(x + 40, btn_y, btn_size as u32, btn_size as u32, 0xFFAAAAAA);
+        self.draw_text_to_back_buffer("▶", x + 48, btn_y + 6, 0xFF888888, 1);
+
+        // Up button
+        self.fill_rect_back_buffer(x + 72, btn_y, btn_size as u32, btn_size as u32, 0xFFE8E8E8);
+        self.draw_rect_to_back_buffer(x + 72, btn_y, btn_size as u32, btn_size as u32, 0xFF999999);
+        self.draw_text_to_back_buffer("▲", x + 80, btn_y + 6, palette::TEXT_BLACK, 1);
+
+        // Path bar
+        let path_x = x + 110;
+        let path_y = y + 6;
+        let path_w = w.saturating_sub(126) as i32;
+        
+        self.fill_rect_back_buffer(path_x, path_y, path_w as u32, 28, palette::URL_BAR_BG);
+        self.draw_rect_to_back_buffer(path_x, path_y, path_w as u32, 28, 0xFFCCCCCC);
+        
+        // Show current path (truncated if needed)
+        let path_text = if window.current_path.len() > 50 {
+            format!("...{}", &window.current_path[window.current_path.len()-47..])
+        } else {
+            window.current_path.clone()
+        };
+        self.draw_text_to_back_buffer(&path_text, path_x + 8, path_y + 8, palette::TEXT_BLACK, 1);
+    }
+
+    /// Draw file entries in the content area
+    fn draw_file_entries(&mut self, window: &Window, entries: &[FileEntry]) {
+        let x = window.x;
+        let y = window.y;
+        let w = window.width as i32;
+        
+        let content_x = x + FM_ICON_PADDING;
+        let content_y = y + TITLE_BAR_HEIGHT as i32 + FM_TOOLBAR_HEIGHT as i32 + FM_ICON_PADDING;
+        let content_w = w - (FM_ICON_PADDING * 2);
+
+        // Calculate grid layout
+        let items_per_row = (content_w / FM_ITEM_WIDTH).max(1) as usize;
+        
+        for (idx, entry) in entries.iter().enumerate() {
+            let row = idx / items_per_row;
+            let col = idx % items_per_row;
+            
+            let item_x = content_x + (col as i32 * FM_ITEM_WIDTH);
+            let item_y = content_y + (row as i32 * FM_ITEM_HEIGHT);
+            
+            self.draw_file_entry(item_x, item_y, entry);
+        }
+    }
+
+    /// Draw a single file entry
+    fn draw_file_entry(&mut self, x: i32, y: i32, entry: &FileEntry) {
+        // Icon background (subtle highlight for folders)
+        if entry.is_dir {
+            self.fill_rect_back_buffer(x + 8, y, 64, 64, 0xFFF5F5F5);
+        }
+
+        // Draw icon character
+        let icon_x = x + (FM_ITEM_WIDTH - 32) / 2;
+        let icon_y = y + 4;
+        self.draw_char_to_back_buffer(entry.icon_char, icon_x, icon_y, palette::TEXT_BLACK, 4);
+
+        // Draw filename (truncated to fit)
+        let max_chars = 10;
+        let name = if entry.name.len() > max_chars {
+            format!("{}...", &entry.name[..max_chars-3])
+        } else {
+            entry.name.clone()
+        };
+        
+        let text_x = x + (FM_ITEM_WIDTH - (name.len() as i32 * 8)) / 2;
+        let text_y = y + FM_ICON_SIZE as i32 + 8;
+        
+        // Determine text color (blue for folders)
+        let text_color = if entry.is_dir { 0xFF0066CC } else { palette::TEXT_BLACK };
+        self.draw_text_to_back_buffer(&name, text_x, text_y, text_color, 1);
+    }
+
+    /// Draw status bar at bottom of file manager
+    fn draw_file_manager_status_bar(&mut self, window: &Window, entries: &[FileEntry]) {
+        let x = window.x;
+        let y = window.y;
+        let w = window.width;
+        let h = window.height;
+        
+        let status_y = y + h as i32 - 24;
+        
+        // Status bar background
+        self.fill_rect_back_buffer(x, status_y, w, 24, 0xFFF0F0F0);
+        self.draw_hline_to_back_buffer(x, status_y, w, 0xFFCCCCCC);
+
+        // Count items
+        let dir_count = entries.iter().filter(|e| e.is_dir).count();
+        let file_count = entries.iter().filter(|e| !e.is_dir).count();
+        
+        let status_text = if dir_count > 0 && file_count > 0 {
+            format!("{} folder(s), {} file(s)", dir_count, file_count)
+        } else if dir_count > 0 {
+            format!("{} folder(s)", dir_count)
+        } else if file_count > 0 {
+            format!("{} file(s)", file_count)
+        } else {
+            String::from("Empty folder")
+        };
+        
+        self.draw_text_to_back_buffer(&status_text, x + 8, status_y + 6, 0xFF666666, 1);
+    }
+
+
+
+    /// Handle click in file manager window
+    fn handle_file_manager_click(&mut self, window_id: u32, x: i32, y: i32) -> bool {
+        // Find the window
+        let window = match self.windows.iter().find(|w| w.id == window_id && w.is_file_manager) {
+            Some(w) => w.clone(),
+            None => return false,
+        };
+
+        let win_x = window.x;
+        let win_y = window.y;
+
+        // Check if clicked on toolbar buttons
+        let toolbar_y = win_y + TITLE_BAR_HEIGHT as i32;
+        
+        // Up button
+        let up_btn_x = win_x + 72;
+        let up_btn_y = toolbar_y + 6;
+        if x >= up_btn_x && x < up_btn_x + 28 && y >= up_btn_y && y < up_btn_y + 28 {
+            if let Some(parent) = self.get_parent_directory(&window.current_path) {
+                // Navigate to parent directory
+                if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                    w.current_path = parent.clone();
+                    // Update title
+                    let folder_name = if parent == "/" || parent.is_empty() {
+                        String::from("Root")
+                    } else {
+                        parent.split('/').last().unwrap_or("Folder").to_string()
+                    };
+                    w.title = format!("{} - File Manager", folder_name);
+                }
+                self.request_redraw(Rect::new(window.x, window.y, window.width, window.height));
+                return true;
+            }
+        }
+
+        // Check if clicked on file entry
+        let content_x = win_x + FM_ICON_PADDING;
+        let content_y = win_y + TITLE_BAR_HEIGHT as i32 + FM_TOOLBAR_HEIGHT as i32 + FM_ICON_PADDING;
+        let content_w = window.width as i32 - (FM_ICON_PADDING * 2);
+        
+        let entries = self.read_directory_entries(&window.current_path);
+        let items_per_row = (content_w / FM_ITEM_WIDTH).max(1) as usize;
+        
+        for (idx, entry) in entries.iter().enumerate() {
+            let row = idx / items_per_row;
+            let col = idx % items_per_row;
+            
+            let item_x = content_x + (col as i32 * FM_ITEM_WIDTH);
+            let item_y = content_y + (row as i32 * FM_ITEM_HEIGHT);
+            
+            // Check if click is within this item's bounds
+            if x >= item_x && x < item_x + FM_ITEM_WIDTH &&
+               y >= item_y && y < item_y + FM_ITEM_HEIGHT {
+                if entry.is_dir {
+                    // Navigate into folder
+                    if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                        w.current_path = entry.path.clone();
+                        // Update title
+                        let folder_name = entry.name.clone();
+                        w.title = format!("{} - File Manager", folder_name);
+                    }
+                    self.request_redraw(Rect::new(window.x, window.y, window.width, window.height));
+                    println!("[desktop] Navigating to folder: {}", entry.path);
+                } else {
+                    // File clicked - could open with default app
+                    println!("[desktop] File selected: {} ({} bytes)", entry.name, entry.size);
+                }
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn handle_admin_click(&mut self, window_id: u32, window: &Window, x: i32, y: i32) -> bool {
+        let win_x = window.x;
+        let win_y = window.y;
+        let content_x = win_x + 8;
+        let content_y = win_y + TITLE_BAR_HEIGHT as i32 + 8;
+        let content_w = window.width.saturating_sub(16);
+        let content_h = window.height.saturating_sub(TITLE_BAR_HEIGHT + 16);
+
+        // Check which state we're in
+        match &window.admin_state {
+            AdminToolState::UserList => {
+                // Check if clicked on user row
+                let header_y = content_y + 70;
+                let list_y = header_y + ADMIN_ROW_HEIGHT as i32;
+                let row_height = ADMIN_ROW_HEIGHT as i32;
+
+                // Get users to determine row positions
+                let users = crate::users::list_users();
+                
+                for (idx, user) in users.iter().enumerate() {
+                    let row_y = list_y + (idx as i32 * row_height);
+                    if row_y + row_height > content_y + content_h as i32 - 60 {
+                        break;
+                    }
+
+                    // Check if click is within this row
+                    if x >= content_x && x < content_x + content_w as i32 &&
+                       y >= row_y && y < row_y + row_height {
+                        // Select/deselect user
+                        if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                            if w.selected_user_id == Some(user.id) {
+                                w.selected_user_id = None;
+                            } else {
+                                w.selected_user_id = Some(user.id);
+                            }
+                        }
+                        self.request_redraw(Rect::new(win_x, win_y, window.width, window.height));
+                        return true;
+                    }
+                }
+
+                // Check buttons at bottom
+                let button_y = content_y + content_h as i32 - 45;
+                let button_spacing = ADMIN_BUTTON_WIDTH as i32 + 10;
+
+                // Add User button
+                if self.is_on_admin_button(x, y, content_x + 16, button_y) {
+                    if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                        w.admin_state = AdminToolState::AddUser {
+                            username: String::new(),
+                            password: String::new(),
+                            confirm: String::new(),
+                            is_admin: false,
+                            error_msg: String::new(),
+                        };
+                        w.input_focus = AdminInputField::Username;
+                    }
+                    self.request_redraw(Rect::new(win_x, win_y, window.width, window.height));
+                    return true;
+                }
+
+                // Delete User button
+                if self.is_on_admin_button(x, y, content_x + 16 + button_spacing, button_y) {
+                    if let Some(user_id) = window.selected_user_id {
+                        if let Some(user) = crate::users::list_users().iter().find(|u| u.id == user_id) {
+                            let username = user.username.clone();
+                            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                                w.admin_state = AdminToolState::DeleteConfirm { user_id, username };
+                            }
+                            self.request_redraw(Rect::new(win_x, win_y, window.width, window.height));
+                        }
+                    }
+                    return true;
+                }
+
+                // Toggle Admin button
+                if self.is_on_admin_button(x, y, content_x + 16 + button_spacing * 2, button_y) {
+                    if let Some(user_id) = window.selected_user_id {
+                        if let Some(user) = crate::users::list_users().iter().find(|u| u.id == user_id) {
+                            let new_admin_status = !user.is_admin;
+                            let _ = crate::users::set_admin(user_id, new_admin_status);
+                            self.request_redraw(Rect::new(win_x, win_y, window.width, window.height));
+                        }
+                    }
+                    return true;
+                }
+
+                // Change Password button
+                if self.is_on_admin_button(x, y, content_x + 16 + button_spacing * 3, button_y) {
+                    if let Some(user_id) = window.selected_user_id {
+                        if let Some(user) = crate::users::list_users().iter().find(|u| u.id == user_id) {
+                            let username = user.username.clone();
+                            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                                w.admin_state = AdminToolState::ChangePassword {
+                                    user_id,
+                                    username,
+                                    new_password: String::new(),
+                                    confirm: String::new(),
+                                    error_msg: String::new(),
+                                };
+                                w.input_focus = AdminInputField::Password;
+                            }
+                            self.request_redraw(Rect::new(win_x, win_y, window.width, window.height));
+                        }
+                    }
+                    return true;
+                }
+            }
+            AdminToolState::AddUser { .. } => {
+                return self.handle_admin_add_user_click(window_id, x, y, content_x, content_y, content_w);
+            }
+            AdminToolState::ChangePassword { .. } => {
+                return self.handle_admin_change_password_click(window_id, x, y, content_x, content_y);
+            }
+            AdminToolState::DeleteConfirm { .. } => {
+                return self.handle_admin_delete_confirm_click(window_id, x, y, content_x, content_y);
+            }
+        }
+
+        false
+    }
+
+    fn is_on_admin_button(&self, click_x: i32, click_y: i32, btn_x: i32, btn_y: i32) -> bool {
+        click_x >= btn_x && click_x < btn_x + ADMIN_BUTTON_WIDTH as i32 &&
+        click_y >= btn_y && click_y < btn_y + ADMIN_BUTTON_HEIGHT as i32
+    }
+
+    fn handle_admin_add_user_click(&mut self, window_id: u32, x: i32, y: i32, content_x: i32, content_y: i32, content_w: u32) -> bool {
+        let form_y = content_y + 60;
+        let input_x = content_x + 140;
+        let input_w = content_w.saturating_sub(160);
+
+        // Username field
+        let username_y = form_y;
+        if x >= input_x && x < input_x + input_w as i32 &&
+           y >= username_y && y < username_y + ADMIN_INPUT_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.input_focus = AdminInputField::Username;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Password field
+        let pass_y = form_y + 45;
+        if x >= input_x && x < input_x + input_w as i32 &&
+           y >= pass_y && y < pass_y + ADMIN_INPUT_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.input_focus = AdminInputField::Password;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Confirm field
+        let confirm_y = pass_y + 45;
+        if x >= input_x && x < input_x + input_w as i32 &&
+           y >= confirm_y && y < confirm_y + ADMIN_INPUT_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.input_focus = AdminInputField::ConfirmPassword;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Is Admin checkbox
+        let admin_y = confirm_y + 45;
+        if x >= input_x && x < input_x + 20 &&
+           y >= admin_y && y < admin_y + 20 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                if let AdminToolState::AddUser { is_admin, .. } = &w.admin_state {
+                    let new_value = !*is_admin;
+                    if let AdminToolState::AddUser { ref mut is_admin, .. } = w.admin_state {
+                        *is_admin = new_value;
+                    }
+                }
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Buttons
+        let button_y = admin_y + 70;
+
+        // Create button
+        if x >= content_x + 16 && x < content_x + 16 + ADMIN_BUTTON_WIDTH as i32 &&
+           y >= button_y && y < button_y + ADMIN_BUTTON_HEIGHT as i32 {
+            // Try to create user
+            if let Some(window) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                if let AdminToolState::AddUser { username, password, confirm, is_admin, error_msg } = &window.admin_state {
+                    let username = username.clone();
+                    let password = password.clone();
+                    let confirm = confirm.clone();
+                    let is_admin = *is_admin;
+                    let mut new_error_msg = String::new();
+
+                    // Validate
+                    if username.is_empty() {
+                        new_error_msg = "Username is required".to_string();
+                    } else if password.len() < 4 {
+                        new_error_msg = "Password must be at least 4 characters".to_string();
+                    } else if password != confirm {
+                        new_error_msg = "Passwords do not match".to_string();
+                    } else {
+                        // Try to create user
+                        match crate::users::create_user(&username, &password, is_admin) {
+                            Ok(_) => {
+                                window.admin_state = AdminToolState::UserList;
+                                window.input_focus = AdminInputField::None;
+                                self.request_redraw_of_window(window_id);
+                                return true;
+                            }
+                            Err(crate::users::UserError::UsernameExists) => {
+                                new_error_msg = "Username already exists".to_string();
+                            }
+                            Err(crate::users::UserError::WeakPassword) => {
+                                new_error_msg = "Password is too weak".to_string();
+                            }
+                            Err(_) => {
+                                new_error_msg = "Failed to create user".to_string();
+                            }
+                        }
+                    }
+
+                    // Update error message
+                    if let AdminToolState::AddUser { ref mut error_msg, .. } = window.admin_state {
+                        *error_msg = new_error_msg;
+                    }
+                }
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Cancel button
+        if x >= content_x + 130 && x < content_x + 130 + ADMIN_BUTTON_WIDTH as i32 &&
+           y >= button_y && y < button_y + ADMIN_BUTTON_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.admin_state = AdminToolState::UserList;
+                w.input_focus = AdminInputField::None;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        false
+    }
+
+    fn handle_admin_change_password_click(&mut self, window_id: u32, x: i32, y: i32, content_x: i32, content_y: i32) -> bool {
+        let form_y = content_y + 70;
+        let input_x = content_x + 160;
+        let input_w = 300;
+
+        // New Password field
+        if x >= input_x && x < input_x + input_w &&
+           y >= form_y && y < form_y + ADMIN_INPUT_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.input_focus = AdminInputField::Password;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Confirm field
+        let confirm_y = form_y + 45;
+        if x >= input_x && x < input_x + input_w &&
+           y >= confirm_y && y < confirm_y + ADMIN_INPUT_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.input_focus = AdminInputField::ConfirmPassword;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Buttons
+        let button_y = confirm_y + 70;
+
+        // Change button
+        if x >= content_x + 16 && x < content_x + 16 + ADMIN_BUTTON_WIDTH as i32 &&
+           y >= button_y && y < button_y + ADMIN_BUTTON_HEIGHT as i32 {
+            if let Some(window) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                if let AdminToolState::ChangePassword { user_id, new_password, confirm, error_msg, .. } = &window.admin_state {
+                    let user_id = *user_id;
+                    let new_password = new_password.clone();
+                    let confirm = confirm.clone();
+                    let mut new_error_msg = String::new();
+
+                    if new_password.len() < 4 {
+                        new_error_msg = "Password must be at least 4 characters".to_string();
+                    } else if new_password != confirm {
+                        new_error_msg = "Passwords do not match".to_string();
+                    } else {
+                        match crate::users::change_password(user_id, &new_password) {
+                            Ok(_) => {
+                                window.admin_state = AdminToolState::UserList;
+                                window.input_focus = AdminInputField::None;
+                                self.request_redraw_of_window(window_id);
+                                return true;
+                            }
+                            Err(_) => {
+                                new_error_msg = "Failed to change password".to_string();
+                            }
+                        }
+                    }
+
+                    if let AdminToolState::ChangePassword { ref mut error_msg, .. } = window.admin_state {
+                        *error_msg = new_error_msg;
+                    }
+                }
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Cancel button
+        if x >= content_x + 130 && x < content_x + 130 + ADMIN_BUTTON_WIDTH as i32 &&
+           y >= button_y && y < button_y + ADMIN_BUTTON_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.admin_state = AdminToolState::UserList;
+                w.input_focus = AdminInputField::None;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        false
+    }
+
+    fn handle_admin_delete_confirm_click(&mut self, window_id: u32, x: i32, y: i32, content_x: i32, content_y: i32) -> bool {
+        // Delete button
+        if x >= content_x + 16 && x < content_x + 16 + ADMIN_BUTTON_WIDTH as i32 &&
+           y >= content_y + 150 && y < content_y + 150 + ADMIN_BUTTON_HEIGHT as i32 {
+            if let Some(window) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                if let AdminToolState::DeleteConfirm { user_id, .. } = &window.admin_state {
+                    let user_id = *user_id;
+                    let _ = crate::users::delete_user(user_id);
+                    window.selected_user_id = None;
+                    window.admin_state = AdminToolState::UserList;
+                }
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        // Cancel button
+        if x >= content_x + 130 && x < content_x + 130 + ADMIN_BUTTON_WIDTH as i32 &&
+           y >= content_y + 150 && y < content_y + 150 + ADMIN_BUTTON_HEIGHT as i32 {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                w.admin_state = AdminToolState::UserList;
+            }
+            self.request_redraw_of_window(window_id);
+            return true;
+        }
+
+        false
+    }
+
+    fn request_redraw_of_window(&mut self, window_id: u32) {
+        if let Some(w) = self.windows.iter().find(|w| w.id == window_id) {
+            self.request_redraw(Rect::new(w.x, w.y, w.width, w.height));
         }
     }
 
@@ -1400,6 +2394,488 @@ impl DesktopUI {
                     self.set_back_buffer_pixel(target_x as u32, target_y as u32, *pixel);
                 }
             }
+        }
+    }
+
+    /// Draw appstore content to back buffer
+    fn draw_appstore_content_to_back_buffer(&mut self, window: &Window) {
+        let x = window.x;
+        let y = window.y;
+        let w = window.width;
+        let h = window.height;
+
+        // Content area bounds
+        let content_x = x + 8;
+        let content_y = y + TITLE_BAR_HEIGHT as i32 + 8;
+        let content_w = w.saturating_sub(16);
+        let content_h = h.saturating_sub(TITLE_BAR_HEIGHT + 16);
+
+        // Background gradient effect (dark blue-purple)
+        for row in 0..content_h {
+            let color = if row % 2 == 0 {
+                0xFF1a1a2e // Dark blue
+            } else {
+                0xFF16213e // Slightly lighter blue
+            };
+            self.draw_hline_to_back_buffer(content_x, content_y + row as i32, content_w, color);
+        }
+
+        // Title
+        self.draw_text_to_back_buffer("App Store", content_x + 20, content_y + 10, 0xFFFFFFFF, 2);
+        self.draw_text_to_back_buffer("Discover and install amazing apps", content_x + 20, content_y + 35, 0xFF888888, 1);
+
+        // Category tabs
+        let categories = ["All", "Productivity", "Internet", "Media", "System", "Games"];
+        let tab_y = content_y + 55;
+        let mut tab_x = content_x + 20;
+
+        for (_i, category) in categories.iter().enumerate() {
+            let is_active = window.appstore_category.to_lowercase() == category.to_lowercase();
+            let tab_width = (category.len() as u32 * 8) + 16;
+            
+            // Tab background
+            let tab_color = if is_active {
+                0xFF667eea // Active tab color (blue-purple)
+            } else {
+                0x40FFFFFF // Semi-transparent for inactive
+            };
+            
+            self.fill_rect_back_buffer(tab_x, tab_y, tab_width, 24, tab_color);
+            self.draw_rect_to_back_buffer(tab_x, tab_y, tab_width, 24, 0xFF888888);
+            
+            // Tab text
+            let text_color = if is_active { 0xFFFFFFFF } else { 0xFFCCCCCC };
+            self.draw_text_to_back_buffer(category, tab_x + 8, tab_y + 6, text_color, 1);
+            
+            tab_x += tab_width as i32 + 8;
+        }
+
+        // Get apps from appstore
+        let apps = crate::pwa::appstore::list_available(Some(&window.appstore_category));
+        
+        // Draw app cards in a grid
+        let cards_start_y = tab_y + 40;
+        let card_cols = 2u32; // 2 columns
+        let card_spacing_x = 20i32;
+        let card_spacing_y = 20i32;
+        let card_width = ((content_w - 40) / card_cols) as i32;
+        let card_height = 120i32;
+
+        for (i, app) in apps.iter().enumerate() {
+            let col = (i as u32) % card_cols;
+            let row = (i as u32) / card_cols;
+            
+            let card_x = content_x + 20 + (col as i32 * (card_width + card_spacing_x));
+            let card_y = cards_start_y + (row as i32 * (card_height + card_spacing_y)) - window.appstore_scroll_y;
+
+            // Skip if outside visible area
+            if card_y + card_height < content_y || card_y > content_y + content_h as i32 {
+                continue;
+            }
+
+            // Card background
+            self.fill_rect_back_buffer(card_x, card_y, card_width as u32, card_height as u32, 0x30FFFFFF);
+            self.draw_rect_to_back_buffer(card_x, card_y, card_width as u32, card_height as u32, 0xFF888888);
+
+            // App icon (colored square with emoji)
+            let icon_x = card_x + 10;
+            let icon_y = card_y + 10;
+            let icon_colors: [u32; 7] = [0xFF667eea, 0xFF764ba2, 0xFFf093fb, 0xFF4facfe, 0xFF43e97b, 0xFFfa709a, 0xFFfee140];
+            let icon_color = icon_colors[i % icon_colors.len()];
+            self.fill_rect_back_buffer(icon_x, icon_y, 48, 48, icon_color);
+
+            // Icon emoji based on app id
+            let icon_char = match app.id.as_str() {
+                "calculator" => '#',
+                "notepad" => 'N',
+                "paint" => 'P',
+                "music" => 'M',
+                "weather" => '*',
+                "todo" => 'T',
+                "terminal" => '>',
+                _ => 'A',
+            };
+            self.draw_char_to_back_buffer(icon_char, icon_x + 16, icon_y + 16, 0xFFFFFFFF, 2);
+
+            // App name
+            self.draw_text_to_back_buffer(&app.name, card_x + 70, card_y + 12, 0xFFFFFFFF, 1);
+
+            // App description (truncated)
+            let desc = if app.description.len() > 30 {
+                format!("{}...", &app.description[..27])
+            } else {
+                app.description.clone()
+            };
+            self.draw_text_to_back_buffer(&desc, card_x + 70, card_y + 30, 0xFFAAAAAA, 1);
+
+            // Version and author
+            let meta = format!("v{} by {}", app.version, app.author);
+            self.draw_text_to_back_buffer(&meta, card_x + 70, card_y + 48, 0xFF666666, 1);
+
+            // Install/Installed button
+            let btn_y = card_y + 75;
+            let btn_width = 100u32;
+            let btn_height = 28u32;
+            
+            let (btn_color, btn_text, btn_text_color) = if app.is_installed {
+                if self.appstore_has_update(&app.id) {
+                    (0xFFffbd2e, "Update", 0xFF000000) // Yellow for update
+                } else {
+                    (0xFF27c93f, "Installed", 0xFFFFFFFF) // Green for installed
+                }
+            } else {
+                (0xFF007AFF, "Install", 0xFFFFFFFF) // Blue for install
+            };
+
+            self.fill_rect_back_buffer(card_x + 10, btn_y, btn_width, btn_height, btn_color);
+            self.draw_rect_to_back_buffer(card_x + 10, btn_y, btn_width, btn_height, 0xFF0055AA);
+            
+            let text_x = card_x + 10 + ((btn_width as i32 - (btn_text.len() as i32 * 8)) / 2);
+            self.draw_text_to_back_buffer(btn_text, text_x, btn_y + 8, btn_text_color, 1);
+        }
+
+        // Show count
+        let count_text = format!("{} apps available", apps.len());
+        self.draw_text_to_back_buffer(&count_text, content_x + 20, content_y + content_h as i32 - 20, 0xFF666666, 1);
+    }
+
+    /// Check if app has update available (helper for appstore drawing)
+    fn appstore_has_update(&self, app_id: &str) -> bool {
+        crate::pwa::appstore::check_updates().iter().any(|(id, _, _)| id == app_id)
+    }
+
+    /// Handle appstore window click
+    fn handle_appstore_click(&mut self, window_id: u32, x: i32, y: i32) -> bool {
+        // Find the window and get needed data
+        let window = match self.windows.iter().find(|w| w.id == window_id && w.is_appstore) {
+            Some(w) => w.clone(),
+            None => return false,
+        };
+        
+        let wx = window.x;
+        let wy = window.y;
+        let ww = window.width;
+        let wh = window.height;
+        let category = window.appstore_category.clone();
+        let scroll_y = window.appstore_scroll_y;
+
+        // Content area bounds
+        let content_x = wx + 8;
+        let content_y = wy + TITLE_BAR_HEIGHT as i32 + 8;
+        let content_w = ww.saturating_sub(16);
+
+        // Check category tab clicks
+        let categories = ["All", "Productivity", "Internet", "Media", "System", "Games"];
+        let tab_y = content_y + 55;
+        let mut tab_x = content_x + 20;
+
+        for cat in &categories {
+            let tab_width = (cat.len() as u32 * 8) + 16;
+            
+            if x >= tab_x && x < tab_x + tab_width as i32 &&
+               y >= tab_y && y < tab_y + 24 {
+                // Found clicked category
+                if let Some(w) = self.windows.iter_mut().find(|w| w.id == window_id) {
+                    w.appstore_category = cat.to_lowercase();
+                }
+                self.request_redraw(Rect::new(wx, wy, ww, wh));
+                return true;
+            }
+            
+            tab_x += tab_width as i32 + 8;
+        }
+
+        // Check app card button clicks
+        let apps = crate::pwa::appstore::list_available(Some(&category));
+        let cards_start_y = tab_y + 40;
+        let card_cols = 2u32;
+        let card_spacing_x = 20i32;
+        let card_spacing_y = 20i32;
+        let card_width = ((content_w - 40) / card_cols) as i32;
+        let card_height = 120i32;
+
+        for (i, app) in apps.iter().enumerate() {
+            let col = (i as u32) % card_cols;
+            let row = (i as u32) / card_cols;
+            
+            let card_x = content_x + 20 + (col as i32 * (card_width + card_spacing_x));
+            let card_y = cards_start_y + (row as i32 * (card_height + card_spacing_y)) - scroll_y;
+
+            // Install button bounds
+            let btn_x = card_x + 10;
+            let btn_y = card_y + 75;
+            let btn_w = 100i32;
+            let btn_h = 28i32;
+
+            if x >= btn_x && x < btn_x + btn_w &&
+               y >= btn_y && y < btn_y + btn_h {
+                // Install button clicked
+                if app.is_installed {
+                    if self.appstore_has_update(&app.id) {
+                        println!("[appstore] Updating app: {}", app.id);
+                        match crate::pwa::appstore::update(&app.id) {
+                            Ok(_) => println!("[appstore] Updated successfully"),
+                            Err(e) => println!("[appstore] Update failed: {:?}", e),
+                        }
+                    } else {
+                        println!("[appstore] App already installed: {}", app.id);
+                    }
+                } else {
+                    println!("[appstore] Installing app: {}", app.id);
+                    match crate::pwa::appstore::install(&app.id) {
+                        Ok(_) => {
+                            println!("[appstore] Installed successfully");
+                            // Refresh the window to show "Installed"
+                            self.request_redraw(Rect::new(wx, wy, ww, wh));
+                        }
+                        Err(e) => println!("[appstore] Install failed: {:?}", e),
+                    }
+                }
+                return true;
+            }
+        }
+
+        false
+    }
+
+    // === Admin tool content drawing ===
+
+    fn draw_admin_content_to_back_buffer(&mut self, window: &Window) {
+        let x = window.x;
+        let y = window.y;
+        let w = window.width;
+        let h = window.height;
+
+        let content_x = x + 8;
+        let content_y = y + TITLE_BAR_HEIGHT as i32 + 8;
+        let content_w = w.saturating_sub(16);
+        let content_h = h.saturating_sub(TITLE_BAR_HEIGHT + 16);
+
+        // Clear content area with white background
+        self.fill_rect_back_buffer(content_x, content_y, content_w, content_h, palette::WINDOW_BG);
+
+        match &window.admin_state {
+            AdminToolState::UserList => {
+                self.draw_admin_user_list(window, content_x, content_y, content_w, content_h);
+            }
+            AdminToolState::AddUser { username, password, confirm, is_admin, error_msg } => {
+                self.draw_admin_add_user(window, content_x, content_y, content_w, content_h, 
+                    username, password, confirm, *is_admin, error_msg);
+            }
+            AdminToolState::ChangePassword { user_id, username, new_password, confirm, error_msg } => {
+                self.draw_admin_change_password(window, content_x, content_y, content_w, content_h,
+                    *user_id, username, new_password, confirm, error_msg);
+            }
+            AdminToolState::DeleteConfirm { user_id, username } => {
+                self.draw_admin_delete_confirm(window, content_x, content_y, content_w, content_h,
+                    *user_id, username);
+            }
+        }
+    }
+
+    fn draw_admin_user_list(&mut self, window: &Window, x: i32, y: i32, w: u32, h: u32) {
+        // Title
+        self.draw_text_to_back_buffer("User Accounts", x + 16, y + 10, palette::TEXT_BLACK, 2);
+
+        // Get user count
+        let users = crate::users::list_users();
+        let count_text = format!("Total users: {}", users.len());
+        self.draw_text_to_back_buffer(&count_text, x + 16, y + 40, 0xFF666666, 1);
+
+        // Column headers
+        let header_y = y + 70;
+        self.fill_rect_back_buffer(x, header_y, w, ADMIN_ROW_HEIGHT, 0xFFF0F0F0);
+        self.draw_text_to_back_buffer("Username", x + 16, header_y + 10, palette::TEXT_BLACK, 1);
+        self.draw_text_to_back_buffer("Type", x + 200, header_y + 10, palette::TEXT_BLACK, 1);
+        self.draw_text_to_back_buffer("Status", x + 300, header_y + 10, palette::TEXT_BLACK, 1);
+
+        // User list
+        let list_y = header_y + ADMIN_ROW_HEIGHT as i32;
+        let row_height = ADMIN_ROW_HEIGHT as i32;
+
+        for (idx, user) in users.iter().enumerate() {
+            let row_y = list_y + (idx as i32 * row_height);
+            if row_y + row_height as i32 > y + h as i32 - 60 {
+                break; // Don't draw beyond content area
+            }
+
+            // Highlight selected row
+            if window.selected_user_id == Some(user.id) {
+                self.fill_rect_back_buffer(x + 2, row_y, w.saturating_sub(4), ADMIN_ROW_HEIGHT, 0xFFE0F0FF);
+            } else if idx % 2 == 0 {
+                self.fill_rect_back_buffer(x + 2, row_y, w.saturating_sub(4), ADMIN_ROW_HEIGHT, 0xFFFAFAFA);
+            }
+
+            // Username
+            self.draw_text_to_back_buffer(&user.username, x + 16, row_y + 10, palette::TEXT_BLACK, 1);
+
+            // Type (admin/user)
+            let user_type = if user.is_admin { "Admin" } else { "User" };
+            self.draw_text_to_back_buffer(user_type, x + 200, row_y + 10, 
+                if user.is_admin { 0xFF008000 } else { 0xFF666666 }, 1);
+
+            // Status
+            let status = if user.is_active { "Active" } else { "Inactive" };
+            self.draw_text_to_back_buffer(status, x + 300, row_y + 10,
+                if user.is_active { 0xFF008000 } else { 0xFF808080 }, 1);
+        }
+
+        // Action buttons at bottom
+        let button_y = y + h as i32 - 45;
+        let button_spacing = ADMIN_BUTTON_WIDTH as i32 + 10;
+
+        // Add User button
+        self.draw_admin_button("Add User", x + 16, button_y, 
+            window.selected_user_id.is_none());
+
+        // Delete User button
+        self.draw_admin_button("Delete", x + 16 + button_spacing, button_y,
+            window.selected_user_id.is_some());
+
+        // Toggle Admin button
+        self.draw_admin_button("Toggle Admin", x + 16 + button_spacing * 2, button_y,
+            window.selected_user_id.is_some());
+
+        // Change Password button
+        self.draw_admin_button("Password", x + 16 + button_spacing * 3, button_y,
+            window.selected_user_id.is_some());
+    }
+
+    fn draw_admin_add_user(&mut self, window: &Window, x: i32, y: i32, w: u32, _h: u32,
+        username: &str, password: &str, confirm: &str, is_admin: bool, error_msg: &str) {
+        
+        // Title
+        self.draw_text_to_back_buffer("Add New User", x + 16, y + 10, palette::TEXT_BLACK, 2);
+
+        let form_y = y + 60;
+        let label_x = x + 16;
+        let input_x = x + 140;
+        let input_w = w.saturating_sub(160);
+
+        // Username field
+        self.draw_text_to_back_buffer("Username:", label_x, form_y + 6, palette::TEXT_BLACK, 1);
+        self.draw_admin_input_field(input_x, form_y, input_w, username, 
+            window.input_focus == AdminInputField::Username);
+
+        // Password field
+        let pass_y = form_y + 45;
+        self.draw_text_to_back_buffer("Password:", label_x, pass_y + 6, palette::TEXT_BLACK, 1);
+        let masked_pass: String = password.chars().map(|_| '*').collect();
+        self.draw_admin_input_field(input_x, pass_y, input_w, &masked_pass,
+            window.input_focus == AdminInputField::Password);
+
+        // Confirm password field
+        let confirm_y = pass_y + 45;
+        self.draw_text_to_back_buffer("Confirm:", label_x, confirm_y + 6, palette::TEXT_BLACK, 1);
+        let masked_confirm: String = confirm.chars().map(|_| '*').collect();
+        self.draw_admin_input_field(input_x, confirm_y, input_w, &masked_confirm,
+            window.input_focus == AdminInputField::ConfirmPassword);
+
+        // Is Admin checkbox
+        let admin_y = confirm_y + 45;
+        self.draw_text_to_back_buffer("Admin:", label_x, admin_y + 6, palette::TEXT_BLACK, 1);
+        self.draw_admin_checkbox(input_x, admin_y, is_admin);
+
+        // Error message
+        if !error_msg.is_empty() {
+            self.draw_text_to_back_buffer(error_msg, x + 16, admin_y + 45, 0xFFFF0000, 1);
+        }
+
+        // Buttons
+        let button_y = admin_y + 70;
+        self.draw_admin_button("Create", x + 16, button_y, true);
+        self.draw_admin_button("Cancel", x + 130, button_y, true);
+    }
+
+    fn draw_admin_change_password(&mut self, window: &Window, x: i32, y: i32, w: u32, _h: u32,
+        _user_id: u32, username: &str, new_password: &str, confirm: &str, error_msg: &str) {
+        
+        // Title
+        let title = format!("Change Password for {}", username);
+        self.draw_text_to_back_buffer(&title, x + 16, y + 10, palette::TEXT_BLACK, 2);
+
+        let form_y = y + 70;
+        let label_x = x + 16;
+        let input_x = x + 160;
+        let input_w = w.saturating_sub(180);
+
+        // New Password field
+        self.draw_text_to_back_buffer("New Password:", label_x, form_y + 6, palette::TEXT_BLACK, 1);
+        let masked_pass: String = new_password.chars().map(|_| '*').collect();
+        self.draw_admin_input_field(input_x, form_y, input_w, &masked_pass,
+            window.input_focus == AdminInputField::Password);
+
+        // Confirm password field
+        let confirm_y = form_y + 45;
+        self.draw_text_to_back_buffer("Confirm:", label_x, confirm_y + 6, palette::TEXT_BLACK, 1);
+        let masked_confirm: String = confirm.chars().map(|_| '*').collect();
+        self.draw_admin_input_field(input_x, confirm_y, input_w, &masked_confirm,
+            window.input_focus == AdminInputField::ConfirmPassword);
+
+        // Error message
+        if !error_msg.is_empty() {
+            self.draw_text_to_back_buffer(error_msg, x + 16, confirm_y + 45, 0xFFFF0000, 1);
+        }
+
+        // Buttons
+        let button_y = confirm_y + 70;
+        self.draw_admin_button("Change", x + 16, button_y, true);
+        self.draw_admin_button("Cancel", x + 130, button_y, true);
+    }
+
+    fn draw_admin_delete_confirm(&mut self, _window: &Window, x: i32, y: i32, _w: u32, _h: u32,
+        _user_id: u32, username: &str) {
+        
+        // Title
+        self.draw_text_to_back_buffer("Confirm Delete", x + 16, y + 20, palette::TEXT_BLACK, 2);
+
+        // Warning message
+        let msg = format!("Are you sure you want to delete user '{}'?", username);
+        self.draw_text_to_back_buffer(&msg, x + 16, y + 80, 0xFFFF0000, 1);
+        self.draw_text_to_back_buffer("This action cannot be undone.", x + 16, y + 105, 0xFF666666, 1);
+
+        // Buttons
+        self.draw_admin_button("Delete", x + 16, y + 150, true);
+        self.draw_admin_button("Cancel", x + 130, y + 150, true);
+    }
+
+    fn draw_admin_input_field(&mut self, x: i32, y: i32, w: u32, text: &str, focused: bool) {
+        let bg_color = if focused { 0xFFF0F8FF } else { palette::URL_BAR_BG };
+        let border_color = if focused { palette::INPUT_CURSOR } else { palette::URL_BAR_BORDER };
+
+        self.fill_rect_back_buffer(x, y, w, ADMIN_INPUT_HEIGHT, bg_color);
+        self.draw_rect_to_back_buffer(x, y, w, ADMIN_INPUT_HEIGHT, border_color);
+        self.draw_text_to_back_buffer(text, x + 8, y + 6, palette::TEXT_BLACK, 1);
+
+        // Draw cursor if focused
+        if focused {
+            let cursor_x = x + 8 + (text.len() as i32 * 8);
+            self.draw_vline_to_back_buffer(cursor_x, y + 4, 20, palette::INPUT_CURSOR);
+        }
+    }
+
+    fn draw_admin_button(&mut self, label: &str, x: i32, y: i32, enabled: bool) {
+        let bg_color = if enabled { 0xFF007AFF } else { 0xFFCCCCCC };
+        let text_color = if enabled { palette::TEXT_WHITE } else { 0xFF888888 };
+
+        self.fill_rect_back_buffer(x, y, ADMIN_BUTTON_WIDTH, ADMIN_BUTTON_HEIGHT, bg_color);
+        self.draw_rect_to_back_buffer(x, y, ADMIN_BUTTON_WIDTH, ADMIN_BUTTON_HEIGHT, 
+            if enabled { 0xFF0055AA } else { 0xFFAAAAAA });
+
+        let text_x = x + (ADMIN_BUTTON_WIDTH as i32 / 2) - ((label.len() as i32 * 4));
+        let text_y = y + 6;
+        self.draw_text_to_back_buffer(label, text_x, text_y, text_color, 1);
+    }
+
+    fn draw_admin_checkbox(&mut self, x: i32, y: i32, checked: bool) {
+        let size = 20i32;
+        self.draw_rect_to_back_buffer(x, y, size as u32, size as u32, palette::TEXT_BLACK);
+        self.fill_rect_back_buffer(x + 1, y + 1, (size - 2) as u32, (size - 2) as u32, palette::WINDOW_BG);
+
+        if checked {
+            // Draw checkmark
+            self.fill_rect_back_buffer(x + 4, y + 9, 12, 3, 0xFF007AFF);
+            self.fill_rect_back_buffer(x + 4, y + 12, 3, 6, 0xFF007AFF);
         }
     }
 
@@ -1842,6 +3318,23 @@ impl DesktopUI {
                 return true;
             }
             
+            // Check file manager click
+            if window.is_file_manager {
+                return self.handle_file_manager_click(window_id, x, y);
+            }
+
+            // Check appstore click
+            if window.is_appstore {
+                return self.handle_appstore_click(window_id, x, y);
+            }
+
+            // Check admin tool click
+            if window.is_admin_tool {
+                // Clone window data to avoid borrow issues
+                let window_data = window.clone();
+                return self.handle_admin_click(window_id, &window_data, x, y);
+            }
+
             // Check Go button for browser
             if window.is_browser && self.is_on_go_button(window, x, y) {
                 let url = window.url.clone();
@@ -1901,9 +3394,17 @@ impl DesktopUI {
                             self.create_browser_window();
                             return true;
                         } else if app_name == "appstore" {
-                            println!("[desktop] App Store coming soon!");
+                            println!("[desktop] Opening App Store");
+                            self.create_appstore_window();
+                            return true;
                         } else if app_name == "filemanager" {
                             println!("[desktop] Opening file manager");
+                            self.create_file_manager_window("/home/user");
+                            return true;
+                        } else if app_name == "admin" {
+                            println!("[desktop] Opening admin tool");
+                            self.create_admin_window();
+                            return true;
                         }
                     }
                     _ => {}
@@ -1969,9 +3470,12 @@ impl DesktopUI {
                 if x >= icon.x && x < icon.x + icon.width as i32 &&
                    y >= icon.y && y < icon.y + icon.height as i32 {
                     
-                    match &icon.action {
+                    // Clone the action to avoid borrow issues
+                    let action = icon.action.clone();
+                    match action {
                         IconAction::OpenFolder(path) => {
                             println!("[desktop] Opening folder: {}", path);
+                            self.create_file_manager_window(&path);
                             return true;
                         }
                         IconAction::OpenFile(path) => {
@@ -1982,6 +3486,8 @@ impl DesktopUI {
                             println!("[desktop] Launching app: {}", app_name);
                             if app_name == "browser" {
                                 self.create_browser_window();
+                            } else if app_name == "appstore" {
+                                self.create_appstore_window();
                             }
                             return true;
                         }
@@ -2111,6 +3617,78 @@ impl DesktopUI {
             }
         }
     }
+
+    /// Handle keyboard input for admin tool
+    pub fn handle_admin_input(&mut self, ch: char) {
+        if let Some(window_id) = self.active_window_id {
+            let needs_redraw: Option<(i32, i32, u32, u32)> = self.windows.iter_mut()
+                .find(|w| w.id == window_id && w.is_admin_tool)
+                .and_then(|w| {
+                    match &mut w.admin_state {
+                        AdminToolState::AddUser { username, password, confirm, error_msg, .. } => {
+                            let target = match w.input_focus {
+                                AdminInputField::Username => username,
+                                AdminInputField::Password => password,
+                                AdminInputField::ConfirmPassword => confirm,
+                                _ => return None,
+                            };
+
+                            if ch == '\x08' { // Backspace
+                                if !target.is_empty() {
+                                    target.pop();
+                                    error_msg.clear();
+                                    Some((w.x, w.y, w.width, w.height))
+                                } else {
+                                    None
+                                }
+                            } else if ch.is_ascii_graphic() || ch == ' ' {
+                                if target.len() < 32 {
+                                    target.push(ch);
+                                    error_msg.clear();
+                                    Some((w.x, w.y, w.width, w.height))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                        AdminToolState::ChangePassword { new_password, confirm, error_msg, .. } => {
+                            let target = match w.input_focus {
+                                AdminInputField::Password => new_password,
+                                AdminInputField::ConfirmPassword => confirm,
+                                _ => return None,
+                            };
+
+                            if ch == '\x08' { // Backspace
+                                if !target.is_empty() {
+                                    target.pop();
+                                    error_msg.clear();
+                                    Some((w.x, w.y, w.width, w.height))
+                                } else {
+                                    None
+                                }
+                            } else if ch.is_ascii_graphic() || ch == ' ' {
+                                if target.len() < 32 {
+                                    target.push(ch);
+                                    error_msg.clear();
+                                    Some((w.x, w.y, w.width, w.height))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                });
+
+            if let Some((x, y, width, height)) = needs_redraw {
+                self.request_redraw(Rect::new(x, y, width, height));
+            }
+        }
+    }
 }
 
 /// Directory entry info for FAT32 integration
@@ -2119,6 +3697,17 @@ pub struct DirEntryInfo {
     pub name: String,
     pub is_dir: bool,
     pub size: u64,
+}
+
+/// File entry for file manager display
+#[derive(Debug, Clone)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+    pub file_type: FileType,
+    pub icon_char: char,
 }
 
 /// Global desktop UI instance
@@ -2322,6 +3911,16 @@ pub fn create_browser_window() -> u32 {
     DESKTOP_UI.lock().create_browser_window()
 }
 
+/// Create a file manager window
+pub fn create_file_manager_window(path: &str) -> u32 {
+    DESKTOP_UI.lock().create_file_manager_window(path)
+}
+
+/// Create an appstore window
+pub fn create_appstore_window() -> u32 {
+    DESKTOP_UI.lock().create_appstore_window()
+}
+
 /// Close a window
 pub fn close_window(window_id: u32) -> bool {
     DESKTOP_UI.lock().close_window(window_id)
@@ -2371,6 +3970,32 @@ pub fn browser_has_url_focus() -> bool {
     } else {
         false
     }
+}
+
+/// Create an admin window
+pub fn create_admin_window() -> u32 {
+    DESKTOP_UI.lock().create_admin_window()
+}
+
+/// Handle admin tool keyboard input
+pub fn handle_admin_input(ch: char) {
+    DESKTOP_UI.lock().handle_admin_input(ch);
+}
+
+/// Check if any admin window has input focused
+pub fn admin_has_input_focus() -> bool {
+    let desktop = DESKTOP_UI.lock();
+    if let Some(active_id) = desktop.active_window_id {
+        desktop.windows.iter().any(|w| w.id == active_id && w.is_admin_tool && 
+            w.input_focus != AdminInputField::None)
+    } else {
+        false
+    }
+}
+
+/// Refresh admin dock icon visibility (call after login/logout)
+pub fn refresh_admin_dock_icon() {
+    DESKTOP_UI.lock().setup_admin_dock_icon();
 }
 
 /// Get character bitmap for font rendering
