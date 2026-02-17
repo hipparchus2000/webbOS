@@ -816,6 +816,10 @@ pub fn init() {
     println!("[browser] Init render...");
     render::init();
 
+    // Load homepage
+    println!("[browser] Loading homepage...");
+    let _ = load_homepage();
+
     println!("[browser] Browser engine initialized");
 }
 
@@ -1002,4 +1006,205 @@ pub fn fetch_url(url: &str) -> Result<Vec<u8>, BrowserError> {
     } else {
         Err(BrowserError::Unknown)
     }
+}
+
+/// Load the default homepage
+pub fn load_homepage() -> Result<(), BrowserError> {
+    println!("[browser] Loading homepage...");
+    
+    let homepage_html = r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>WebbOS Browser - Home</title>
+    <style>
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: white;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 20px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        .welcome-box {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .links-section {
+            margin: 30px 0;
+        }
+        .link-item {
+            background: #f5f5f5;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .link-item a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+        }
+        .link-item a:hover {
+            text-decoration: underline;
+        }
+        .link-item p {
+            margin: 5px 0 0 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .instructions {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #2c5282;
+        }
+        .instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+            color: #4a5568;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .feature-text {
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 WebbOS Browser</h1>
+        <p class="subtitle">Welcome to your web browsing experience</p>
+        
+        <div class="welcome-box">
+            <h2>Welcome!</h2>
+            <p>This is the WebbOS built-in browser. You can navigate to websites, view local files, and explore the web directly from your operating system.</p>
+            
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">📄</div>
+                    <div class="feature-text">HTML5 Support</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-text">CSS3 Styling</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-text">JavaScript</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <div class="feature-text">TLS Security</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="welcome-box">
+            <h2>Quick Links</h2>
+            <div class="links-section">
+                <div class="link-item">
+                    <a href="http://example.com">Example.com</a>
+                    <p>A simple test page for basic web connectivity</p>
+                </div>
+                <div class="link-item">
+                    <a href="file:///test.html">Local Test Page</a>
+                    <p>Open a local HTML file from the filesystem</p>
+                </div>
+                <div class="link-item">
+                    <a href="https://webbos.local">WebbOS Local</a>
+                    <p>Access local WebbOS services and apps</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="welcome-box instructions">
+            <h3>📖 How to Use the Browser</h3>
+            <ul>
+                <li><strong>Navigate:</strong> Click the URL bar and type a web address</li>
+                <li><strong>Go:</strong> Press Enter or click the Go button to load the page</li>
+                <li><strong>Back/Forward:</strong> Use the navigation buttons to browse history</li>
+                <li><strong>Close:</strong> Click the red button to close the browser window</li>
+                <li><strong>Minimize:</strong> Click the yellow button to minimize</li>
+                <li><strong>Maximize:</strong> Click the green button to maximize</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>"#;
+
+    // Parse the homepage HTML
+    let document = html::parse(homepage_html.as_bytes())?;
+    
+    if let Some(ref mut browser) = *BROWSER.lock() {
+        browser.document = Some(document);
+        browser.current_url = String::from("about:home");
+        browser.title = String::from("WebbOS Browser - Home");
+        
+        // Perform layout and render
+        browser.layout()?;
+        browser.render()?;
+        
+        println!("[browser] Homepage loaded successfully");
+        Ok(())
+    } else {
+        Err(BrowserError::Unknown)
+    }
+}
+
+/// Get the rendered framebuffer data for display
+/// Returns (width, height, pixel_data) if available
+pub fn get_rendered_framebuffer_data() -> Option<(u32, u32, alloc::vec::Vec<u32>)> {
+    let browser_guard = BROWSER.lock();
+    if let Some(ref browser) = *browser_guard {
+        if let Some(ref fb) = browser.render_context.framebuffer {
+            return Some((fb.width, fb.height, fb.data.clone()));
+        }
+    }
+    None
 }

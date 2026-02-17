@@ -513,6 +513,26 @@ impl DesktopUI {
         self.windows.push(window);
         self.active_window_id = Some(id);
 
+        // Load the homepage when browser window is created
+        println!("[desktop] Loading browser homepage...");
+        match crate::browser::load_homepage() {
+            Ok(_) => {
+                // Update window title with the page title
+                let page_title = crate::browser::get_title();
+                if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
+                    w.title = if page_title.is_empty() {
+                        String::from("WebbOS Browser")
+                    } else {
+                        page_title
+                    };
+                    w.url = String::from("about:home");
+                }
+            }
+            Err(e) => {
+                println!("[desktop] Failed to load homepage: {:?}", e);
+            }
+        }
+
         // Request redraw of new window area
         self.request_redraw(Rect::new(x, y, BROWSER_DEFAULT_WIDTH, BROWSER_DEFAULT_HEIGHT));
 
@@ -1313,17 +1333,74 @@ impl DesktopUI {
         self.draw_rect_to_back_buffer(x + 45, y + 40, 30, 28, palette::URL_BAR_BORDER);
         self.draw_text_to_back_buffer(">", x + 55, y + 48, palette::TEXT_BLACK, 1);
 
-        // Content area with welcome message
+        // Content area - draw rendered page if available
+        let content_x = x + 8;
         let content_y = y + 80;
-        self.draw_text_to_back_buffer("Welcome to WebbOS Browser!", x + 40, content_y, palette::TEXT_BLACK, 2);
-        self.draw_text_to_back_buffer("A minimal web browser built into the OS", x + 40, content_y + 40, 0xFF666666, 1);
+        let content_w = w.saturating_sub(16);
+        let content_h = window.height.saturating_sub(88);
+        
+        // Try to get rendered framebuffer from browser
+        let framebuffer_data = crate::browser::get_rendered_framebuffer_data();
+        if let Some((fb_w, fb_h, fb_data)) = framebuffer_data {
+            // Blit the rendered page to the content area
+            self.blit_framebuffer_to_back_buffer(
+                content_x, 
+                content_y, 
+                content_w, 
+                content_h,
+                fb_w,
+                fb_h,
+                &fb_data
+            );
+        } else {
+            // No rendered content yet - show welcome message
+            self.draw_text_to_back_buffer("Welcome to WebbOS Browser!", content_x + 32, content_y + 20, palette::TEXT_BLACK, 2);
+            self.draw_text_to_back_buffer("A minimal web browser built into the OS", content_x + 32, content_y + 60, 0xFF666666, 1);
 
-        // Demo content
-        self.draw_text_to_back_buffer("Features:", x + 40, content_y + 80, palette::TEXT_BLACK, 1);
-        self.draw_text_to_back_buffer("- HTML5 parsing engine", x + 60, content_y + 100, 0xFF666666, 1);
-        self.draw_text_to_back_buffer("- CSS3 styling support", x + 60, content_y + 120, 0xFF666666, 1);
-        self.draw_text_to_back_buffer("- JavaScript interpreter", x + 60, content_y + 140, 0xFF666666, 1);
-        self.draw_text_to_back_buffer("- WebAssembly runtime", x + 60, content_y + 160, 0xFF666666, 1);
+            // Demo content
+            self.draw_text_to_back_buffer("Features:", content_x + 32, content_y + 100, palette::TEXT_BLACK, 1);
+            self.draw_text_to_back_buffer("- HTML5 parsing engine", content_x + 52, content_y + 120, 0xFF666666, 1);
+            self.draw_text_to_back_buffer("- CSS3 styling support", content_x + 52, content_y + 140, 0xFF666666, 1);
+            self.draw_text_to_back_buffer("- JavaScript interpreter", content_x + 52, content_y + 160, 0xFF666666, 1);
+            self.draw_text_to_back_buffer("- WebAssembly runtime", content_x + 52, content_y + 180, 0xFF666666, 1);
+            
+            // Instructions
+            self.draw_text_to_back_buffer("Click the URL bar above and type a web address.", content_x + 32, content_y + 220, 0xFF0080FF, 1);
+            self.draw_text_to_back_buffer("Press Enter or click Go to navigate.", content_x + 32, content_y + 240, 0xFF0080FF, 1);
+        }
+    }
+    
+    /// Blit a browser framebuffer to the back buffer content area
+    fn blit_framebuffer_to_back_buffer(
+        &mut self, 
+        dst_x: i32, 
+        dst_y: i32, 
+        dst_w: u32, 
+        dst_h: u32,
+        fb_w: u32,
+        fb_h: u32,
+        fb_data: &[u32]
+    ) {
+        // Scale framebuffer to fit content area while maintaining aspect ratio
+        if fb_w == 0 || fb_h == 0 {
+            return;
+        }
+        
+        // Simple stretch blit
+        for py in 0..dst_h {
+            for px in 0..dst_w {
+                // Calculate source coordinates
+                let src_x = ((px as u32 * fb_w) / dst_w) as i32;
+                let src_y = ((py as u32 * fb_h) / dst_h) as i32;
+                
+                // Get pixel from framebuffer
+                if let Some(pixel) = fb_data.get((src_y as u32 * fb_w + src_x as u32) as usize) {
+                    let target_x = dst_x + px as i32;
+                    let target_y = dst_y + py as i32;
+                    self.set_back_buffer_pixel(target_x as u32, target_y as u32, *pixel);
+                }
+            }
+        }
     }
 
     // === Low-level back buffer drawing primitives ===
@@ -2284,6 +2361,16 @@ pub fn present() {
 /// Check if browser is open (backwards compatibility)
 pub fn browser_open() -> bool {
     DESKTOP_UI.lock().browser_open()
+}
+
+/// Check if any browser window has URL bar focused
+pub fn browser_has_url_focus() -> bool {
+    let desktop = DESKTOP_UI.lock();
+    if let Some(active_id) = desktop.active_window_id {
+        desktop.windows.iter().any(|w| w.id == active_id && w.is_browser && w.url_input_focused)
+    } else {
+        false
+    }
 }
 
 /// Get character bitmap for font rendering

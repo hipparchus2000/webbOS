@@ -482,9 +482,33 @@ fn desktop_event_loop() {
                             println!("[desktop] ESC pressed, exiting desktop mode");
                             return;
                         }
+                        
+                        // Route to URL bar if browser has focus
+                        if desktop::ui::browser_has_url_focus() {
+                            if let Some(ch) = char::from_u32(event.keycode as u32) {
+                                desktop::ui::handle_url_input(ch);
+                            } else if event.ascii != 0 {
+                                desktop::ui::handle_url_input(event.ascii as char);
+                            }
+                        }
                     }
                     _ => {}
                 }
+            }
+            
+            // Handle mouse button down/up for click detection
+            let current_buttons = drivers::input::mouse_buttons();
+            let button_just_pressed = (current_buttons & 0x01) != 0 && (last_button_state & 0x01) == 0;
+            let button_just_released = (current_buttons & 0x01) == 0 && (last_button_state & 0x01) != 0;
+            
+            if button_just_pressed {
+                let (mouse_x, mouse_y) = drivers::input::mouse_position();
+                desktop::ui::handle_mouse_down(mouse_x, mouse_y);
+            }
+            
+            if button_just_released {
+                let (mouse_x, mouse_y) = drivers::input::mouse_position();
+                desktop::ui::handle_mouse_up(mouse_x, mouse_y);
             }
         }
         
