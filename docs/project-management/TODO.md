@@ -14,7 +14,7 @@
   - [x] PNG decoder implemented (no_std compatible) - RGB/RGBA, 8-bit
   - [x] Icon cache system with 1MB limit
   - [x] Integrated PNG loading in dock/desktop icon rendering
-  - [ ] Actual FAT32 filesystem loading (stubbed until VFS integration)
+  - [x] Global VFS with FAT32 filesystem integration
 
 ---
 
@@ -44,7 +44,7 @@
   - [x] Display files and folders from `/Desktop` on desktop
   - [x] File saving API (`save_to_desktop`, `write_file`)
   - [x] Shell `save` command for saving to Desktop
-  - [ ] Actual FAT32 write implementation (stubbed until VFS integration)
+  - [x] Global VFS with FAT32 write support
 
 - [x] **Browser Improvements** ✅ COMPLETE
   - [x] Browser launches from desktop icon click

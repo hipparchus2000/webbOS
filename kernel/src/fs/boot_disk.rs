@@ -1,51 +1,50 @@
-// Simple FAT32 file reader for boot disk
-// This is a minimal implementation to read/write files from the boot disk
+// Simple FAT32 file reader/writer for boot disk
+// Delegates to global_vfs when available
 
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
 use alloc::format;
 use crate::println;
+use crate::fs::global_vfs;
 
-/// Read a file from the boot disk (stub for now)
-/// TODO: Implement actual FAT32 reading from boot disk
+/// Read a file from the boot disk
+/// 
+/// First tries the global VFS, falls back to stub if not available
 pub fn read_file(path: &str) -> Option<Vec<u8>> {
     println!("[boot_disk] Attempting to read file: {}", path);
 
-    // For now, return None - this needs proper implementation
-    // Will need to:
-    // 1. Access the boot disk (ATA/AHCI/NVMe)
-    // 2. Read FAT32 structures
-    // 3. Locate the file
-    // 4. Read file data
+    // Try global VFS first
+    if global_vfs::is_ready() {
+        match global_vfs::read_file(path) {
+            Ok(data) => {
+                println!("[boot_disk] Read {} bytes from {}", data.len(), path);
+                return Some(data);
+            }
+            Err(e) => {
+                println!("[boot_disk] VFS read failed: {:?}", e);
+                return None;
+            }
+        }
+    }
 
+    // VFS not available - this is expected during early boot
+    println!("[boot_disk] VFS not ready, file read unavailable");
     None
 }
 
-/// Write a file to the boot disk (stub for now)
+/// Write a file to the boot disk
 /// 
-/// # Arguments
-/// * `path` - Path to the file (relative to disk root)
-/// * `data` - File contents to write
-/// 
-/// # Returns
-/// * `Ok(())` - File written successfully
-/// * `Err(String)` - Error message if write failed
-/// 
-/// TODO: Implement actual FAT32 writing to boot disk
+/// Uses global VFS when available
 pub fn write_file(path: &str, data: &[u8]) -> Result<(), String> {
     println!("[boot_disk] Attempting to write file: {} ({} bytes)", path, data.len());
 
-    // For now, return an error - this needs proper implementation
-    // Will need to:
-    // 1. Access the boot disk (ATA/AHCI/NVMe)
-    // 2. Read FAT32 structures
-    // 3. Find or create the file
-    // 4. Allocate clusters if needed
-    // 5. Write file data
-    // 6. Update directory entry
-    // 7. Update FAT tables
+    // Try global VFS first
+    if global_vfs::is_ready() {
+        return global_vfs::write_file(path, data)
+            .map_err(|e| format!("{:?}", e));
+    }
 
-    Err(String::from("File writing not yet implemented - filesystem integration in progress"))
+    Err(String::from("VFS not initialized - cannot write files"))
 }
 
 /// Save data to the Desktop folder
@@ -67,20 +66,35 @@ pub fn save_to_desktop(filename: &str, data: &[u8]) -> Result<(), String> {
         return Err(String::from("Invalid filename"));
     }
     
-    let path = format!("Desktop/{}", safe_name);
-    write_file(&path, data)
+    // Try global VFS first
+    if global_vfs::is_ready() {
+        return global_vfs::save_to_desktop(&safe_name, data)
+            .map_err(|e| format!("{:?}", e));
+    }
+
+    Err(String::from("VFS not initialized - cannot save files"))
 }
 
-/// Create a directory (stub)
+/// Create a directory
 pub fn create_directory(path: &str) -> Result<(), String> {
     println!("[boot_disk] Creating directory: {}", path);
-    Err(String::from("Directory creation not yet implemented"))
+    
+    if global_vfs::is_ready() {
+        return global_vfs::create_dir(path)
+            .map_err(|e| format!("{:?}", e));
+    }
+
+    Err(String::from("VFS not initialized"))
 }
 
-/// Check if a file exists (stub)
+/// Check if a file exists
 pub fn file_exists(path: &str) -> bool {
-    // Try to read the file - if successful, it exists
-    read_file(path).is_some()
+    if global_vfs::is_ready() {
+        return global_vfs::file_exists(path);
+    }
+    
+    // VFS not available
+    false
 }
 
 /// Sanitize a filename to prevent directory traversal attacks
@@ -98,5 +112,20 @@ fn sanitize_filename(name: &str) -> String {
         String::from(&name[..255])
     } else {
         String::from(name)
+    }
+}
+
+/// Initialize boot disk file operations
+/// 
+/// This should be called after the storage subsystem is initialized
+pub unsafe fn init() {
+    println!("[boot_disk] Initializing boot disk file operations...");
+    
+    // Initialize global VFS
+    if let Err(e) = global_vfs::init() {
+        println!("[boot_disk] Warning: Failed to initialize VFS: {:?}", e);
+        println!("[boot_disk] File operations will be unavailable");
+    } else {
+        println!("[boot_disk] Boot disk file operations ready");
     }
 }

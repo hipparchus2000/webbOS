@@ -44,6 +44,7 @@ pub mod block;
 pub mod boot_disk;
 pub mod cache;
 pub mod fat32;
+pub mod global_vfs;
 pub mod partition;
 pub mod vfs;
 

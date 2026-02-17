@@ -215,10 +215,15 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
         }
     }
 
+    // Initialize boot disk file operations
+    println!("\n[fs] Initializing boot disk file operations...");
+    unsafe {
+        fs::boot_disk::init();
+    }
+
     // Mount FAT32 filesystem from boot disk
     println!("\n[fs] Mounting boot disk FAT32...");
-    println!("[fs] Note: FAT32 mount temporarily disabled - see storage/ata.rs");
-    // TODO: Re-enable FAT32 mount after fixing multi-sector read issue
+    println!("[fs] Note: FAT32 mount via global VFS - see fs/global_vfs.rs");
 
     // Initialize network stack
     println!("\n[net] Initializing network stack...");
