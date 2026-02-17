@@ -9,6 +9,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::format;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -30,6 +31,21 @@ mod palette {
     pub const TEXT_WHITE: u32 = 0xFFFFFFFF;
 }
 
+/// Desktop icon type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileType {
+    Folder,
+    Text,
+    Image,
+    Audio,
+    Video,
+    Archive,
+    Pdf,
+    Code,
+    Executable,
+    Unknown,
+}
+
 /// Desktop icon
 #[derive(Debug, Clone)]
 pub struct Icon {
@@ -42,12 +58,15 @@ pub struct Icon {
     pub icon_path: Option<String>, // Path to PNG icon file
     pub action: IconAction,
     pub is_folder: bool,           // For desktop icons
+    pub file_type: FileType,       // Type of file for icon selection
+    pub is_selected: bool,         // Selection state
 }
 
 #[derive(Debug, Clone)]
 pub enum IconAction {
     LaunchApp(String),      // Launch application by name
     OpenFolder(String),     // Open folder in file manager
+    OpenFile(String),       // Open file with default app
     None,
 }
 
@@ -68,6 +87,7 @@ pub struct DesktopUI {
     old_mouse_x: i32,
     old_mouse_y: i32,
     browser_open: bool,
+    desktop_folder_scanned: bool,
     // Save-under buffer for mouse cursor (stores pixels under cursor)
     save_buffer: [u32; SAVE_BUFFER_SIZE],
     save_buffer_valid: bool,
@@ -80,6 +100,15 @@ const BROWSER_WIDTH: u32 = 1000;
 const BROWSER_HEIGHT: u32 = 700;
 const BROWSER_X: i32 = 140;
 const BROWSER_Y: i32 = 50;
+
+/// Desktop icon layout constants
+const DESKTOP_ICON_WIDTH: u32 = 64;
+const DESKTOP_ICON_HEIGHT: u32 = 80;
+const DESKTOP_ICON_SPACING_X: i32 = 20;
+const DESKTOP_ICON_SPACING_Y: i32 = 20;
+const DESKTOP_START_X: i32 = 40;
+const DESKTOP_START_Y: i32 = 60;
+const DESKTOP_ICONS_PER_COLUMN: u32 = 8;
 
 impl DesktopUI {
     pub fn new() -> Self {
@@ -95,6 +124,7 @@ impl DesktopUI {
             old_mouse_x: 640,
             old_mouse_y: 400,
             browser_open: false,
+            desktop_folder_scanned: false,
             save_buffer: [0; SAVE_BUFFER_SIZE],
             save_buffer_valid: false,
             save_buffer_x: 0,
@@ -103,7 +133,7 @@ impl DesktopUI {
 
         // Create dock icons (centered at bottom)
         ui.setup_dock_icons();
-        ui.setup_desktop_icons();
+        ui.setup_default_desktop_icons();
 
         ui
     }
@@ -120,6 +150,132 @@ impl DesktopUI {
     /// Get mouse position
     pub fn mouse_position(&self) -> (i32, i32) {
         (self.mouse_x, self.mouse_y)
+    }
+
+    /// Scan the /Desktop folder and create icons for files
+    pub fn scan_desktop_folder(&mut self) {
+        if self.desktop_folder_scanned {
+            return;
+        }
+
+        println!("[desktop_ui] Scanning /Desktop folder for icons...");
+
+        // Read the /Desktop directory from filesystem
+        let entries = self.read_desktop_directory();
+
+        match entries {
+            Ok(files) => {
+                println!("[desktop_ui] Found {} files in /Desktop", files.len());
+
+                // Clear existing non-default icons
+                self.desktop_icons.retain(|icon| {
+                    matches!(icon.action, IconAction::OpenFolder(_) | IconAction::OpenFile(_))
+                });
+
+                // Add icons for each file/folder
+                for (idx, entry) in files.iter().enumerate() {
+                    let icon = self.create_desktop_icon_for_entry(entry, idx);
+                    self.desktop_icons.push(icon);
+                }
+
+                self.desktop_folder_scanned = true;
+                println!("[desktop_ui] Desktop folder scanned successfully");
+            }
+            Err(e) => {
+                println!("[desktop_ui] Could not scan /Desktop: {:?}", e);
+            }
+        }
+    }
+
+    /// Read the /Desktop directory from filesystem
+    fn read_desktop_directory(&self) -> Result<Vec<DirEntryInfo>, ()> {
+        // When VFS is available, this should call the filesystem
+        // For now, return empty to use default icons
+        // TODO: Integrate with fs::vfs::readdir("/Desktop")
+        Err(())
+    }
+
+    /// Create a desktop icon for a directory entry
+    fn create_desktop_icon_for_entry(&self, entry: &DirEntryInfo, index: usize) -> Icon {
+        // Calculate position in a grid layout on the right side
+        let col = (index as u32) / DESKTOP_ICONS_PER_COLUMN;
+        let row = (index as u32) % DESKTOP_ICONS_PER_COLUMN;
+
+        let x = DESKTOP_START_X + (col as i32 * (DESKTOP_ICON_WIDTH as i32 + DESKTOP_ICON_SPACING_X));
+        let y = DESKTOP_START_Y + (row as i32 * (DESKTOP_ICON_HEIGHT as i32 + DESKTOP_ICON_SPACING_Y));
+
+        let file_type = Self::get_file_type(&entry.name, entry.is_dir);
+        let icon_char = Self::get_icon_char_for_type(file_type);
+        let icon_path = Self::get_icon_path_for_type(file_type);
+
+        let action = if entry.is_dir {
+            IconAction::OpenFolder(format!("/Desktop/{}", entry.name))
+        } else {
+            IconAction::OpenFile(format!("/Desktop/{}", entry.name))
+        };
+
+        Icon {
+            x,
+            y,
+            width: DESKTOP_ICON_WIDTH,
+            height: DESKTOP_ICON_HEIGHT,
+            label: entry.name.clone(),
+            icon_char,
+            icon_path,
+            action,
+            is_folder: entry.is_dir,
+            file_type,
+            is_selected: false,
+        }
+    }
+
+    /// Determine file type from name and extension
+    fn get_file_type(name: &str, is_dir: bool) -> FileType {
+        if is_dir {
+            return FileType::Folder;
+        }
+
+        let extension = name.split('.').last().map(|s| s.to_lowercase());
+
+        match extension.as_deref() {
+            Some("txt") | Some("md") | Some("doc") | Some("docx") => FileType::Text,
+            Some("jpg") | Some("jpeg") | Some("png") | Some("gif") | Some("bmp") => FileType::Image,
+            Some("mp3") | Some("wav") | Some("ogg") | Some("flac") => FileType::Audio,
+            Some("mp4") | Some("avi") | Some("mkv") | Some("mov") => FileType::Video,
+            Some("zip") | Some("rar") | Some("7z") | Some("gz") => FileType::Archive,
+            Some("pdf") => FileType::Pdf,
+            Some("rs") | Some("c") | Some("cpp") | Some("h") | Some("py") | 
+            Some("js") | Some("html") | Some("css") | Some("java") | Some("go") => FileType::Code,
+            Some("exe") | Some("bin") | Some("sh") => FileType::Executable,
+            _ => FileType::Unknown,
+        }
+    }
+
+    /// Get icon character for file type
+    fn get_icon_char_for_type(file_type: FileType) -> char {
+        match file_type {
+            FileType::Folder => '📁',
+            FileType::Text => '📄',
+            FileType::Image => '🖼',
+            FileType::Audio => '🎵',
+            FileType::Video => '🎬',
+            FileType::Archive => '📦',
+            FileType::Pdf => '📕',
+            FileType::Code => '💻',
+            FileType::Executable => '⚙',
+            FileType::Unknown => '📃',
+        }
+    }
+
+    /// Get icon path for file type
+    fn get_icon_path_for_type(file_type: FileType) -> Option<String> {
+        match file_type {
+            FileType::Folder => Some("system/icons/folder_icon_64.png".to_string()),
+            FileType::Text => Some("system/icons/text_icon_64.png".to_string()),
+            FileType::Image => Some("system/icons/image_icon_64.png".to_string()),
+            FileType::Code => Some("system/icons/code_icon_64.png".to_string()),
+            _ => Some("system/icons/file_icon_64.png".to_string()),
+        }
     }
 
     fn setup_dock_icons(&mut self) {
@@ -140,6 +296,8 @@ impl DesktopUI {
                 icon_path: Some("system/icons/globe_icon_64.png".to_string()),
                 action: IconAction::LaunchApp("browser".to_string()),
                 is_folder: false,
+                file_type: FileType::Executable,
+                is_selected: false,
             },
             Icon {
                 x: dock_x as i32 + 8 + 64,
@@ -151,6 +309,8 @@ impl DesktopUI {
                 icon_path: None, // No icon for app store yet
                 action: IconAction::LaunchApp("appstore".to_string()),
                 is_folder: false,
+                file_type: FileType::Executable,
+                is_selected: false,
             },
             Icon {
                 x: dock_x as i32 + 8 + 128,
@@ -162,12 +322,15 @@ impl DesktopUI {
                 icon_path: Some("system/icons/filemanager_icon_64.png".to_string()),
                 action: IconAction::LaunchApp("filemanager".to_string()),
                 is_folder: false,
+                file_type: FileType::Executable,
+                is_selected: false,
             },
         ];
     }
 
-    fn setup_desktop_icons(&mut self) {
-        // Desktop icons on the right side
+    fn setup_default_desktop_icons(&mut self) {
+        // Desktop icons on the right side - these are the default icons
+        // FAT32 files will be added to the left side
         self.desktop_icons = vec![
             Icon {
                 x: 1120,
@@ -179,6 +342,8 @@ impl DesktopUI {
                 icon_path: Some("system/icons/folder_icon_64.png".to_string()),
                 action: IconAction::OpenFolder("/home/user/documents".to_string()),
                 is_folder: true,
+                file_type: FileType::Folder,
+                is_selected: false,
             },
             Icon {
                 x: 1120,
@@ -190,6 +355,8 @@ impl DesktopUI {
                 icon_path: Some("system/icons/folder_icon_64.png".to_string()),
                 action: IconAction::OpenFolder("/home/user/downloads".to_string()),
                 is_folder: true,
+                file_type: FileType::Folder,
+                is_selected: false,
             },
         ];
     }
@@ -606,6 +773,17 @@ impl DesktopUI {
     fn draw_desktop_icon(&self, driver: &mut VesaDriver, icon: &Icon) {
         use crate::desktop::embedded_icons;
 
+        // Draw selection highlight if selected
+        if icon.is_selected {
+            driver.fill_rect(
+                icon.x - 4,
+                icon.y - 4,
+                icon.width + 8,
+                icon.height + 8,
+                palette::ICON_SELECTED
+            );
+        }
+
         // Icon background (slightly rounded)
         driver.fill_rect(
             icon.x,
@@ -615,7 +793,7 @@ impl DesktopUI {
             palette::ICON_BG
         );
 
-        // Draw embedded icon if available based on icon_path
+        // Draw embedded icon based on file type
         let icon_drawn = if let Some(ref path) = icon.icon_path {
             if path.contains("folder") {
                 self.draw_rgba_icon(driver, icon.x, icon.y,
@@ -637,12 +815,19 @@ impl DesktopUI {
             driver.draw_char(icon.icon_char, char_x, char_y, palette::TEXT_BLACK, 4);
         }
 
-        // Label (below icon)
-        let label_x = icon.x + (icon.width as i32 / 2) - ((icon.label.len() as i32 * 4));
-        driver.draw_text(&icon.label, label_x, icon.y + icon.height as i32 - 12, palette::TEXT_WHITE, 1);
+        // Label (below icon) - truncate if too long
+        let max_label_len = 10;
+        let label = if icon.label.len() > max_label_len {
+            format!("{}...", &icon.label[..max_label_len-3])
+        } else {
+            icon.label.clone()
+        };
+        
+        let label_x = icon.x + (icon.width as i32 / 2) - ((label.len() as i32 * 4));
+        driver.draw_text(&label, label_x, icon.y + icon.height as i32 - 12, palette::TEXT_WHITE, 1);
     }
 
-    /// Handle mouse click (now launches apps on single click)
+    /// Handle mouse click (single click selects, double click opens)
     pub fn handle_click(&mut self, x: i32, y: i32) -> bool {
         // Check if clicking browser close button (when browser is open)
         if self.browser_open {
@@ -670,7 +855,8 @@ impl DesktopUI {
                         } else if app_name == "appstore" {
                             println!("[desktop] App Store coming soon!");
                         } else if app_name == "filemanager" {
-                            println!("[desktop] File Manager coming soon!");
+                            println!("[desktop] Opening file manager");
+                            // TODO: Launch file manager app
                         }
                     }
                     _ => {}
@@ -680,29 +866,101 @@ impl DesktopUI {
         }
         
         // Check desktop icons (select on single click)
-        for (idx, icon) in self.desktop_icons.iter().enumerate() {
-            if x >= icon.x && x < icon.x + icon.width as i32 &&
-               y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Selected icon: {}", icon.label);
-                self.selected_icon = Some(idx);
-                return true; // Redraw needed
+        // First, find which icon was clicked (if any)
+        let clicked_idx = self.desktop_icons.iter().position(|icon| {
+            x >= icon.x && x < icon.x + icon.width as i32 &&
+            y >= icon.y && y < icon.y + icon.height as i32
+        });
+        
+        if let Some(idx) = clicked_idx {
+            println!("[desktop] Selected icon: {}", self.desktop_icons[idx].label);
+            
+            // Deselect previous
+            if let Some(prev_idx) = self.selected_icon {
+                if prev_idx != idx && prev_idx < self.desktop_icons.len() {
+                    self.desktop_icons[prev_idx].is_selected = false;
+                }
             }
+            
+            // Select this icon
+            self.desktop_icons[idx].is_selected = true;
+            self.selected_icon = Some(idx);
+            
+            return true; // Redraw needed
         }
         
         // Clicked elsewhere - clear selection
-        if self.selected_icon.is_some() {
+        if let Some(prev_idx) = self.selected_icon {
+            if prev_idx < self.desktop_icons.len() {
+                self.desktop_icons[prev_idx].is_selected = false;
+            }
             self.selected_icon = None;
             return true;
         }
         false // No redraw needed
     }
     
+    /// Handle double-click (opens the selected icon)
     pub fn handle_double_click(&mut self, x: i32, y: i32) -> bool {
-        // Double-click now does the same as single-click for simplicity
-        // In the future this could do something different (e.g., open properties)
+        // Find icon at position
+        if let Some(idx) = self.selected_icon {
+            if idx < self.desktop_icons.len() {
+                let icon = &self.desktop_icons[idx];
+                
+                // Check if still over the same icon
+                if x >= icon.x && x < icon.x + icon.width as i32 &&
+                   y >= icon.y && y < icon.y + icon.height as i32 {
+                    
+                    match &icon.action {
+                        IconAction::OpenFolder(path) => {
+                            println!("[desktop] Opening folder: {}", path);
+                            // TODO: Launch file manager with this folder
+                            return true;
+                        }
+                        IconAction::OpenFile(path) => {
+                            println!("[desktop] Opening file: {}", path);
+                            // TODO: Open file with appropriate application
+                            return true;
+                        }
+                        IconAction::LaunchApp(app_name) => {
+                            println!("[desktop] Launching app: {}", app_name);
+                            if app_name == "browser" {
+                                self.browser_open = true;
+                            }
+                            return true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        
+        // If no icon handled it, try single click handler
         self.handle_click(x, y)
     }
 
+    /// Get the currently selected icon index
+    pub fn selected_icon(&self) -> Option<usize> {
+        self.selected_icon
+    }
+
+    /// Get mutable reference to desktop icons (for external updates)
+    pub fn desktop_icons_mut(&mut self) -> &mut Vec<Icon> {
+        &mut self.desktop_icons
+    }
+
+    /// Get reference to desktop icons
+    pub fn desktop_icons(&self) -> &[Icon] {
+        &self.desktop_icons
+    }
+}
+
+/// Directory entry info for FAT32 integration
+#[derive(Debug, Clone)]
+pub struct DirEntryInfo {
+    pub name: String,
+    pub is_dir: bool,
+    pub size: u64,
 }
 
 /// Global desktop UI instance
@@ -722,6 +980,10 @@ pub fn show() {
 
     {
         let mut desktop = DESKTOP_UI.lock();
+        
+        // Scan desktop folder on first show
+        desktop.scan_desktop_folder();
+        
         desktop.draw(&mut driver);
         
         // Initial save of area under cursor
@@ -730,6 +992,11 @@ pub fn show() {
         
         println!("[desktop_ui] Desktop drawn, ready for interaction");
     }
+}
+
+/// Scan the /Desktop folder from FAT32 filesystem
+pub fn scan_desktop_folder() {
+    DESKTOP_UI.lock().scan_desktop_folder();
 }
 
 /// Update mouse position and redraw only the cursor
@@ -866,6 +1133,11 @@ pub fn handle_double_click(x: i32, y: i32) {
     if needs_redraw {
         desktop.draw(&mut driver);
     }
+}
+
+/// Get the currently selected icon index
+pub fn selected_icon() -> Option<usize> {
+    DESKTOP_UI.lock().selected_icon()
 }
 
 /// Check if desktop is active

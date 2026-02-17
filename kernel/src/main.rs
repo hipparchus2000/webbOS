@@ -223,14 +223,10 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     net::init();
 
     // Initialize browser engine
-    println!("\n[browser] Initializing browser engine...");
     browser::init();
-    println!("[browser] Browser engine initialized");
 
     // Initialize cryptographic subsystem
-    println!("\n[crypto] Initializing cryptographic subsystem...");
     crypto::init();
-    println!("[crypto] Cryptographic subsystem initialized");
 
     // Initialize TLS 1.3
     println!("\n[tls] Initializing TLS 1.3...");

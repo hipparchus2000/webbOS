@@ -42,6 +42,12 @@ pub extern "C" fn bootloader_main(dtb_addr: usize) -> ! {
     // Parse device tree
     let dt = DeviceTree::new(dtb_addr);
     
+    // Verify DTB magic
+    if !dt.verify_magic() {
+        uart_puts("ERROR: Invalid DTB magic!\n");
+        // Fall back to hardcoded values
+    }
+    
     // Get memory info
     let (mem_base, mem_size) = dt.get_memory_info();
     uart_puts("Memory: base=");
@@ -59,6 +65,13 @@ pub extern "C" fn bootloader_main(dtb_addr: usize) -> ! {
     uart_puts(" @ ");
     uart_hex(fb_info.addr.as_u64());
     uart_puts("\n");
+    
+    // Get UART info
+    if let Some(uart_base) = dt.get_uart_base() {
+        uart_puts("UART base: ");
+        uart_hex(uart_base);
+        uart_puts("\n");
+    }
     
     // Load kernel
     uart_puts("Loading kernel...\n");
@@ -230,48 +243,573 @@ struct Elf64Phdr {
 
 const PT_LOAD: u32 = 1;
 
-// Device Tree support
+// =============================================================================
+// Device Tree Blob (DTB) Parser
+// =============================================================================
+
+/// DTB magic number
+const DTB_MAGIC: u32 = 0xd00dfeed;
+
+/// DTB token types
+const FDT_BEGIN_NODE: u32 = 0x1;
+const FDT_END_NODE: u32 = 0x2;
+const FDT_PROP: u32 = 0x3;
+const FDT_NOP: u32 = 0x4;
+const FDT_END: u32 = 0x9;
+
+/// DTB Header structure (40 bytes)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct DtbHeader {
+    magic: u32,
+    totalsize: u32,
+    off_dt_struct: u32,
+    off_dt_strings: u32,
+    off_mem_rsvmap: u32,
+    version: u32,
+    last_comp_version: u32,
+    boot_cpuid_phys: u32,
+    size_dt_strings: u32,
+    size_dt_struct: u32,
+}
+
+/// Device Tree parser
 struct DeviceTree {
     base: usize,
+    header: DtbHeader,
+    struct_block: usize,
+    strings_block: usize,
 }
 
 impl DeviceTree {
+    /// Create a new DeviceTree parser from the DTB base address
     fn new(base: usize) -> Self {
-        Self { base }
+        // Read header from memory
+        let header = unsafe { *(base as *const DtbHeader) };
+        
+        // Convert offsets to addresses (handle endianness)
+        let struct_block = base + u32::from_be(header.off_dt_struct) as usize;
+        let strings_block = base + u32::from_be(header.off_dt_strings) as usize;
+        
+        Self {
+            base,
+            header,
+            struct_block,
+            strings_block,
+        }
     }
     
+    /// Verify the DTB magic number
+    fn verify_magic(&self) -> bool {
+        u32::from_be(self.header.magic) == DTB_MAGIC
+    }
+    
+    /// Get memory information from the /memory node
     fn get_memory_info(&self) -> (u64, u64) {
-        // Parse DTB for memory info
-        // For now, return Pi 4 defaults
-        (0x0, 1024 * 1024 * 1024) // 1GB
+        // Default values for Pi 4 (1GB)
+        let mut base = 0u64;
+        let mut size = 1024 * 1024 * 1024u64;
+        
+        // Try to find /memory node
+        if let Some((node_base, node_size)) = self.find_memory_node() {
+            base = node_base;
+            size = node_size;
+        }
+        
+        (base, size)
     }
     
+    /// Find the /memory node and extract reg property
+    fn find_memory_node(&self) -> Option<(u64, u64)> {
+        let mut walker = DtbWalker::new(self.struct_block, self.strings_block);
+        
+        // Walk through the device tree
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::BeginNode(name) => {
+                    if name == "memory" || name.starts_with("memory@") {
+                        // Found memory node, look for reg property
+                        return self.parse_memory_reg(&mut walker);
+                    }
+                }
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        None
+    }
+    
+    /// Parse the reg property from a memory node
+    fn parse_memory_reg(&self, walker: &mut DtbWalker) -> Option<(u64, u64)> {
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::Property(name, value) => {
+                    if name == "reg" && value.len() >= 16 {
+                        // reg is typically two 64-bit values: base and size
+                        // Format depends on #address-cells and #size-cells (usually 2 each)
+                        let base = self.read_u64_be(value, 0);
+                        let size = self.read_u64_be(value, 8);
+                        return Some((base, size));
+                    }
+                }
+                DtbToken::BeginNode(_) => {
+                    // Skip nested nodes
+                    walker.skip_node();
+                }
+                DtbToken::EndNode => break,
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        None
+    }
+    
+    /// Get framebuffer information
     fn get_framebuffer_info(&self) -> FramebufferInfo {
-        FramebufferInfo {
-            addr: PhysAddr::new(0x3E000000), // Pi 4 default
+        // Default values
+        let mut info = FramebufferInfo {
+            addr: PhysAddr::new(0x3E000000),
             virt_addr: None,
             width: 1024,
             height: 768,
             pitch: 1024 * 4,
             bpp: 32,
             format: PixelFormat::Bgr,
+        };
+        
+        // Try to find framebuffer info in /chosen or /soc/fb
+        if let Some(fb) = self.find_framebuffer_node() {
+            info = fb;
         }
+        
+        info
+    }
+    
+    /// Find framebuffer information in device tree
+    fn find_framebuffer_node(&self) -> Option<FramebufferInfo> {
+        // Look in /chosen node for framebuffer info
+        let mut walker = DtbWalker::new(self.struct_block, self.strings_block);
+        
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::BeginNode(name) => {
+                    if name == "chosen" {
+                        return self.parse_chosen_framebuffer(&mut walker);
+                    }
+                }
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        None
+    }
+    
+    /// Parse framebuffer info from /chosen node
+    fn parse_chosen_framebuffer(&self, walker: &mut DtbWalker) -> Option<FramebufferInfo> {
+        let mut width = 1024u32;
+        let mut height = 768u32;
+        let mut addr = 0u64;
+        let bpp = 32u32;
+        
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::Property(name, value) => {
+                    match name {
+                        "bootargs" => {
+                            // Parse bootargs for video mode
+                            if let Some(args) = core::str::from_utf8(value).ok() {
+                                // Look for video= or similar settings
+                                if let Some((w, h)) = self.parse_video_mode(args) {
+                                    width = w;
+                                    height = h;
+                                }
+                            }
+                        }
+                        "linux,initrd-start" => {
+                            if value.len() >= 4 {
+                                addr = self.read_u32_be(value, 0) as u64;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                DtbToken::BeginNode(name) => {
+                    // Check for simple-framebuffer subnode
+                    if name.starts_with("framebuffer") {
+                        return self.parse_simple_framebuffer(walker);
+                    }
+                    walker.skip_node();
+                }
+                DtbToken::EndNode => break,
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        if addr != 0 {
+            Some(FramebufferInfo {
+                addr: PhysAddr::new(addr),
+                virt_addr: None,
+                width,
+                height,
+                pitch: width * 4,
+                bpp,
+                format: PixelFormat::Bgr,
+            })
+        } else {
+            None
+        }
+    }
+    
+    /// Parse simple-framebuffer subnode
+    fn parse_simple_framebuffer(&self, walker: &mut DtbWalker) -> Option<FramebufferInfo> {
+        let mut width = 1024u32;
+        let mut height = 768u32;
+        let mut stride = 4096u32;
+        let mut format = PixelFormat::Bgr;
+        
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::Property(name, value) => {
+                    match name {
+                        "width" => width = self.read_u32_be(value, 0),
+                        "height" => height = self.read_u32_be(value, 0),
+                        "stride" => stride = self.read_u32_be(value, 0),
+                        "format" => {
+                            if let Some(fmt) = core::str::from_utf8(value).ok() {
+                                if fmt.starts_with("r5g6b5") {
+                                    format = PixelFormat::Rgb;
+                                } else if fmt.starts_with("a8r8g8b8") || fmt.starts_with("x8r8g8b8") {
+                                    format = PixelFormat::Bgr;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                DtbToken::BeginNode(_) => {
+                    walker.skip_node();
+                }
+                DtbToken::EndNode => break,
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        Some(FramebufferInfo {
+            addr: PhysAddr::new(0), // Will be filled later
+            virt_addr: None,
+            width,
+            height,
+            pitch: stride,
+            bpp: if stride == width * 2 { 16 } else { 32 },
+            format,
+        })
+    }
+    
+    /// Parse video mode from bootargs string (e.g., "video=1920x1080")
+    fn parse_video_mode(&self, args: &str) -> Option<(u32, u32)> {
+        // Look for video= parameter
+        if let Some(pos) = args.find("video=") {
+            let start = pos + 6;
+            let rest = &args[start..];
+            
+            // Find resolution pattern like 1920x1080
+            let end = rest.find(' ').unwrap_or(rest.len());
+            let video_spec = &rest[..end];
+            
+            if let Some(x_pos) = video_spec.find('x') {
+                if let Ok(w) = video_spec[..x_pos].parse::<u32>() {
+                    // Parse height (may have other params after)
+                    let h_str = &video_spec[x_pos + 1..];
+                    let h_end = h_str.find(|c: char| !c.is_ascii_digit()).unwrap_or(h_str.len());
+                    if let Ok(h) = h_str[..h_end].parse::<u32>() {
+                        return Some((w, h));
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+    
+    /// Get UART base address
+    fn get_uart_base(&self) -> Option<u64> {
+        // Look for serial device in /soc
+        let mut walker = DtbWalker::new(self.struct_block, self.strings_block);
+        
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::BeginNode(name) => {
+                    if name == "soc" {
+                        return self.find_uart_in_soc(&mut walker);
+                    }
+                }
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        None
+    }
+    
+    /// Find UART in /soc node
+    fn find_uart_in_soc(&self, walker: &mut DtbWalker) -> Option<u64> {
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::BeginNode(name) => {
+                    // Look for serial@ or uart@ nodes
+                    if name.starts_with("serial@") || name.starts_with("uart@") {
+                        // Check if this is the PL011 UART
+                        if let Some(reg) = self.parse_uart_reg(walker) {
+                            return Some(reg);
+                        }
+                    } else if name != "" {
+                        // Skip other nodes
+                        walker.skip_node();
+                    }
+                }
+                DtbToken::EndNode => break,
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        None
+    }
+    
+    /// Parse UART reg property
+    fn parse_uart_reg(&self, walker: &mut DtbWalker) -> Option<u64> {
+        let mut compatible_pl011 = false;
+        let mut reg: Option<u64> = None;
+        
+        while let Some(token) = walker.next_token() {
+            match token {
+                DtbToken::Property(name, value) => {
+                    match name {
+                        "compatible" => {
+                            // Check if compatible with arm,pl011
+                            if let Some(compat) = core::str::from_utf8(value).ok() {
+                                if compat.contains("pl011") || compat.contains("arm,pl011") {
+                                    compatible_pl011 = true;
+                                }
+                            }
+                        }
+                        "reg" => {
+                            if value.len() >= 8 {
+                                // For #address-cells=2, #size-cells=2
+                                if value.len() >= 16 {
+                                    reg = Some(self.read_u64_be(value, 0));
+                                } else {
+                                    reg = Some(self.read_u32_be(value, 0) as u64);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                DtbToken::BeginNode(_) => {
+                    walker.skip_node();
+                }
+                DtbToken::EndNode => break,
+                DtbToken::End => break,
+                _ => {}
+            }
+        }
+        
+        if compatible_pl011 || reg.is_some() {
+            reg
+        } else {
+            None
+        }
+    }
+    
+    /// Read big-endian u32 from byte slice
+    fn read_u32_be(&self, data: &[u8], offset: usize) -> u32 {
+        if offset + 4 > data.len() {
+            return 0;
+        }
+        u32::from_be_bytes([
+            data[offset],
+            data[offset + 1],
+            data[offset + 2],
+            data[offset + 3],
+        ])
+    }
+    
+    /// Read big-endian u64 from byte slice
+    fn read_u64_be(&self, data: &[u8], offset: usize) -> u64 {
+        if offset + 8 > data.len() {
+            return 0;
+        }
+        let hi = self.read_u32_be(data, offset) as u64;
+        let lo = self.read_u32_be(data, offset + 4) as u64;
+        (hi << 32) | lo
     }
 }
 
-// UART driver (PL011 on Pi 4)
-const UART0_BASE: usize = 0xFE201000;
-const UART0_DR: usize = UART0_BASE;
-const UART0_FR: usize = UART0_BASE + 0x18;
+/// DTB token types during parsing
+#[derive(Debug)]
+enum DtbToken<'a> {
+    BeginNode(&'a str),
+    EndNode,
+    Property(&'a str, &'a [u8]),
+    Nop,
+    End,
+}
+
+/// DTB structure block walker
+struct DtbWalker {
+    ptr: usize,
+    strings_block: usize,
+}
+
+impl DtbWalker {
+    /// Create a new walker starting at the structure block
+    fn new(struct_block: usize, strings_block: usize) -> Self {
+        Self {
+            ptr: struct_block,
+            strings_block,
+        }
+    }
+    
+    /// Get the next token from the structure block
+    fn next_token<'a>(&mut self) -> Option<DtbToken<'a>> {
+        loop {
+            let token = unsafe { core::ptr::read_volatile(self.ptr as *const u32) };
+            let token_be = u32::from_be(token);
+            
+            match token_be {
+                FDT_BEGIN_NODE => {
+                    self.ptr += 4;
+                    // Read null-terminated node name
+                    let name = self.read_string();
+                    // Align to 4-byte boundary
+                    self.align_ptr();
+                    return Some(DtbToken::BeginNode(name));
+                }
+                FDT_END_NODE => {
+                    self.ptr += 4;
+                    return Some(DtbToken::EndNode);
+                }
+                FDT_PROP => {
+                    self.ptr += 4;
+                    // Read property header
+                    let len = u32::from_be(unsafe { 
+                        core::ptr::read_volatile(self.ptr as *const u32) 
+                    }) as usize;
+                    let nameoff = u32::from_be(unsafe { 
+                        core::ptr::read_volatile((self.ptr + 4) as *const u32) 
+                    }) as usize;
+                    self.ptr += 8;
+                    
+                    // Get property name from strings block
+                    let name = self.get_string(nameoff);
+                    
+                    // Get property value
+                    let value = unsafe { 
+                        core::slice::from_raw_parts(self.ptr as *const u8, len) 
+                    };
+                    self.ptr += len;
+                    // Align to 4-byte boundary
+                    self.align_ptr();
+                    
+                    return Some(DtbToken::Property(name, value));
+                }
+                FDT_NOP => {
+                    self.ptr += 4;
+                    // Continue to next token
+                }
+                FDT_END => {
+                    self.ptr += 4;
+                    return Some(DtbToken::End);
+                }
+                _ => {
+                    // Unknown token, might be corrupted
+                    return None;
+                }
+            }
+        }
+    }
+    
+    /// Skip the current node (after BeginNode has been consumed)
+    fn skip_node(&mut self) {
+        let mut depth = 1;
+        
+        while depth > 0 {
+            if let Some(token) = self.next_token() {
+                match token {
+                    DtbToken::BeginNode(_) => depth += 1,
+                    DtbToken::EndNode => depth -= 1,
+                    _ => {}
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    
+    /// Read a null-terminated string from current pointer
+    fn read_string<'a>(&self) -> &'a str {
+        let start = self.ptr;
+        let mut len = 0;
+        
+        // Find null terminator
+        unsafe {
+            while core::ptr::read_volatile((start + len) as *const u8) != 0 {
+                len += 1;
+            }
+        }
+        
+        // Convert to str
+        let bytes = unsafe { core::slice::from_raw_parts(start as *const u8, len) };
+        core::str::from_utf8(bytes).unwrap_or("")
+    }
+    
+    /// Get string from strings block at given offset
+    fn get_string<'a>(&self, offset: usize) -> &'a str {
+        let addr = self.strings_block + offset;
+        let mut len = 0;
+        
+        // Find null terminator
+        unsafe {
+            while core::ptr::read_volatile((addr + len) as *const u8) != 0 {
+                len += 1;
+            }
+        }
+        
+        let bytes = unsafe { core::slice::from_raw_parts(addr as *const u8, len) };
+        core::str::from_utf8(bytes).unwrap_or("")
+    }
+    
+    /// Align pointer to 4-byte boundary
+    fn align_ptr(&mut self) {
+        self.ptr = (self.ptr + 3) & !3;
+    }
+}
+
+// =============================================================================
+// UART Driver (PL011)
+// =============================================================================
+
+static mut UART_BASE: usize = 0xFE201000; // Pi 4 default
+
+const UART_DR: usize = 0x00;
+const UART_FR: usize = 0x18;
 
 fn uart_init() {
     // UART initialized by GPU firmware
+    // Update base if found in DTB
 }
 
 fn uart_putc(c: u8) {
+    let base = unsafe { UART_BASE };
     unsafe {
-        while (core::ptr::read_volatile(UART0_FR as *const u32) & (1 << 5)) != 0 {}
-        core::ptr::write_volatile(UART0_DR as *mut u32, c as u32);
+        while (core::ptr::read_volatile((base + UART_FR) as *const u32) & (1 << 5)) != 0 {}
+        core::ptr::write_volatile((base + UART_DR) as *mut u32, c as u32);
     }
 }
 

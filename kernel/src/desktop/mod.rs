@@ -60,6 +60,14 @@ pub struct Application {
     pub singleton: bool, // Only one instance allowed
 }
 
+/// Desktop item type (file, folder, or application shortcut)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DesktopItemType {
+    File,
+    Folder,
+    Application,
+}
+
 /// Desktop item (icon on desktop)
 #[derive(Debug, Clone)]
 pub struct DesktopItem {
@@ -70,6 +78,8 @@ pub struct DesktopItem {
     pub y: i32,
     pub is_folder: bool,
     pub path: String,
+    pub item_type: DesktopItemType,
+    pub file_extension: Option<String>, // For determining icon type
 }
 
 /// Desktop manager
@@ -88,6 +98,7 @@ pub struct DesktopManager {
     screen_width: u32,
     screen_height: u32,
     taskbar_height: u32,
+    desktop_folder_scanned: bool,
 }
 
 impl DesktopManager {
@@ -108,6 +119,7 @@ impl DesktopManager {
             screen_width: 1280,
             screen_height: 800,
             taskbar_height: 40,
+            desktop_folder_scanned: false,
         };
         
         // Register built-in applications
@@ -117,6 +129,109 @@ impl DesktopManager {
         manager.create_default_desktop_items();
         
         manager
+    }
+    
+    /// Scan the /Desktop folder from FAT32 filesystem and create desktop icons
+    pub fn scan_desktop_folder(&mut self) {
+        if self.desktop_folder_scanned {
+            return; // Only scan once
+        }
+        
+        println!("[desktop] Scanning /Desktop folder...");
+        
+        // Try to read the /Desktop directory from filesystem
+        // This will work when FAT32 filesystem is mounted
+        let desktop_entries = self.read_desktop_directory();
+        
+        match desktop_entries {
+            Ok(entries) => {
+                println!("[desktop] Found {} items in /Desktop", entries.len());
+                
+                // Position for desktop icons (grid layout)
+                let start_x = 20;
+                let start_y = 20;
+                let icon_width = 80;
+                let icon_height = 90;
+                let icons_per_column = (self.screen_height - 100) / icon_height as u32;
+                
+                for (idx, entry) in entries.iter().enumerate() {
+                    let col = (idx as u32) / icons_per_column;
+                    let row = (idx as u32) % icons_per_column;
+                    
+                    let x = start_x + (col * icon_width as u32) as i32;
+                    let y = start_y + (row * icon_height as u32) as i32;
+                    
+                    let item_type = if entry.is_dir {
+                        DesktopItemType::Folder
+                    } else {
+                        DesktopItemType::File
+                    };
+                    
+                    let extension = if entry.is_dir {
+                        None
+                    } else {
+                        entry.name.split('.').last().map(|s| s.to_lowercase())
+                    };
+                    
+                    let icon = Self::get_icon_for_file(&entry.name, entry.is_dir, extension.as_deref());
+                    
+                    self.desktop_items.push(DesktopItem {
+                        id: self.next_item_id,
+                        name: entry.name.clone(),
+                        icon,
+                        x,
+                        y,
+                        is_folder: entry.is_dir,
+                        path: format!("/Desktop/{}", entry.name),
+                        item_type,
+                        file_extension: extension,
+                    });
+                    
+                    self.next_item_id += 1;
+                    println!("[desktop] Added desktop icon: {} at ({}, {})", entry.name, x, y);
+                }
+                
+                self.desktop_folder_scanned = true;
+            }
+            Err(e) => {
+                println!("[desktop] Could not read /Desktop folder: {:?}", e);
+                println!("[desktop] Using default desktop items only");
+            }
+        }
+    }
+    
+    /// Read the /Desktop directory from filesystem
+    fn read_desktop_directory(&self) -> Result<Vec<DirEntryInfo>, ()> {
+        // This is a placeholder that will be replaced with actual filesystem calls
+        // When the VFS is available, this should call fs::vfs::readdir("/Desktop")
+        // For now, return empty to use default items
+        
+        // TODO: When VFS is globally available:
+        // use crate::fs::vfs::{Vfs, VfsOperations};
+        // let entries = vfs.readdir("/Desktop")?;
+        // return entries mapped to DirEntryInfo
+        
+        Err(())
+    }
+    
+    /// Get the appropriate icon character for a file based on its name and extension
+    fn get_icon_for_file(name: &str, is_dir: bool, extension: Option<&str>) -> char {
+        if is_dir {
+            return '📁';
+        }
+        
+        match extension {
+            Some("txt") | Some("md") | Some("doc") | Some("docx") => '📄',
+            Some("jpg") | Some("jpeg") | Some("png") | Some("gif") | Some("bmp") => '🖼',
+            Some("mp3") | Some("wav") | Some("ogg") | Some("flac") => '🎵',
+            Some("mp4") | Some("avi") | Some("mkv") | Some("mov") => '🎬',
+            Some("zip") | Some("rar") | Some("7z") | Some("gz") => '📦',
+            Some("pdf") => '📕',
+            Some("html") | Some("htm") | Some("css") | Some("js") => '🌐',
+            Some("rs") | Some("c") | Some("cpp") | Some("h") | Some("py") | Some("java") => '💻',
+            Some("exe") | Some("bin") | Some("sh") => '⚙',
+            _ => '📃',
+        }
     }
     
     /// Register built-in applications
@@ -232,6 +347,8 @@ impl DesktopManager {
             y: 20,
             is_folder: true,
             path: String::from("/home"),
+            item_type: DesktopItemType::Folder,
+            file_extension: None,
         });
         self.next_item_id += 1;
         
@@ -243,6 +360,8 @@ impl DesktopManager {
             y: 100,
             is_folder: true,
             path: String::from("/home/documents"),
+            item_type: DesktopItemType::Folder,
+            file_extension: None,
         });
         self.next_item_id += 1;
         
@@ -254,6 +373,8 @@ impl DesktopManager {
             y: 600,
             is_folder: true,
             path: String::from("/home/.trash"),
+            item_type: DesktopItemType::Folder,
+            file_extension: None,
         });
         self.next_item_id += 1;
     }
@@ -310,6 +431,93 @@ impl DesktopManager {
         } else {
             None
         }
+    }
+    
+    /// Open a file by path (determines the appropriate application)
+    pub fn open_file(&mut self, path: &str) -> Option<WindowId> {
+        println!("[desktop] Opening file: {}", path);
+        
+        // Determine file type by extension
+        let extension = path.split('.').last().map(|s| s.to_lowercase());
+        
+        match extension.as_deref() {
+            Some("txt") | Some("md") | Some("rs") | Some("c") | Some("cpp") | Some("h") | 
+            Some("py") | Some("js") | Some("css") | Some("json") => {
+                // Open text files in Notepad
+                self.launch_app_by_name("notepad")
+            }
+            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("bmp") => {
+                // Open images in Paint
+                self.launch_app_by_name("paint")
+            }
+            Some("html") | Some("htm") => {
+                // Open HTML in browser
+                self.launch_app_by_name("browser")
+            }
+            _ => {
+                // Unknown file type - try notepad as default
+                println!("[desktop] Unknown file type, opening with notepad");
+                self.launch_app_by_name("notepad")
+            }
+        }
+    }
+    
+    /// Open a folder in file manager
+    pub fn open_folder(&mut self, path: &str) -> Option<WindowId> {
+        println!("[desktop] Opening folder: {}", path);
+        self.launch_app_by_name("filemanager")
+    }
+    
+    /// Handle desktop item click (single click)
+    pub fn handle_desktop_item_click(&mut self, item_id: u32) -> bool {
+        if let Some(item) = self.desktop_items.iter().find(|i| i.id == item_id) {
+            println!("[desktop] Selected item: {}", item.name);
+            // Single click just selects the item
+            // Return true to indicate redraw might be needed
+            return true;
+        }
+        false
+    }
+    
+    /// Handle desktop item double-click
+    pub fn handle_desktop_item_double_click(&mut self, item_id: u32) -> Option<WindowId> {
+        // Find the item first and clone necessary data to avoid borrow issues
+        let item_info = self.desktop_items.iter()
+            .find(|i| i.id == item_id)
+            .map(|item| (item.name.clone(), item.item_type, item.path.clone()));
+        
+        if let Some((name, item_type, path)) = item_info {
+            println!("[desktop] Double-clicked: {}", name);
+            
+            match item_type {
+                DesktopItemType::Folder => {
+                    return self.open_folder(&path);
+                }
+                DesktopItemType::File => {
+                    return self.open_file(&path);
+                }
+                DesktopItemType::Application => {
+                    // Application shortcuts would be handled here
+                    return None;
+                }
+            }
+        }
+        None
+    }
+    
+    /// Find desktop item at position (for hit testing)
+    pub fn find_desktop_item_at(&self, x: i32, y: i32) -> Option<u32> {
+        // Desktop icon dimensions (should match CSS)
+        const ICON_WIDTH: i32 = 80;
+        const ICON_HEIGHT: i32 = 90;
+        
+        for item in &self.desktop_items {
+            if x >= item.x && x < item.x + ICON_WIDTH &&
+               y >= item.y && y < item.y + ICON_HEIGHT {
+                return Some(item.id);
+            }
+        }
+        None
     }
     
     /// Close window
@@ -382,10 +590,14 @@ impl DesktopManager {
     
     /// Login
     pub fn login(&mut self, username: &str, password: &str) -> bool {
-        if let Some(session_id) = users::login(username, password) {
+        if let Some(_session_id) = users::login(username, password) {
             self.current_user = users::current_user();
             self.show_login = false;
             self.show_desktop = true;
+            
+            // Scan desktop folder after login
+            self.scan_desktop_folder();
+            
             println!("[desktop] Logged in as {}", username);
             true
         } else {
@@ -400,6 +612,11 @@ impl DesktopManager {
         self.current_user = None;
         self.show_login = true;
         self.show_desktop = false;
+        self.desktop_folder_scanned = false;
+        // Clear filesystem desktop items, keep defaults
+        self.desktop_items.retain(|item| {
+            item.path.starts_with("/home") || item.path == "/Desktop"
+        });
         println!("[desktop] Logged out");
     }
     
@@ -428,6 +645,14 @@ impl DesktopManager {
     }
 }
 
+/// Directory entry info (used for scanning desktop folder)
+#[derive(Debug, Clone)]
+pub struct DirEntryInfo {
+    pub name: String,
+    pub is_dir: bool,
+    pub size: u64,
+}
+
 /// Global desktop manager
 lazy_static! {
     static ref DESKTOP_MANAGER: Mutex<DesktopManager> = Mutex::new(DesktopManager::new());
@@ -445,9 +670,39 @@ pub fn init() {
     println!("[desktop] Showing login screen");
 }
 
+/// Scan desktop folder from filesystem
+pub fn scan_desktop_folder() {
+    DESKTOP_MANAGER.lock().scan_desktop_folder();
+}
+
 /// Launch application by name
 pub fn launch_app(name: &str) -> Option<WindowId> {
     DESKTOP_MANAGER.lock().launch_app_by_name(name)
+}
+
+/// Open a file
+pub fn open_file(path: &str) -> Option<WindowId> {
+    DESKTOP_MANAGER.lock().open_file(path)
+}
+
+/// Open a folder
+pub fn open_folder(path: &str) -> Option<WindowId> {
+    DESKTOP_MANAGER.lock().open_folder(path)
+}
+
+/// Handle desktop item click
+pub fn handle_desktop_item_click(item_id: u32) -> bool {
+    DESKTOP_MANAGER.lock().handle_desktop_item_click(item_id)
+}
+
+/// Handle desktop item double-click
+pub fn handle_desktop_item_double_click(item_id: u32) -> Option<WindowId> {
+    DESKTOP_MANAGER.lock().handle_desktop_item_double_click(item_id)
+}
+
+/// Find desktop item at position
+pub fn find_desktop_item_at(x: i32, y: i32) -> Option<u32> {
+    DESKTOP_MANAGER.lock().find_desktop_item_at(x, y)
 }
 
 /// Close window
@@ -646,11 +901,13 @@ fn generate_desktop_page(manager: &DesktopManager) -> String {
     let mut desktop_icons = String::new();
     for item in manager.list_desktop_items() {
         desktop_icons.push_str(&format!(
-            r#"<div class="desktop-icon" style="left: {}px; top: {}px;" data-path="{}">
+            r#"<div class="desktop-icon" style="left: {}px; top: {}px;" data-id="{}" data-path="{}" data-type="{}">
                 <div class="icon">{}</div>
                 <div class="name">{}</div>
             </div>"#,
-            item.x, item.y, item.path, item.icon, item.name
+            item.x, item.y, item.id, item.path, 
+            if item.is_folder { "folder" } else { "file" },
+            item.icon, item.name
         ));
     }
     
@@ -700,7 +957,11 @@ fn generate_desktop_page(manager: &DesktopManager) -> String {
             transition: background 0.2s;
         }}
         .desktop-icon:hover {{
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.15);
+        }}
+        .desktop-icon.selected {{
+            background: rgba(0,128,255,0.3);
+            border: 1px solid rgba(0,128,255,0.5);
         }}
         .desktop-icon .icon {{
             font-size: 48px;
@@ -992,6 +1253,57 @@ fn generate_desktop_page(manager: &DesktopManager) -> String {
                 }}
                 startMenu.classList.remove('show');
             }});
+        }});
+        
+        // Desktop icon handling
+        let selectedIcon = null;
+        let clickTimer = null;
+        let clickCount = 0;
+        
+        document.querySelectorAll('.desktop-icon').forEach(icon => {{
+            icon.addEventListener('click', (e) => {{
+                e.stopPropagation();
+                
+                // Handle selection
+                if (selectedIcon) {{
+                    selectedIcon.classList.remove('selected');
+                }}
+                icon.classList.add('selected');
+                selectedIcon = icon;
+                
+                // Handle double-click detection
+                clickCount++;
+                const itemId = parseInt(icon.dataset.id);
+                const itemType = icon.dataset.type;
+                const itemPath = icon.dataset.path;
+                
+                if (clickCount === 1) {{
+                    // Single click - notify kernel of selection
+                    window.parent.postMessage({{ type: 'desktop_item_select', id: itemId }}, '*');
+                    
+                    clickTimer = setTimeout(() => {{
+                        clickCount = 0;
+                    }}, 300);
+                }} else if (clickCount === 2) {{
+                    // Double click - open item
+                    clearTimeout(clickTimer);
+                    clickCount = 0;
+                    
+                    if (itemType === 'folder') {{
+                        window.parent.postMessage({{ type: 'open_folder', path: itemPath }}, '*');
+                    }} else {{
+                        window.parent.postMessage({{ type: 'open_file', path: itemPath }}, '*');
+                    }}
+                }}
+            }});
+        }});
+        
+        // Deselect when clicking on desktop background
+        document.getElementById('desktop').addEventListener('click', () => {{
+            if (selectedIcon) {{
+                selectedIcon.classList.remove('selected');
+                selectedIcon = null;
+            }}
         }});
         
         // Clock update
