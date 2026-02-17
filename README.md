@@ -1,3 +1,9 @@
+## Support the Project ☕
+If you find this tool helpful, feel free to buy me a coffee!
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Stripe-orange?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://buy.stripe.com/cNi5kDb0Q5Wp663gdgbjW00)
+
+
 # 🌐 WebbOS
 
 A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management.
