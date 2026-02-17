@@ -222,13 +222,13 @@ See [BUILD_STATUS.md](BUILD_STATUS.md) for detailed build and boot information.
 | VESA Graphics | ✅ Complete |
 | PS/2 Input | ✅ Complete |
 | Browser Engine | ✅ Complete (parsers ready) |
-| App Store | ❌ Not Implemented |
+| App Store (PWA) | ✅ Complete |
 
 **Total Lines of Code:** ~20,000
 **Kernel Size:** ~10 MB (debug)
 
 ### Known Issues
-- **Mouse Refresh**: Mouse movement causes complete screen refresh (needs dirty rectangle tracking)
+- **PNG Icons**: Character-based icons in use (PNG decoding pending)
 
 See [STATUS.md](STATUS.md) for detailed status and [TODO.md](TODO.md) for planned work.
 
