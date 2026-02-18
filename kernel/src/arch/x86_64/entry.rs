@@ -1,42 +1,84 @@
 //! x86_64 kernel entry point
 
 use core::arch::naked_asm;
+use webbos_shared::bootinfo::BOOTINFO_PAGE_TABLE_OFFSET;
 
-/// Kernel entry point from bootloader (PHYSICAL mode)
-/// 
-/// For now, we run in physical mode without paging.
-/// Paging will be added in a future update.
+/// Kernel entry point from bootloader
 #[naked]
 #[no_mangle]
 #[repr(align(16))]
 pub unsafe extern "C" fn _start() -> ! {
     naked_asm!(
-        // Save boot info pointer (in RDI from bootloader)
+        // Save boot info pointer
         "mov r15, rdi",
         
-        // Debug: Write "KERNEL" to serial port (COM1)
+        // Debug: "K"
         "mov dx, 0x3F8",
         "mov al, 0x4B", "out dx, al",
-        "mov al, 0x45", "out dx, al",
-        "mov al, 0x52", "out dx, al",
-        "mov al, 0x4E", "out dx, al",
-        "mov al, 0x45", "out dx, al",
-        "mov al, 0x4C", "out dx, al",
         
-        // Set up physical stack
-        "mov rsp, {phys_stack}",
+        // Check if rdi (boot_info) is null - output '0'
+        "test rdi, rdi",
+        "jnz 1f",
+        "mov al, 0x30", "out dx, al",
+        "jmp 9f",
+        
+        "1:",
+        // Get page table address from boot_info (skip Option discriminant)
+        "mov r14, [r15 + {page_table_offset} + 8]",
+        
+        // Output '1' - got page table
+        "mov al, 0x31", "out dx, al",
+        
+        // Enable PAE
+        "mov rax, cr4",
+        "or al, 0x20",
+        "mov cr4, rax",
+        
+        // Load page table
+        "mov cr3, r14",
+        
+        // Enable long mode
+        "mov ecx, 0xC0000080",
+        "rdmsr",
+        "or ah, 0x01",
+        "wrmsr",
+        
+        // Enable paging
+        "mov rax, cr0",
+        "mov rbx, 0x80000000",
+        "or rax, rbx",
+        "mov cr0, rax",
+        
+        // Output '2' - paging enabled
+        "mov al, 0x32", "out dx, al",
+        
+        // Set virtual stack
+        "mov rsp, {virt_stack}",
+        
+        // Jump to virtual address
+        "lea rax, [rip + 3f]",
+        "mov rbx, 0xFFFF800000000000",
+        "add rax, rbx",
+        "jmp rax",
+        
+        "3:",
+        // Output '3' - in virtual mode
+        "mov al, 0x33", "out dx, al",
         "xor rbp, rbp",
-        
-        // Call kernel entry
         "mov rdi, r15",
         "call {kernel_entry}",
         
-        // Should never return
         "cli",
         "2: hlt",
         "jmp 2b",
         
-        phys_stack = const 0x500000u64,
+        // Error
+        "9:",
+        "mov al, 0x21", "out dx, al",
+        "jmp 9b",
+        
+        virt_stack = const 0xFFFF800000500000u64,
         kernel_entry = sym crate::kernel_entry,
+        page_table_offset = const BOOTINFO_PAGE_TABLE_OFFSET,
     );
 }

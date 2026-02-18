@@ -14,13 +14,9 @@ pub const BOOTINFO_VERSION: u32 = 1;
 
 /// Offset of page_table_addr field in BootInfo structure
 /// Used by assembly code to locate page tables
+/// Calculated using core::mem::offset_of for accuracy
 pub const BOOTINFO_PAGE_TABLE_OFFSET: usize = 
-    8 + 4 + 4 +  // magic + version + reserved
-    8 + 8 +  // memory_map_addr + memory_map_count  
-    8 + 8 + 8 +  // kernel_addr + kernel_size + kernel_virt_addr
-    40 +  // framebuffer (5 * 8 bytes)
-    16 + 16 + 8 + 8 + 8;  // rsdp_addr + cmdline + bootloader_name + stack_top + stack_size
-    // = 160
+    core::mem::offset_of!(BootInfo, page_table_addr);
 
 /// Boot information structure passed from bootloader to kernel
 /// 
