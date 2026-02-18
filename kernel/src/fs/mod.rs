@@ -36,7 +36,6 @@
 //! └─────────────────────────────────────┘
 //! ```
 
-#![no_std]
 // llvm_asm is only used for x86_64-specific inline assembly
 #![cfg_attr(target_arch = "x86_64", feature(llvm_asm))]
 
@@ -48,10 +47,9 @@ pub mod global_vfs;
 pub mod partition;
 pub mod vfs;
 
-use crate::error::{VFatError, IoError};
-use alloc::string::String;
 use alloc::vec;
-use alloc::vec::Vec;
+use crate::error::VFatError;
+
 
 /// Filesystem initialization result
 pub type FsResult<T> = Result<T, VFatError>;
@@ -73,7 +71,7 @@ pub fn create_virtual_disk(size_sectors: u64) -> block::VirtualBlockDevice {
 
 /// Create a formatted FAT32 test image
 pub fn create_fat32_image(size_sectors: u64) -> FsResult<block::VirtualBlockDevice> {
-    use block::BlockDevice;
+
     
     let mut disk = block::VirtualBlockDevice::new(size_sectors);
     
@@ -85,7 +83,7 @@ pub fn create_fat32_image(size_sectors: u64) -> FsResult<block::VirtualBlockDevi
 
 /// Format a block device with FAT32
 pub fn format_fat32<B: block::BlockDevice>(device: &mut B) -> FsResult<()> {
-    use fat32::{BiosParameterBlock, Fat32ExtendedBpb};
+
     
     let sector_size = device.block_size() as u16;
     let total_sectors = device.capacity() as u32;
@@ -212,7 +210,7 @@ pub fn init_filesystem(sdhci_base: usize) -> FsResult<fat32::Fat32Filesystem<blo
     })?;
     
     // Find FAT32 partition
-    let fat32_partition = partition_table.find_fat32_partition()
+    let _fat32_partition = partition_table.find_fat32_partition()
         .or_else(|| partition_table.find_boot_partition())
         .ok_or_else(|| VFatError::not_found("No FAT32 partition found"))?;
     

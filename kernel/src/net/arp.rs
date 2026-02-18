@@ -81,7 +81,6 @@ struct ArpEntry {
     pending: bool,
 }
 
-/// ARP cache
 lazy_static! {
     static ref ARP_CACHE: Mutex<BTreeMap<Ipv4Address, ArpEntry>> = Mutex::new(BTreeMap::new());
 }

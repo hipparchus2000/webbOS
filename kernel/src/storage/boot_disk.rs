@@ -3,7 +3,7 @@
 //! Provides access to the boot disk (the disk the OS was loaded from).
 //! This is typically the first ATA/IDE drive (primary master).
 
-use alloc::boxed::Box;
+
 use alloc::sync::Arc;
 use spin::Mutex;
 

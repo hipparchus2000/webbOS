@@ -91,7 +91,6 @@ pub struct UdpSocket {
     pub receive_queue: Vec<(Ipv4Address, Port, Vec<u8>)>,
 }
 
-/// UDP socket table
 lazy_static! {
     static ref SOCKETS: Mutex<BTreeMap<Port, UdpSocket>> = Mutex::new(BTreeMap::new());
     static ref NEXT_EPHEMERAL_PORT: Mutex<u16> = Mutex::new(33434);
@@ -106,7 +105,7 @@ fn get_ephemeral_port() -> Port {
 }
 
 /// Process incoming UDP packet
-pub fn process_udp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+pub fn process_udp_packet(src: Ipv4Address, _dst: Ipv4Address, data: &[u8]) {
     let header = match UdpHeader::from_bytes(data) {
         Some(h) => h,
         None => return,

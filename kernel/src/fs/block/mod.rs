@@ -5,7 +5,7 @@
 
 use crate::error::VFatError;
 use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 

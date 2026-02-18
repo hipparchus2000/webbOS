@@ -6,7 +6,7 @@ use core::fmt;
 use spin::Mutex;
 
 mod vga;
-mod serial;
+pub mod serial;
 pub mod line_editor;
 
 /// Global writer for console output
@@ -51,6 +51,18 @@ impl fmt::Write for ConsoleWriter {
 /// Initialize console output
 pub fn init() {
     WRITER.lock().init();
+}
+
+/// Early raw print - bypasses all initialization
+/// 
+/// This can be called before `console::init()` to debug early boot issues.
+/// Uses raw port I/O on x86_64 COM1.
+/// 
+/// # Safety
+/// This function bypasses mutexes and initialization checks.
+/// Only safe to call in early boot on x86_64.
+pub unsafe fn early_print(s: &str) {
+    serial::early_write_string(s);
 }
 
 /// Get a character from input

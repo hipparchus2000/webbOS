@@ -13,17 +13,14 @@
 //! - Codec communication via CORB/RIRB
 
 use super::{AudioDevice, AudioError, AudioFormat};
-use crate::drivers::pci::{self, PciDevice, class};
+use crate::drivers::pci::{self, PciDevice};
 use crate::mm::{phys_to_virt, virt_to_phys_u64};
 use crate::println;
 use webbos_shared::types::PhysAddr;
 use alloc::alloc::{alloc_zeroed, Layout};
-use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::vec::Vec;
+
 use core::ptr::{read_volatile, write_volatile};
-use lazy_static::lazy_static;
-use spin::Mutex;
+
 
 // ============================================================================
 // PCI Configuration

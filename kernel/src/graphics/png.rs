@@ -6,10 +6,13 @@
 //! - Non-interlaced images
 //! - Basic zlib decompression
 
-use alloc::vec::Vec;
 use alloc::vec;
-use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use alloc::string::String;
 use alloc::format;
+
+
+
 
 /// PNG decoding error
 #[derive(Debug, Clone, PartialEq)]
@@ -36,7 +39,7 @@ impl PngImage {
         Self {
             width,
             height,
-            rgba_data: vec![0; (width * height * 4) as usize],
+            rgba_data: vec![0; width as usize * height as usize * 4],
         }
     }
 

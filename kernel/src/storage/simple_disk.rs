@@ -2,12 +2,13 @@
 //!
 //! A simple block device that uses the storage module directly.
 
-use alloc::boxed::Box;
-use alloc::vec::Vec;
-use spin::Mutex;
 
+
+
+
+use alloc::boxed::Box;
 use crate::storage::{BlockDevice, StorageError};
-use crate::println;
+
 
 /// Simple disk that wraps a storage device index
 pub struct SimpleDisk {
@@ -48,6 +49,7 @@ impl BlockDevice for SimpleDisk {
 }
 
 /// Create a simple disk for the boot device
+#[allow(dead_code)]
 pub fn create_boot_disk() -> Option<Box<SimpleDisk>> {
     if crate::storage::device_count() > 0 {
         Some(Box::new(SimpleDisk::new(0)))

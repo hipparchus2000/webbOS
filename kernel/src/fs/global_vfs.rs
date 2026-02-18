@@ -8,7 +8,7 @@ use alloc::vec;
 use alloc::string::{String, ToString};
 use alloc::format;
 use spin::Mutex;
-use lazy_static::lazy_static;
+
 
 use crate::fs::fat32::Fat32Filesystem;
 use crate::fs::vfs::{Vfs, VfsOperations, OpenFlags};
@@ -217,8 +217,8 @@ impl GlobalVfs {
     }
 
     /// List directory entries
-    pub fn read_dir(&mut self, path: &str) -> Result<Vec<DirEntry>, GlobalVfsError> {
-        let vfs = self.vfs.as_mut().ok_or(GlobalVfsError::NotInitialized)?;
+    pub fn read_dir(&mut self, _path: &str) -> Result<Vec<DirEntry>, GlobalVfsError> {
+        let _vfs = self.vfs.as_mut().ok_or(GlobalVfsError::NotInitialized)?;
 
         // This is a simplified version - in the full implementation
         // we would use the VFS readdir functionality

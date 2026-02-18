@@ -172,7 +172,6 @@ impl TcpConnection {
     }
 }
 
-/// TCP socket table
 lazy_static! {
     static ref CONNECTIONS: Mutex<BTreeMap<ConnectionId, TcpConnection>> = Mutex::new(BTreeMap::new());
     static ref LISTENING_SOCKETS: Mutex<BTreeMap<Port, ConnectionId>> = Mutex::new(BTreeMap::new());

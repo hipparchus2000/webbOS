@@ -7,11 +7,11 @@
 //! - Intel XHCI Programmer's Reference
 
 use alloc::vec::Vec;
-use alloc::boxed::Box;
+
 use alloc::string::{String, ToString};
-use alloc::format;
-use alloc::alloc::{alloc_zeroed, Layout};
-use core::ptr::{read_volatile, write_volatile, write_bytes};
+
+
+use core::ptr::{read_volatile, write_volatile};
 
 use crate::println;
 use crate::error::UsbError;
@@ -328,7 +328,7 @@ impl Trb {
         let mut trb = Self::new();
         trb.parameter = u64::from_le_bytes(setup_data);
         trb.status = (transfer_length as u32) & 0xFFFF;
-        trb.control = (2 << 16); // TRT = IN Data Stage
+        trb.control = 2 << 16; // TRT = IN Data Stage
         trb.set_trb_type(TrbType::SetupStage);
         trb.set_immediate_data(true);
         trb.set_cycle_bit(cycle);
@@ -373,7 +373,7 @@ impl Trb {
         let mut trb = Self::new();
         trb.parameter = 0;
         trb.status = 0;
-        trb.control = ((slot_type as u32) << 16);
+        trb.control = (slot_type as u32) << 16;
         trb.set_trb_type(TrbType::EnableSlot);
         trb.set_cycle_bit(cycle);
         trb
@@ -772,20 +772,20 @@ impl XhciController {
     }
 
     /// Get device descriptor (first 8 bytes during init)
-    pub fn get_device_descriptor_init(&mut self, slot_id: u8) -> Result<DeviceDescriptor, UsbError> {
+    pub fn get_device_descriptor_init(&mut self, _slot_id: u8) -> Result<DeviceDescriptor, UsbError> {
         // Placeholder implementation
         // In a real implementation, this would perform a control transfer
         Err(UsbError::UnsupportedDevice)
     }
 
     /// Get full device descriptor
-    pub fn get_device_descriptor(&mut self, slot_id: u8) -> Result<DeviceDescriptor, UsbError> {
+    pub fn get_device_descriptor(&mut self, _slot_id: u8) -> Result<DeviceDescriptor, UsbError> {
         // Placeholder implementation
         Err(UsbError::UnsupportedDevice)
     }
 
     /// Get configuration descriptor
-    pub fn get_configuration_descriptor(&mut self, slot_id: u8, index: u8) -> Result<Vec<u8>, UsbError> {
+    pub fn get_configuration_descriptor(&mut self, _slot_id: u8, _index: u8) -> Result<Vec<u8>, UsbError> {
         // Placeholder implementation
         Err(UsbError::UnsupportedDevice)
     }

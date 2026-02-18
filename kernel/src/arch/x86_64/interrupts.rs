@@ -271,6 +271,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
 // Keyboard interrupt handler (IRQ1)
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    #[allow(unused_unsafe)]
     unsafe {
         // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
         send_eoi(1);
@@ -282,6 +283,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 
 // Mouse interrupt handler (IRQ12)
 extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    #[allow(unused_unsafe)]
     unsafe {
         // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
         send_eoi(12);

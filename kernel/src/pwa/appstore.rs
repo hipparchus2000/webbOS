@@ -5,12 +5,12 @@
 //! - Provides install buttons for apps
 //! - Handles app updates
 
-use super::{PwaApp, PwaManifest, PwaResult, PwaError, registry};
+use super::{PwaApp, PwaManifest, PwaResult, PwaError};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::vec;
 use alloc::format;
-use alloc::collections::BTreeMap;
+
 
 /// Default app store repository URL
 const DEFAULT_REPOSITORY: &str = "https://apps.webbos.local";

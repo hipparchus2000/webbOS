@@ -74,7 +74,7 @@ impl PwaRegistry {
                 Ok(app) => {
                     self.apps.insert(app_id.to_string(), app);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // Create a default app entry if manifest not found
                     let app = self.create_default_app(app_id);
                     self.apps.insert(app_id.to_string(), app);
@@ -87,7 +87,7 @@ impl PwaRegistry {
     
     /// Load a single app's manifest
     fn load_app_manifest(&self, app_path: &str, app_id: &str) -> PwaResult<PwaApp> {
-        let manifest_path = format!("{}/manifest.json", app_path);
+        let _manifest_path = format!("{}/manifest.json", app_path);
         
         // Read manifest file (using filesystem when available)
         // For now, create default manifests

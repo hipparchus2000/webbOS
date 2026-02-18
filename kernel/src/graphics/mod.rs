@@ -2,9 +2,10 @@
 //!
 //! Framebuffer and graphics rendering for WebbOS.
 
-use alloc::vec::Vec;
 use alloc::vec;
-use alloc::boxed::Box;
+use alloc::vec::Vec;
+
+
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -325,7 +326,6 @@ fn get_char_bitmap(ch: char) -> [u8; 8] {
     }
 }
 
-/// Global graphics context
 lazy_static! {
     static ref GRAPHICS_CONTEXT: Mutex<Option<GraphicsContext>> = Mutex::new(None);
 }

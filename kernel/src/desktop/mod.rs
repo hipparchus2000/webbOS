@@ -654,7 +654,6 @@ pub struct DirEntryInfo {
     pub size: u64,
 }
 
-/// Global desktop manager
 lazy_static! {
     static ref DESKTOP_MANAGER: Mutex<DesktopManager> = Mutex::new(DesktopManager::new());
 }

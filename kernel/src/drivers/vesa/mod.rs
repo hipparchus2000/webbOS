@@ -622,7 +622,6 @@ fn get_char_bitmap(ch: char) -> [u8; 8] {
     }
 }
 
-/// Global VESA driver
 lazy_static! {
     static ref VESA_DRIVER: Mutex<VesaDriver> = Mutex::new(VesaDriver::new());
 }

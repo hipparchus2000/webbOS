@@ -3,9 +3,7 @@
 //! Client for automatic IP configuration.
 
 use alloc::vec;
-use alloc::vec::Vec;
-
-use crate::net::{Ipv4Address, Port, IpProtocol, udp, NetworkConfig};
+use crate::net::{Ipv4Address, Port, udp, NetworkConfig};
 use crate::println;
 
 /// DHCP ports
@@ -90,9 +88,7 @@ fn send_discover() {
     packet[3] = 0; // Hops
     
     // XID
-    unsafe {
-        packet[4..8].copy_from_slice(&DHCP_XID.to_be_bytes());
-    }
+    packet[4..8].copy_from_slice(unsafe { &DHCP_XID.to_be_bytes() });
     
     // secs, flags
     packet[8..10].copy_from_slice(&[0, 0]);

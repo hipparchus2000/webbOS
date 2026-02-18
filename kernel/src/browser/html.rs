@@ -4,7 +4,7 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
+
 
 use crate::browser::BrowserError;
 use crate::println;

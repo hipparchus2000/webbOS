@@ -5,10 +5,10 @@
 //! - Manages app lifecycle (start, stop, switch)
 //! - Handles app permissions and isolation
 
-use super::{PwaApp, PwaResult, PwaError, registry};
+use super::{PwaApp, PwaResult, PwaError};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use alloc::format;
+
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -325,7 +325,6 @@ impl Default for PwaLauncher {
     }
 }
 
-/// Global launcher instance
 lazy_static! {
     static ref LAUNCHER: Mutex<PwaLauncher> = Mutex::new(PwaLauncher::new());
 }

@@ -9,7 +9,7 @@
 use crate::error::{VFatError, IoError};
 use alloc::format;
 use crate::fs::block::BlockDevice;
-use crate::fs::cache::{BlockCache, CachePolicy};
+use crate::fs::cache::BlockCache;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;

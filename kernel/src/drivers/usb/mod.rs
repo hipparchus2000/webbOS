@@ -26,7 +26,7 @@
 
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::format;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -611,7 +611,7 @@ impl UsbManager {
                 match ctx.state {
                     EnumState::Connected => {
                         let port = ctx.port;
-                        let speed = ctx.speed;
+                        let _speed = ctx.speed;
                         
                         println!("[usb] Starting enumeration for port {}", port);
                         
@@ -764,7 +764,7 @@ impl UsbManager {
                 driver_name, device.address);
             
             // Take ownership of the driver temporarily
-            if let Some(mut driver) = self.drivers.get_mut(idx) {
+            if let Some(driver) = self.drivers.get_mut(idx) {
                 let device = &mut self.devices[device_idx];
                 if let Err(e) = driver.init(device) {
                     println!("[usb] Driver init failed: {:?}", e);
@@ -854,7 +854,6 @@ impl UsbManager {
 unsafe impl Send for UsbManager {}
 unsafe impl Sync for UsbManager {}
 
-/// Global USB manager instance
 lazy_static! {
     static ref USB_MANAGER: Mutex<UsbManager> = Mutex::new(UsbManager::new());
 }

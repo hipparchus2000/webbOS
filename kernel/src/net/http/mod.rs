@@ -4,14 +4,14 @@
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use alloc::vec;
+
 use alloc::collections::BTreeMap;
-use spin::Mutex;
+
 use lazy_static::lazy_static;
 
-use crate::net::{Ipv4Address, Port, tcp, socket};
-use crate::net::socket::{Socket, SocketDomain, SocketType, SocketProtocol};
-use crate::tls::{TlsConnection, TlsError};
+use crate::net::{Ipv4Address, Port};
+use crate::net::socket::{self, SocketDomain, SocketType, SocketProtocol};
+use crate::tls::TlsConnection;
 use crate::println;
 
 /// HTTP methods
@@ -537,7 +537,6 @@ fn is_redirect(status: u16) -> bool {
     matches!(status, 301 | 302 | 303 | 307 | 308)
 }
 
-/// Global HTTP client
 lazy_static! {
     static ref HTTP_CLIENT: Client = Client::new();
 }

@@ -3,7 +3,7 @@
 //! Performs CSS box model layout on the DOM tree.
 
 use alloc::string::String;
-use alloc::vec;
+
 use alloc::vec::Vec;
 
 use crate::browser::BrowserError;

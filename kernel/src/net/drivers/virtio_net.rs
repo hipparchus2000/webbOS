@@ -11,8 +11,8 @@ use spin::Mutex;
 
 use crate::net::{MacAddress, NetworkInterface, NetError};
 use crate::net;
-use crate::drivers::pci::{read_config8, read_config16, read_config32};
-use crate::mm::{phys_to_virt, virt_to_phys_u64};
+use crate::drivers::pci::read_config32;
+use crate::mm::virt_to_phys_u64;
 use crate::println;
 
 /// VirtIO PCI device IDs
@@ -145,7 +145,7 @@ impl VirtQueue {
         
         unsafe {
             for (i, (addr, len, write)) in buffers.iter().enumerate() {
-                let desc = &mut *self.descriptors.add(((start_idx as usize + i) % self.queue_size as usize));
+                let desc = &mut *self.descriptors.add((start_idx as usize + i) % self.queue_size as usize);
                 desc.addr = *addr;
                 desc.len = *len as u32;
                 desc.flags = if *write { 2 } else { 0 } | if i < num_bufs - 1 { 1 } else { 0 };
@@ -153,12 +153,12 @@ impl VirtQueue {
                     ((start_idx + i as u16 + 1) % self.queue_size)
                 } else {
                     0
-                };
+                }
             }
 
             // Add to available ring
             let avail = &mut *self.available;
-            let ring_ptr = (avail as *mut VirtqAvail as *mut u8).add(4) as *mut u16;
+            let ring_ptr = (avail as *mut VirtqAvail).cast::<u8>().add(4) as *mut u16;
             *ring_ptr.add((avail.idx % self.queue_size) as usize) = start_idx;
             
             fence(Ordering::SeqCst);
@@ -319,7 +319,7 @@ impl VirtioNetDevice {
             pci_write16(base_addr, VIRTIO_PCI_QUEUE_NUM, 256);
             // For legacy virtio, we write the PFN
             // For modern virtio, we'd use the capability structure
-            let (desc, avail, used) = rx_queue.get_phys();
+            let (desc, _avail, _used) = rx_queue.get_phys();
             pci_write32(base_addr, VIRTIO_PCI_QUEUE_PFN, (desc >> 12) as u32);
         }
 
@@ -328,7 +328,7 @@ impl VirtioNetDevice {
         unsafe {
             pci_write16(base_addr, VIRTIO_PCI_QUEUE_SEL, 1);
             pci_write16(base_addr, VIRTIO_PCI_QUEUE_NUM, 256);
-            let (desc, avail, used) = tx_queue.get_phys();
+            let (desc, _avail, _used) = tx_queue.get_phys();
             pci_write32(base_addr, VIRTIO_PCI_QUEUE_PFN, (desc >> 12) as u32);
         }
 
@@ -350,7 +350,7 @@ impl VirtioNetDevice {
         let tx_buf = alloc_dma(2048)?;
         let tx_phys = virt_to_phys_u64(tx_buf as u64);
 
-        let mut device = Self {
+        let device = Self {
             base_addr,
             mac,
             mtu: 1500,

@@ -4,8 +4,8 @@
 //! Supports USB flash drives, external hard drives, etc.
 
 use alloc::vec::Vec;
-use alloc::boxed::Box;
-use alloc::string::{String, ToString};
+
+use alloc::string::String;
 use alloc::format;
 use alloc::sync::Arc;
 use spin::Mutex;
@@ -808,8 +808,8 @@ impl MassStorageDriver {
         &self,
         device: &UsbMassStorage,
         command: &[u8],
-        data: &mut [u8],
-        data_in: bool,
+        _data: &mut [u8],
+        _data_in: bool,
     ) -> Result<(), UsbError> {
         println!(
             "[usb-msc] Sending SCSI command {:02X} to device {}",
@@ -825,9 +825,9 @@ impl MassStorageDriver {
     pub fn read_sectors(
         &self,
         device: &UsbMassStorage,
-        lba: u64,
-        count: u16,
-        buffer: &mut [u8],
+        _lba: u64,
+        _count: u16,
+        _buffer: &mut [u8],
     ) -> Result<(), UsbError> {
         if !device.ready {
             return Err(UsbError::DeviceNotResponding);
@@ -841,9 +841,9 @@ impl MassStorageDriver {
     pub fn write_sectors(
         &self,
         device: &UsbMassStorage,
-        lba: u64,
-        count: u16,
-        buffer: &[u8],
+        _lba: u64,
+        _count: u16,
+        _buffer: &[u8],
     ) -> Result<(), UsbError> {
         if !device.ready {
             return Err(UsbError::DeviceNotResponding);

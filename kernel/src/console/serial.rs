@@ -24,27 +24,37 @@ impl SerialPort {
     /// Create and initialize a serial port
     pub fn new(port: u16) -> Self {
         unsafe {
+            // Debug: indicate serial init is starting
+            early_write_string("[SERIAL] Initializing port...\n");
+            
             // Disable interrupts
             Self::outb(port + 1, 0x00);
+            early_write_string("[SERIAL] Interrupts disabled\n");
 
             // Enable DLAB (set baud rate divisor)
             Self::outb(port + 3, 0x80);
+            early_write_string("[SERIAL] DLAB enabled\n");
 
             // Set divisor to 3 (38400 baud)
             Self::outb(port + 0, 0x03);
             Self::outb(port + 1, 0x00);
+            early_write_string("[SERIAL] Baud rate set\n");
 
             // 8 bits, no parity, one stop bit
             Self::outb(port + 3, 0x03);
+            early_write_string("[SERIAL] Line config set\n");
 
             // Enable FIFO, clear them, with 14-byte threshold
             Self::outb(port + 2, 0xC7);
+            early_write_string("[SERIAL] FIFO enabled\n");
 
             // IRQs enabled, RTS/DSR set
             Self::outb(port + 4, 0x0B);
+            early_write_string("[SERIAL] MCR set\n");
 
             // Enable interrupts
             Self::outb(port + 1, 0x01);
+            early_write_string("[SERIAL] Interrupts enabled, init complete\n");
         }
 
         Self { port }
@@ -163,3 +173,56 @@ pub fn try_receive() -> Option<u8> {
 pub fn try_receive() -> Option<u8> {
     None
 }
+
+/// Early raw serial output - bypasses all initialization
+/// This can be called before ANY Rust code runs to debug boot issues
+/// 
+/// # Safety
+/// This is only safe on x86_64 with a valid serial port at COM1
+#[cfg(target_arch = "x86_64")]
+pub unsafe fn early_write_byte(byte: u8) {
+    // Wait for transmit buffer to be empty (bit 5 of LSR)
+    loop {
+        let status: u8;
+        core::arch::asm!(
+            "in al, dx",
+            in("dx") COM1 + 5,  // Line Status Register
+            out("al") status,
+            options(nomem, nostack)
+        );
+        if (status & 0x20) != 0 {
+            break;
+        }
+    }
+    
+    // Write byte to data port
+    core::arch::asm!(
+        "out dx, al",
+        in("dx") COM1,
+        in("al") byte,
+        options(nomem, nostack)
+    );
+}
+
+/// Early raw serial output for aarch64 (stub)
+#[cfg(target_arch = "aarch64")]
+pub unsafe fn early_write_byte(_byte: u8) {}
+
+/// Write a string using early raw serial output
+/// 
+/// # Safety
+/// This bypasses all synchronization and initialization
+#[cfg(target_arch = "x86_64")]
+pub unsafe fn early_write_string(s: &str) {
+    for byte in s.bytes() {
+        early_write_byte(byte);
+        // Also send carriage return after newlines for proper display
+        if byte == b'\n' {
+            early_write_byte(b'\r');
+        }
+    }
+}
+
+/// Early write string stub for aarch64
+#[cfg(target_arch = "aarch64")]
+pub unsafe fn early_write_string(_s: &str) {}

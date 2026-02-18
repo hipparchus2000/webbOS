@@ -286,7 +286,6 @@ pub enum NetError {
     Unknown = 255,
 }
 
-/// Global network interfaces
 lazy_static! {
     static ref INTERFACES: Mutex<Vec<Box<dyn NetworkInterface>>> = Mutex::new(Vec::new());
     static ref DEFAULT_INTERFACE: Mutex<Option<usize>> = Mutex::new(None);
@@ -431,7 +430,6 @@ impl NetworkConfig {
     }
 }
 
-/// Global network configuration
 lazy_static! {
     static ref NET_CONFIG: Mutex<NetworkConfig> = Mutex::new(NetworkConfig::empty());
 }

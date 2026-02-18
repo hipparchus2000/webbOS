@@ -5,7 +5,7 @@
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
-use alloc::boxed::Box;
+
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -140,7 +140,6 @@ impl IconCache {
     }
 }
 
-/// Global icon cache (1MB max)
 lazy_static! {
     static ref ICON_CACHE: Mutex<IconCache> = Mutex::new(IconCache::new(1024 * 1024));
 }

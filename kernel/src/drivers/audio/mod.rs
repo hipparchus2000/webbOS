@@ -7,8 +7,7 @@ pub mod hda;
 
 use crate::println;
 use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::vec::Vec;
+
 use lazy_static::lazy_static;
 use spin::Mutex;
 
@@ -128,7 +127,6 @@ impl core::fmt::Display for AudioError {
     }
 }
 
-/// Global audio device instance
 lazy_static! {
     static ref AUDIO_DEVICE: Mutex<Option<Box<dyn AudioDevice>>> = Mutex::new(None);
 }

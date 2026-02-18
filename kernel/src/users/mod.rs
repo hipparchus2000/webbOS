@@ -326,7 +326,6 @@ pub enum UserError {
     NotAuthenticated,
 }
 
-/// Global user manager
 lazy_static! {
     static ref USER_MANAGER: Mutex<UserManager> = Mutex::new(UserManager::new());
 }

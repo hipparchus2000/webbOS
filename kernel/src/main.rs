@@ -13,7 +13,6 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(target_arch = "x86_64")]
 use core::arch::naked_asm;
@@ -49,9 +48,7 @@ mod hal;
 use arch::cpu;
 use arch::interrupts;
 
-// arch::gdt only exists on x86_64
-#[cfg(target_arch = "x86_64")]
-use arch::gdt;
+
 
 /// Test FAT32 root directory reading
 fn test_fat32_root() {
@@ -104,13 +101,68 @@ impl crate::storage::BlockDevice for BootDiskWrapper {
 /// in the RDI register per System V AMD64 ABI.
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
+    // VERY EARLY DEBUG: Raw serial output before anything else
+    // This bypasses ALL Rust abstractions to verify execution started
+    unsafe {
+        console::early_print("\n[BOOT] Kernel entry: very first instruction\n");
+        
+        // Print current instruction pointer to verify we're at right address
+        #[cfg(target_arch = "x86_64")]
+        {
+            // Use RIP-relative addressing to get current instruction pointer
+            let rip: u64;
+            core::arch::asm!(
+                "lea {0}, [rip]",  // RIP-relative LEA to get current address
+                out(reg) rip,
+                options(nomem, nostack)
+            );
+            
+            // Print RIP in hex (manual conversion since we can't use formatting yet)
+            console::early_print("[BOOT] RIP = 0x");
+            for i in (0..16).rev() {
+                let nibble = ((rip >> (i * 4)) & 0xF) as u8;
+                let hex_char = if nibble < 10 { b'0' + nibble } else { b'A' + (nibble - 10) };
+                console::serial::early_write_byte(hex_char);
+            }
+            console::early_print("\n");
+        }
+        
+        #[cfg(target_arch = "aarch64")]
+        {
+            console::early_print("[BOOT] Running on AArch64\n");
+        }
+        
+        // Verify boot info pointer is not null
+        let boot_info_ptr = boot_info as *const _ as u64;
+        console::early_print("[BOOT] BootInfo ptr = 0x");
+        for i in (0..16).rev() {
+            let nibble = ((boot_info_ptr >> (i * 4)) & 0xF) as u8;
+            let hex_char = if nibble < 10 { b'0' + nibble } else { b'A' + (nibble - 10) };
+            console::serial::early_write_byte(hex_char);
+        }
+        console::early_print("\n");
+    }
+    
     // Validate boot info
     if !boot_info.verify() {
+        unsafe {
+            console::early_print("[BOOT] ERROR: Invalid boot info magic!\n");
+        }
         panic!("Invalid boot info magic number!");
+    }
+    
+    unsafe {
+        console::early_print("[BOOT] Boot info verified OK\n");
     }
 
     // Initialize console for early output
+    unsafe {
+        console::early_print("[BOOT] About to call console::init()...\n");
+    }
     console::init();
+    unsafe {
+        console::early_print("[BOOT] console::init() returned OK\n");
+    }
     
     println!("╔══════════════════════════════════════════════════╗");
     println!("║                                                  ║");

@@ -273,7 +273,6 @@ impl PwaApp {
     }
 }
 
-/// Global PWA registry
 lazy_static! {
     static ref PWA_REGISTRY: Mutex<registry::PwaRegistry> = Mutex::new(registry::PwaRegistry::new());
 }

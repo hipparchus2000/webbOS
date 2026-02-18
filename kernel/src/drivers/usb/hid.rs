@@ -3,13 +3,12 @@
 //! Supports keyboards, mice, and other HID devices.
 
 use alloc::vec::Vec;
-use alloc::string::String;
-use alloc::format;
+
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::println;
 use crate::error::UsbError;
-use super::{UsbDriver, UsbDevice, UsbClass, EndpointDescriptor, TransferType};
+use super::{UsbDriver, UsbDevice, UsbClass};
 
 /// USB Key Event - sent from HID driver to input subsystem
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

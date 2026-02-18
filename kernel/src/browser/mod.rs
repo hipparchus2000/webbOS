@@ -5,7 +5,7 @@
 
 use alloc::string::{String, ToString};
 use alloc::format;
-use alloc::vec;
+
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
 use spin::Mutex;
@@ -20,7 +20,7 @@ pub mod render;
 
 use crate::println;
 use crate::net::{Ipv4Address, Port};
-use crate::net::tcp::{self, ConnectionId, TcpState};
+use crate::net::tcp::{self, ConnectionId};
 use crate::tls::TlsConnection;
 
 /// Browser configuration
@@ -787,7 +787,6 @@ pub enum BrowserError {
     Unknown = 255,
 }
 
-/// Global browser instance
 lazy_static! {
     static ref BROWSER: Mutex<Option<Browser>> = Mutex::new(None);
 }

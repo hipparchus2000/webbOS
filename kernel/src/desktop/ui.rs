@@ -14,7 +14,7 @@ use alloc::format;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use crate::drivers::vesa::{self, VesaDriver, colors};
+use crate::drivers::vesa::{self, VesaDriver};
 use crate::println;
 
 /// Rectangle for damage tracking and hit testing
@@ -568,7 +568,7 @@ impl DesktopUI {
         self.next_window_id += 1;
 
         // Calculate position (cascade from default)
-        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let offset = (self.windows.len() as i32 * 30) % 200;
         let x = BROWSER_DEFAULT_X + offset;
         let y = BROWSER_DEFAULT_Y + offset;
 
@@ -636,7 +636,7 @@ impl DesktopUI {
         self.next_window_id += 1;
 
         // Calculate position (cascade from default)
-        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let offset = (self.windows.len() as i32 * 30) % 200;
         let x = FILE_MANAGER_DEFAULT_X + offset;
         let y = FILE_MANAGER_DEFAULT_Y + offset;
 
@@ -694,7 +694,7 @@ impl DesktopUI {
         self.next_window_id += 1;
 
         // Calculate position (cascade from default)
-        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let offset = (self.windows.len() as i32 * 30) % 200;
         let x = APPSTORE_DEFAULT_X + offset;
         let y = APPSTORE_DEFAULT_Y + offset;
 
@@ -1277,7 +1277,7 @@ impl DesktopUI {
         self.next_window_id += 1;
 
         // Calculate position (cascade from default)
-        let offset = ((self.windows.len() as i32 * 30) % 200);
+        let offset = (self.windows.len() as i32 * 30) % 200;
         let x = ADMIN_DEFAULT_X + offset;
         let y = ADMIN_DEFAULT_Y + offset;
 
@@ -3710,7 +3710,6 @@ pub struct FileEntry {
     pub icon_char: char,
 }
 
-/// Global desktop UI instance
 lazy_static! {
     static ref DESKTOP_UI: Mutex<DesktopUI> = Mutex::new(DesktopUI::new());
 }

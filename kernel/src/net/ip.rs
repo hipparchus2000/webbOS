@@ -3,9 +3,8 @@
 //! Handles IPv4 packet processing and routing.
 
 use alloc::vec;
-use alloc::vec::Vec;
 use crate::net::{Ipv4Address, IpProtocol, arp};
-use crate::println;
+
 
 /// IPv4 header
 #[repr(C, packed)]

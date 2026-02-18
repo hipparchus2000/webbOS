@@ -6,16 +6,16 @@
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::format;
 use alloc::vec;
 use spin::Mutex;
 
 use crate::println;
 use crate::drivers::usb::mass_storage::{UsbMassStorage, UsbMassStorageBlockDevice, UsbMassStorageVfsBlockDevice};
-use crate::storage::{BlockDevice, StorageError, register_device as register_block_device};
+use crate::storage::{StorageError, register_device as register_block_device};
 use crate::fs::fat32::Fat32Filesystem;
-use crate::fs::vfs::{Vfs, VfsOperations};
+use crate::fs::vfs::{Vfs, VfsOperations, OpenFlags};
 
 /// Information about a registered USB storage device
 #[derive(Debug, Clone)]
@@ -329,7 +329,7 @@ fn truncate_str(s: &str, max_len: usize) -> &str {
 /// Convenience function to read a file from a USB device without
 /// needing to access the VFS directly.
 pub fn read_file(device_index: usize, path: &str) -> Result<Vec<u8>, StorageError> {
-    use crate::fs::vfs::OpenFlags;
+    
     
     let manager = &mut *USB_STORAGE_MANAGER.lock();
     
@@ -412,8 +412,7 @@ pub fn write_file(device_index: usize, path: &str, data: &[u8]) -> Result<(), St
 
 /// List directory contents on a mounted USB storage device
 pub fn list_dir(device_index: usize, path: &str) -> Result<Vec<DirEntry>, StorageError> {
-    use crate::fs::vfs::OpenFlags;
-    
+    let _ = path;
     let manager = &mut *USB_STORAGE_MANAGER.lock();
     
     let vfs = manager

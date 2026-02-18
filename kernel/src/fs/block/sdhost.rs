@@ -397,7 +397,7 @@ impl SdBlockDevice {
             let resp = self.send_command(41, acmd41_arg,
                 (CommandFlags::Response48 as u16) | (CommandFlags::CrcCheck as u16));
             
-            if let Ok(r) = resp {
+            if let Ok(_r) = resp {
                 ocr = self.read_reg(regs::RESPONSE_0);
                 if ocr & 0x80000000 != 0 {
                     // Card is ready

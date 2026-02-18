@@ -2,11 +2,12 @@
 //!
 //! Renders the layout tree to a framebuffer.
 
+
 use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::browser::BrowserError;
-use crate::browser::layout::{LayoutBox, LayoutTree, BoxType, Color, TextAlign, FontWeight};
+use crate::browser::layout::{LayoutBox, LayoutTree, BoxType};
 use crate::println;
 
 /// Framebuffer for rendering

@@ -2,7 +2,7 @@
 // Delegates to global_vfs when available
 
 use alloc::vec::Vec;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::format;
 use crate::println;
 use crate::fs::global_vfs;

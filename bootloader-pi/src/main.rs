@@ -27,8 +27,8 @@ const MAX_MEMORY_REGIONS: usize = 32;
 /// x0 = Device Tree Blob (DTB) physical address
 #[no_mangle]
 pub extern "C" fn bootloader_main(dtb_addr: usize) -> ! {
-    // Initialize UART for early output
-    uart_init();
+    // Initialize UART for early output (uses DTB to detect correct address)
+    uart_init(dtb_addr);
     
     uart_puts("\n╔═══════════════════════════════════════╗\n");
     uart_puts("║      WebbOS Pi Bootloader             ║\n");
@@ -795,14 +795,28 @@ impl DtbWalker {
 // UART Driver (PL011)
 // =============================================================================
 
-static mut UART_BASE: usize = 0xFE201000; // Pi 4 default
+/// UART base address - defaults to Pi 3 for QEMU raspi3b testing
+/// Will be updated from DTB during initialization if available
+/// - Pi 3: 0x3F201000
+/// - Pi 4: 0xFE201000  
+/// - Pi 5: 0x107D001000
+static mut UART_BASE: usize = 0x3F201000; // Pi 3 default for QEMU
 
 const UART_DR: usize = 0x00;
 const UART_FR: usize = 0x18;
 
-fn uart_init() {
-    // UART initialized by GPU firmware
-    // Update base if found in DTB
+/// Initialize UART - updates base address from DTB if available
+/// Falls back to Pi 3 default (0x3F201000) for QEMU raspi3b
+fn uart_init(dtb_addr: usize) {
+    // Try to get UART address from DTB
+    let dt = DeviceTree::new(dtb_addr);
+    
+    if dt.verify_magic() {
+        if let Some(uart_base) = dt.get_uart_base() {
+            unsafe { UART_BASE = uart_base as usize; }
+        }
+    }
+    // If DTB parsing fails, keep the default Pi 3 address
 }
 
 fn uart_putc(c: u8) {

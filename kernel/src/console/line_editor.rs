@@ -102,7 +102,6 @@ impl CommandHistory {
     }
 }
 
-/// Global command history
 lazy_static! {
     static ref HISTORY: Mutex<CommandHistory> = Mutex::new(CommandHistory::new());
 }
