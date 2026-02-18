@@ -112,6 +112,24 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
                 options(nomem, nostack)
             );
         }
+        
+        #[cfg(target_arch = "aarch64")]
+        {
+            // Write 'X' to UART (QEMU virt: 0x09000000)
+            // Use movz with shift to construct the address
+            core::arch::asm!(
+                "movz x2, 0x0900, lsl 16",  // x2 = 0x09000000
+                "mov w3, 0x58",  // 'X'
+                "str w3, [x2]",
+                options(nomem, nostack)
+            );
+        }
+    }
+    
+    // Halt for now on aarch64 until we debug further
+    #[cfg(target_arch = "aarch64")]
+    loop {
+        unsafe { core::arch::asm!("wfi", options(nomem, nostack)); }
     }
     
     // TODO: Set up page tables and transition to higher half
@@ -131,20 +149,23 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
                 options(nomem, nostack)
             );
         }
-    }
-    
-    // Halt for now - we'll add proper initialization later
-    unsafe {
-        #[cfg(target_arch = "x86_64")]
-        loop {
-            core::arch::asm!("hlt");
-        }
         
         #[cfg(target_arch = "aarch64")]
-        loop {
-            core::arch::asm!("wfe");
+        {
+            // Output "OK" to UART
+            core::arch::asm!(
+                "mov x0, 0x09000000",
+                "mov w1, 0x4F",  // 'O'
+                "str w1, [x0]",
+                "mov w1, 0x4B",  // 'K'
+                "str w1, [x0]",
+                options(nomem, nostack)
+            );
         }
     }
+    
+    // Continue with kernel initialization
+    // NOTE: We're still in physical mode, running from where bootloader jumped
     
     // Validate boot info
     if !boot_info.verify() {
@@ -1130,83 +1151,9 @@ fn process_command(cmd: &[u8]) {
     }
 }
 
-/// Kernel entry trampoline (x86_64 version)
-/// 
-/// This is the actual entry point from the bootloader.
-/// It works in PHYSICAL mode initially - no virtual memory!
+// Re-export architecture-specific entry points
 #[cfg(target_arch = "x86_64")]
-#[naked]
-#[no_mangle]
-#[repr(align(16))]
-pub unsafe extern "C" fn _start() -> ! {
-    naked_asm!(
-        // Save boot info pointer (in RDI from bootloader)
-        "mov r15, rdi",
-        
-        // Debug: Write "KERNEL" to serial port
-        "mov dx, 0x3F8",
-        "mov al, 0x4B",  // 'K'
-        "out dx, al",
-        "mov al, 0x45",  // 'E'
-        "out dx, al",
-        "mov al, 0x52",  // 'R'
-        "out dx, al",
-        "mov al, 0x4E",  // 'N'
-        "out dx, al",
-        "mov al, 0x45",  // 'E'
-        "out dx, al",
-        "mov al, 0x4C",  // 'L'
-        "out dx, al",
-        
-        // For now, set up a simple physical stack and call kernel_main
-        // Later we'll set up page tables and jump to higher half
-        "mov rsp, {stack_top}",  // Physical stack at 0x500000
-        "xor rbp, rbp",
-        
-        // Restore boot info pointer and call kernel entry
-        "mov rdi, r15",
-        "call {kernel_entry}",
-        
-        // Should never return
-        "cli",
-        "2:",
-        "hlt",
-        "jmp 2b",
-        
-        stack_top = const 0x500000u64,  // Physical stack top (5MB)
-        kernel_entry = sym kernel_entry,
-    );
-}
+pub use arch::_start;
 
-/// Kernel entry trampoline (AArch64 version)
-/// 
-/// This is the actual entry point from the bootloader for ARM64.
 #[cfg(target_arch = "aarch64")]
-#[naked]
-#[no_mangle]
-#[repr(align(16))]
-pub unsafe extern "C" fn _start() -> ! {
-    naked_asm!(
-        // Save boot info pointer (passed in x0 from bootloader)
-        "mov x19, x0",
-        
-        // Set up kernel stack
-        "ldr x1, ={stack_top}",
-        "mov sp, x1",
-        
-        // Clear frame pointer
-        "mov x29, xzr",
-        
-        // Restore boot info pointer and call kernel entry
-        "mov x0, x19",
-        "bl {kernel_entry}",
-        
-        // Should never return, but halt just in case
-        "2:",
-        "wfi",
-        "b 2b",
-        
-        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x500000u64, // Top of 2MB stack at 3MB
-        kernel_entry = sym kernel_entry,
-    );
-}
+pub use arch::_start;

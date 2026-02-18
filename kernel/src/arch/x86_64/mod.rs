@@ -3,9 +3,13 @@
 use crate::println;
 
 pub mod cpu;
+pub mod entry;
 pub mod interrupts;
 pub mod paging;
 pub mod gdt;
+
+// Re-export entry point for main.rs
+pub use entry::_start;
 
 /// Initialize x86_64 architecture
 pub fn init() {

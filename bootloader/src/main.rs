@@ -121,6 +121,7 @@ fn main() -> Status {
         (*boot_info_ptr).bootloader_name = PhysAddr::new(b"WebbOS Bootloader\0".as_ptr() as u64);
         (*boot_info_ptr).stack_top = stack_top;
         (*boot_info_ptr).stack_size = KERNEL_STACK_SIZE;
+        (*boot_info_ptr).page_table_addr = Some(_page_tables);
     }
 
     // Memory map will be converted and stored right before exit_boot_services

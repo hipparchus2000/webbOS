@@ -12,6 +12,16 @@ pub const BOOTINFO_MAGIC: u64 = 0x1BAD_B002_0B0B_0055;
 /// Boot protocol version
 pub const BOOTINFO_VERSION: u32 = 1;
 
+/// Offset of page_table_addr field in BootInfo structure
+/// Used by assembly code to locate page tables
+pub const BOOTINFO_PAGE_TABLE_OFFSET: usize = 
+    8 + 4 + 4 +  // magic + version + reserved
+    8 + 8 +  // memory_map_addr + memory_map_count  
+    8 + 8 + 8 +  // kernel_addr + kernel_size + kernel_virt_addr
+    40 +  // framebuffer (5 * 8 bytes)
+    16 + 16 + 8 + 8 + 8;  // rsdp_addr + cmdline + bootloader_name + stack_top + stack_size
+    // = 160
+
 /// Boot information structure passed from bootloader to kernel
 /// 
 /// # Safety
@@ -49,6 +59,8 @@ pub struct BootInfo {
     pub stack_top: VirtAddr,
     /// Stack size
     pub stack_size: u64,
+    /// Physical address of page table (P4/top-level)
+    pub page_table_addr: Option<PhysAddr>,
 }
 
 impl BootInfo {
