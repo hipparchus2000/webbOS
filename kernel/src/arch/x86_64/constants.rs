@@ -22,6 +22,9 @@ pub mod serial {
         pub const ONE: u8 = b'1';
         pub const TWO: u8 = b'2';
         pub const THREE: u8 = b'3';
+        pub const FOUR: u8 = b'4';
+        pub const FIVE: u8 = b'5';
+        pub const SIX: u8 = b'6';
         pub const EXCLAMATION: u8 = b'!';
     }
 }

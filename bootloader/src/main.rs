@@ -204,12 +204,7 @@ fn main() -> Status {
     let kernel_phys_entry = kernel_entry_virt - 0xFFFF800000000000u64;
     
     unsafe {
-        // Write to VGA text buffer at 0xB8000 (physical address)
-        // This bypasses serial port issues
-        let vga = 0xB8000 as *mut u8;
-        
         // Single asm block for everything after exit_boot_services
-        // Use explicit registers to ensure correct values
         let entry_addr: u64 = kernel_phys_entry;
         let boot_info_addr: u64 = boot_info_ptr as u64;
         core::arch::asm!(
@@ -225,7 +220,7 @@ fn main() -> Status {
             "mov al, 0x4A",  // 'J'
             "out dx, al",
             
-            // Jump to kernel
+            // Jump to kernel at PHYSICAL address (paging disabled)
             "mov rdi, r12",  // First argument in RDI (boot_info)
             "mov rax, r13",  // Entry address in RAX
             "jmp rax",       // Jump to kernel
