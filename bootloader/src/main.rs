@@ -136,36 +136,92 @@ fn main() -> Status {
     }
 
     println!("Boot info prepared");
-    println!("Exiting boot services and jumping to kernel...");
-
-    // NOTE: exit_boot_services hangs in this configuration.
-    // As a workaround, we skip it and jump directly to the kernel.
-    // This leaves UEFI boot services active, which is not ideal
-    // but allows us to test the kernel boot process.
-    println!("WARNING: Skipping exit_boot_services due to hang issue");
-    println!("Kernel will run with UEFI boot services still active");
-
-    // Jump to kernel using the entry point from ELF header
+    
+    // Get kernel entry point before exiting boot services
     let kernel_entry_virt = unsafe { KERNEL_ENTRY_POINT };
+    let boot_info_ptr = boot_info.as_ptr::<BootInfo>();
+    let page_tables = _page_tables;
     
-    println!("Jumping to kernel at {:#x}...", kernel_entry_virt);
+    // Debug: Print page table address before exiting boot services
+    println!("Page table address: {:x}", page_tables.as_u64());
+    println!("Kernel entry (virtual): {:x}", kernel_entry_virt);
     
-    println!("Switching page tables and jumping to kernel...");
+    println!("Exiting boot services...");
+    
+    // Exit boot services - this disables UEFI and returns the final memory map
+    // This is a critical transition point - after this, no UEFI services are available
+    let _memory_map = unsafe {
+        boot::exit_boot_services(MemoryType::BOOT_SERVICES_DATA)
+    };
+    
+    // NOTE: From this point on, UEFI services are NOT available!
+    // We must use raw hardware access only.
+    
+    // Small delay to ensure serial port is ready
+    for _ in 0..10000 {
+        unsafe { core::arch::asm!("nop"); }
+    }
+    
+    // Write debug character to serial port (raw access)
+    // This '>' character confirms that exit_boot_services succeeded
+    unsafe {
+        core::arch::asm!(
+            "mov dx, 0x3F8",   // COM1 data port
+            "mov al, 0x3E",    // '>'
+            "out dx, al",
+            options(nomem, nostack)
+        );
+    }
+    
+    // Another small delay
+    for _ in 0..10000 {
+        unsafe { core::arch::asm!("nop"); }
+    }
     
     unsafe {
-        // Disable interrupts during transition
+        // Disable interrupts
         core::arch::asm!("cli");
         
-        // Switch to the new page tables
+        // Write 'T' for page table switch
         core::arch::asm!(
-            "mov cr3, {0}",
-            in(reg) _page_tables.as_u64(),
+            "mov dx, 0x3F8",
+            "mov al, 0x54",  // 'T'
+            "out dx, al",
+            options(nomem, nostack)
         );
         
-        // Jump to kernel at virtual address
+        // Read current CR3 for comparison
+        let old_cr3: u64;
+        core::arch::asm!(
+            "mov {0}, cr3",
+            out(reg) old_cr3,
+        );
+        
+        // Switch page tables
+        core::arch::asm!(
+            "mov cr3, {0}",
+            in(reg) page_tables.as_u64(),
+        );
+        
+        // Read new CR3 to verify
+        let new_cr3: u64;
+        core::arch::asm!(
+            "mov {0}, cr3",
+            out(reg) new_cr3,
+        );
+        
+        // Write 'S' for switch complete + old and new CR3 low byte
+        core::arch::asm!(
+            "mov dx, 0x3F8",
+            "mov al, 0x53",  // 'S'
+            "out dx, al",
+            options(nomem, nostack)
+        );
+        
+        // Jump to kernel at VIRTUAL address
         let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
             core::mem::transmute(kernel_entry_virt as *const u8);
-        kernel_entry(boot_info.as_ptr::<BootInfo>());
+        kernel_entry(boot_info_ptr);
     }
 
     // Should never reach here

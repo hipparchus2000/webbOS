@@ -288,9 +288,9 @@ pub fn setup_kernel_paging(_kernel_size: usize) -> uefi::Result<PhysAddr, ()> {
             )?;
         }
         
-        // Also identity map the same 512MB region
-        // This ensures the bootloader can continue executing after page table switch
-        for i in 0..256u64 {
+        // Also identity map first 4GB using 2MB pages
+        // This should cover all possible bootloader locations
+        for i in 0..2048u64 { // 2048 * 2MB = 4GB
             let phys = i * 0x200000;
             manager.map_large_page(
                 phys,
