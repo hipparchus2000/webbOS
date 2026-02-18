@@ -123,17 +123,8 @@ fn main() -> Status {
         (*boot_info_ptr).stack_size = KERNEL_STACK_SIZE;
     }
 
-    // Convert memory map to kernel format
-    let kernel_memory_map = convert_memory_map(&memory_map);
-    let memory_map_addr = unsafe { 
-        copy_memory_map(&kernel_memory_map, boot_info.as_ptr::<BootInfo>().add(1) as *mut MemoryRegion)
-    };
-    
-    unsafe {
-        let boot_info_ptr = boot_info.as_mut_ptr::<BootInfo>();
-        (*boot_info_ptr).memory_map_addr = memory_map_addr;
-        (*boot_info_ptr).memory_map_count = kernel_memory_map.len();
-    }
+    // Memory map will be converted and stored right before exit_boot_services
+    // This ensures the memory map is fresh and the key matches
 
     println!("Boot info prepared");
     
@@ -146,13 +137,41 @@ fn main() -> Status {
     println!("Page table address: {:x}", page_tables.as_u64());
     println!("Kernel entry (virtual): {:x}", kernel_entry_virt);
     
+    // Calculate PHYSICAL entry point for debug
+    // Kernel is loaded at physical 0x100000, and virtual addresses map directly
+    // by subtracting the kernel base: phys = virt - 0xFFFF800000000000
+    let kernel_phys_entry_debug = kernel_entry_virt - 0xFFFF800000000000u64;
+    println!("Kernel entry (physical): {:x}", kernel_phys_entry_debug);
+    
     println!("Exiting boot services...");
+    
+    // IMPORTANT: Get a FRESH memory map right before exiting boot services
+    // Any allocations after getting the memory map will invalidate the map key
+    let memory_map = match uefi::boot::memory_map(MemoryType::LOADER_DATA) {
+        Ok(map) => map,
+        Err(e) => {
+            println!("ERROR: Failed to get final memory map: {:?}", e);
+            return Status::LOAD_ERROR;
+        }
+    };
+    
+    // Convert memory map to kernel format and store in boot info
+    let kernel_memory_map = convert_memory_map(&memory_map);
+    unsafe {
+        let boot_info_mut = boot_info_ptr as *mut BootInfo;
+        let map_dest = boot_info_ptr.add(1) as *mut MemoryRegion;
+        core::ptr::copy_nonoverlapping(
+            kernel_memory_map.as_ptr(),
+            map_dest,
+            kernel_memory_map.len()
+        );
+        (*boot_info_mut).memory_map_addr = PhysAddr::new(map_dest as u64);
+        (*boot_info_mut).memory_map_count = kernel_memory_map.len();
+    }
     
     // Exit boot services - this disables UEFI and returns the final memory map
     // This is a critical transition point - after this, no UEFI services are available
-    let _memory_map = unsafe {
-        boot::exit_boot_services(MemoryType::BOOT_SERVICES_DATA)
-    };
+    let _final_memory_map = unsafe { boot::exit_boot_services(MemoryType::BOOT_SERVICES_DATA) };
     
     // NOTE: From this point on, UEFI services are NOT available!
     // We must use raw hardware access only.
@@ -178,50 +197,41 @@ fn main() -> Status {
         unsafe { core::arch::asm!("nop"); }
     }
     
+    // Calculate PHYSICAL entry point
+    // Kernel virtual base is 0xFFFF800000000000, loaded at 0x100000 physical
+    // phys = virt - KERNEL_VIRT_BASE
+    let kernel_phys_entry = kernel_entry_virt - 0xFFFF800000000000u64;
+    
     unsafe {
-        // Disable interrupts
-        core::arch::asm!("cli");
+        // Write to VGA text buffer at 0xB8000 (physical address)
+        // This bypasses serial port issues
+        let vga = 0xB8000 as *mut u8;
         
-        // Write 'T' for page table switch
+        // Single asm block for everything after exit_boot_services
+        // Use explicit registers to ensure correct values
+        let entry_addr: u64 = kernel_phys_entry;
+        let boot_info_addr: u64 = boot_info_ptr as u64;
         core::arch::asm!(
+            // Write 'P' to serial port
             "mov dx, 0x3F8",
-            "mov al, 0x54",  // 'T'
+            "mov al, 0x50",  // 'P'
             "out dx, al",
-            options(nomem, nostack)
-        );
-        
-        // Read current CR3 for comparison
-        let old_cr3: u64;
-        core::arch::asm!(
-            "mov {0}, cr3",
-            out(reg) old_cr3,
-        );
-        
-        // Switch page tables
-        core::arch::asm!(
-            "mov cr3, {0}",
-            in(reg) page_tables.as_u64(),
-        );
-        
-        // Read new CR3 to verify
-        let new_cr3: u64;
-        core::arch::asm!(
-            "mov {0}, cr3",
-            out(reg) new_cr3,
-        );
-        
-        // Write 'S' for switch complete + old and new CR3 low byte
-        core::arch::asm!(
-            "mov dx, 0x3F8",
-            "mov al, 0x53",  // 'S'
+            
+            // Disable interrupts
+            "cli",
+            
+            // Write 'J' to serial (for jump)
+            "mov al, 0x4A",  // 'J'
             "out dx, al",
-            options(nomem, nostack)
+            
+            // Jump to kernel
+            "mov rdi, r12",  // First argument in RDI (boot_info)
+            "mov rax, r13",  // Entry address in RAX
+            "jmp rax",       // Jump to kernel
+            in("r12") boot_info_addr,
+            in("r13") entry_addr,
+            options(noreturn)
         );
-        
-        // Jump to kernel at VIRTUAL address
-        let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
-            core::mem::transmute(kernel_entry_virt as *const u8);
-        kernel_entry(boot_info_ptr);
     }
 
     // Should never reach here

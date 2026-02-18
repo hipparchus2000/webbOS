@@ -101,60 +101,49 @@ impl crate::storage::BlockDevice for BootDiskWrapper {
 /// in the RDI register per System V AMD64 ABI.
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
-    // VERY EARLY DEBUG: Raw serial output before anything else
-    // This uses raw inline assembly to write directly to COM1
-    // This bypasses ALL Rust abstractions to verify execution started
+    // VERY FIRST: Raw serial output - just write 'X' to indicate we got here
     unsafe {
-        // Direct assembly output - write 'K' to COM1 (x86_64 only)
-        #[cfg(target_arch = "x86_64")]
-        core::arch::asm!(
-            "mov dx, 0x3F8",   // COM1 data port
-            "mov al, 0x4B",    // 'K'
-            "out dx, al",
-            "mov al, 0x0D",    // CR
-            "out dx, al", 
-            "mov al, 0x0A",    // LF
-            "out dx, al",
-            options(nomem, nostack)
-        );
-        
-        console::early_print("[BOOT] Kernel entry: very first instruction\n");
-        
-        // Print current instruction pointer to verify we're at right address
         #[cfg(target_arch = "x86_64")]
         {
-            // Use RIP-relative addressing to get current instruction pointer
-            let rip: u64;
             core::arch::asm!(
-                "lea {0}, [rip]",  // RIP-relative LEA to get current address
-                out(reg) rip,
+                "mov dx, 0x3F8",
+                "mov al, 0x58",  // 'X' - we made it!
+                "out dx, al",
                 options(nomem, nostack)
             );
-            
-            // Print RIP in hex (manual conversion since we can't use formatting yet)
-            console::early_print("[BOOT] RIP = 0x");
-            for i in (0..16).rev() {
-                let nibble = ((rip >> (i * 4)) & 0xF) as u8;
-                let hex_char = if nibble < 10 { b'0' + nibble } else { b'A' + (nibble - 10) };
-                console::serial::early_write_byte(hex_char);
-            }
-            console::early_print("\n");
+        }
+    }
+    
+    // TODO: Set up page tables and transition to higher half
+    // For now, run in physical mode with limited functionality
+    
+    // Output more debug info
+    unsafe {
+        #[cfg(target_arch = "x86_64")]
+        {
+            // Output "OK" to show we're continuing
+            core::arch::asm!(
+                "mov dx, 0x3F8",
+                "mov al, 0x4F",  // 'O'
+                "out dx, al",
+                "mov al, 0x4B",  // 'K'
+                "out dx, al",
+                options(nomem, nostack)
+            );
+        }
+    }
+    
+    // Halt for now - we'll add proper initialization later
+    unsafe {
+        #[cfg(target_arch = "x86_64")]
+        loop {
+            core::arch::asm!("hlt");
         }
         
         #[cfg(target_arch = "aarch64")]
-        {
-            console::early_print("[BOOT] Running on AArch64\n");
+        loop {
+            core::arch::asm!("wfe");
         }
-        
-        // Verify boot info pointer is not null
-        let boot_info_ptr = boot_info as *const _ as u64;
-        console::early_print("[BOOT] BootInfo ptr = 0x");
-        for i in (0..16).rev() {
-            let nibble = ((boot_info_ptr >> (i * 4)) & 0xF) as u8;
-            let hex_char = if nibble < 10 { b'0' + nibble } else { b'A' + (nibble - 10) };
-            console::serial::early_write_byte(hex_char);
-        }
-        console::early_print("\n");
     }
     
     // Validate boot info
@@ -1144,7 +1133,7 @@ fn process_command(cmd: &[u8]) {
 /// Kernel entry trampoline (x86_64 version)
 /// 
 /// This is the actual entry point from the bootloader.
-/// It sets up the stack and calls kernel_entry.
+/// It works in PHYSICAL mode initially - no virtual memory!
 #[cfg(target_arch = "x86_64")]
 #[naked]
 #[no_mangle]
@@ -1152,29 +1141,39 @@ fn process_command(cmd: &[u8]) {
 pub unsafe extern "C" fn _start() -> ! {
     naked_asm!(
         // Save boot info pointer (in RDI from bootloader)
-        "mov r12, rdi",
+        "mov r15, rdi",
         
-        // Debug: Write 'K' to VGA buffer to show we got here
-        "mov byte ptr [0xFFFF8000000B8000], 0x4B",  // 'K'
-        "mov byte ptr [0xFFFF8000000B8001], 0x0F",  // White on black
+        // Debug: Write "KERNEL" to serial port
+        "mov dx, 0x3F8",
+        "mov al, 0x4B",  // 'K'
+        "out dx, al",
+        "mov al, 0x45",  // 'E'
+        "out dx, al",
+        "mov al, 0x52",  // 'R'
+        "out dx, al",
+        "mov al, 0x4E",  // 'N'
+        "out dx, al",
+        "mov al, 0x45",  // 'E'
+        "out dx, al",
+        "mov al, 0x4C",  // 'L'
+        "out dx, al",
         
-        // Set up kernel stack
-        "mov rsp, {stack_top}",
-        
-        // Clear frame pointer
+        // For now, set up a simple physical stack and call kernel_main
+        // Later we'll set up page tables and jump to higher half
+        "mov rsp, {stack_top}",  // Physical stack at 0x500000
         "xor rbp, rbp",
         
         // Restore boot info pointer and call kernel entry
-        "mov rdi, r12",
+        "mov rdi, r15",
         "call {kernel_entry}",
         
-        // Should never return, but halt just in case
-        "2:",
+        // Should never return
         "cli",
+        "2:",
         "hlt",
         "jmp 2b",
         
-        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x500000u64, // Top of 2MB stack at 3MB
+        stack_top = const 0x500000u64,  // Physical stack top (5MB)
         kernel_entry = sym kernel_entry,
     );
 }
