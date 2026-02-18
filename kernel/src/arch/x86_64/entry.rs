@@ -17,16 +17,43 @@ pub unsafe extern "C" fn _start() -> ! {
         // Save boot info pointer
         "mov r15, rdi",
         
-        // Debug: "KERN"
+        // IMMEDIATE: Output 'S' (start)
+        "mov dx, 0x3F8",
+        "mov al, 0x53",  // 'S'
+        "out dx, al",
+        
+        // Check if boot_info is null first
+        "test rdi, rdi",
+        "jnz 8f",
+        // boot_info is null - output '!'
         "mov dx, {com1_port}",
+        "mov al, {ascii_excl}", "out dx, al",
+        "jmp 99f",
+        
+        "8:",
+        // boot_info valid - output '0'
+        "mov dx, {com1_port}",
+        "mov al, {ascii_0}", "out dx, al",
+        
+        // Check page_table_addr discriminant
+        "mov rax, [r15 + {page_table_offset}]",
+        "test rax, rax",
+        "jnz 7f",
+        // None - output 'N'
+        "mov dx, {com1_port}",
+        "mov al, 0x4E", "out dx, al",
+        "jmp 99f",
+        
+        "7:",
+        // Some - output 'S'
+        "mov dx, {com1_port}",
+        "mov al, 0x53", "out dx, al",
+        
+        // Debug: "KERN"
         "mov al, {ascii_k}", "out dx, al",
         "mov al, {ascii_e}", "out dx, al",
         "mov al, {ascii_r}", "out dx, al",
         "mov al, {ascii_n}", "out dx, al",
-        
-        // Output '0' - about to get page table
-        "mov dx, {com1_port}",
-        "mov al, {ascii_0}", "out dx, al",
         
         // Get page table address from boot_info
         "mov r14, [r15 + {page_table_offset} + {option_physaddr_offset}]",
@@ -94,6 +121,7 @@ pub unsafe extern "C" fn _start() -> ! {
         ascii_e = const ascii::E,
         ascii_r = const ascii::R,
         ascii_n = const ascii::N,
+        ascii_excl = const ascii::EXCLAMATION,
         ascii_0 = const ascii::ZERO,
         ascii_1 = const ascii::ONE,
         ascii_2 = const ascii::TWO,
