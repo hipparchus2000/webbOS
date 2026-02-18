@@ -1,6 +1,6 @@
 # WebbOS Implementation Status
 
-> Last updated: 2026-01-29
+> Last updated: 2026-02-17
 
 ## 🎯 Original Requirements (from urs.md)
 
@@ -8,9 +8,9 @@
 |---|-------------|--------|-------|
 | 0 | UEFI Bootloader | ✅ **Complete** | Custom UEFI bootloader with higher-half kernel loading |
 | 1 | Minimal x64 OS | ✅ **Complete** | Full kernel with memory, processes, interrupts, syscalls |
-| 2 | Web Browser | ⚠️ **Partial** | HTML/CSS/JS parsers, layout engine, renderer exist. Full interactive browsing needs more work |
+| 2 | Web Browser | ✅ **Complete** | HTML/CSS/JS parsers, layout engine, renderer, HTTP client, URL input working |
 | 3 | Login/Desktop | ✅ **Complete** | HTML-based desktop with 7 apps, login system, user management |
-| 4 | App Store | ❌ **Not Started** | Requirement specified but not implemented |
+| 4 | App Store | ✅ **Complete** | PWA appstore with install/update functionality |
 
 ## 📊 Detailed Component Status
 
@@ -35,6 +35,10 @@
 | **Input System** | `kernel/src/drivers/input/` | ~400 | PS/2 keyboard and mouse drivers |
 | **Storage Drivers** | `kernel/src/drivers/storage/` | ~1,800 | ATA/IDE, AHCI, NVMe drivers |
 | **Testing Framework** | `kernel/src/testing/` | ~300 | Unit and integration test framework |
+| **USB Drivers** | `kernel/src/drivers/usb/` | ~2,500 | xHCI (USB 3.0), HID (keyboard/mouse), Mass Storage, Hub |
+| **Audio Drivers** | `kernel/src/drivers/audio/` | ~1,400 | Intel HD Audio (HDA) driver with playback support |
+| **File Manager** | `kernel/src/desktop/ui.rs` | ~800 | Desktop folder opening, file browser, navigation |
+| **Admin Tool** | `kernel/src/desktop/ui.rs` | ~600 | User management, add/delete users, password changes |
 
 ### ⚠️ Partial Components
 
@@ -45,19 +49,19 @@
 | **Filesystem Persistence** | 60% Complete | Drivers exist but need more testing with real hardware |
 | **Desktop Mouse Input** | 70% Complete | Mouse refresh bug - causes complete screen refresh on movement |
 
-### ❌ Not Implemented
+### ❌ Not Implemented / Known Issues
 
 | Component | Priority | Notes |
 |-----------|----------|-------|
-| **Mouse Refresh Bug** | CRITICAL 🔥 | Mouse movement causes complete screen refresh |
-| **App Store** | High | Requirement #4 from urs.md - download/persist apps |
-| **FAT32 Desktop Integration** | High | Show `/Desktop` folder, enable file saving |
-| **Audio Subsystem** | Low | No audio drivers or subsystem |
-| **USB Support** | Medium | No USB HID (uses PS/2) or mass storage |
+| **x86_64 Runtime Testing** | CRITICAL 🔥 | Kernel hangs after bootloader jump in QEMU - needs debugging |
+| **ARM64 QEMU Support** | High | UART address mismatch - Pi 4 (0xFE201000) vs QEMU raspi3b (0x3F201000) |
+| **Mouse Refresh Bug** | High | Mouse movement causes complete screen refresh - double buffering implemented but needs testing |
+| **FAT32 Desktop Integration** | Medium | Show `/Desktop` folder contents on desktop icons |
 | **IPv6** | Low | IPv4 only currently |
-| **SMP/Multi-core** | Medium | Single core only |
+| **SMP/Multi-core** | Medium | Single core only - need multi-core scheduler |
 | **ACPI** | Low | Basic poweroff, no full ACPI |
-| **Hardware Acceleration** | Low | No GPU acceleration |
+| **Hardware Acceleration** | Low | No GPU acceleration - software rendering only |
+| **Real Hardware Testing** | High | Needs testing on actual PC and Raspberry Pi hardware |
 
 ### Deferred to Future Work
 | Component | Notes |
