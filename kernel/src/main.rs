@@ -113,23 +113,6 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
             );
         }
         
-        #[cfg(target_arch = "aarch64")]
-        {
-            // Write 'X' to UART (QEMU virt: 0x09000000)
-            // Use movz with shift to construct the address
-            core::arch::asm!(
-                "movz x2, 0x0900, lsl 16",  // x2 = 0x09000000
-                "mov w3, 0x58",  // 'X'
-                "str w3, [x2]",
-                options(nomem, nostack)
-            );
-        }
-    }
-    
-    // Halt for now on aarch64 until we debug further
-    #[cfg(target_arch = "aarch64")]
-    loop {
-        unsafe { core::arch::asm!("wfi", options(nomem, nostack)); }
     }
     
     // TODO: Set up page tables and transition to higher half
@@ -150,18 +133,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
             );
         }
         
-        #[cfg(target_arch = "aarch64")]
-        {
-            // Output "OK" to UART
-            core::arch::asm!(
-                "mov x0, 0x09000000",
-                "mov w1, 0x4F",  // 'O'
-                "str w1, [x0]",
-                "mov w1, 0x4B",  // 'K'
-                "str w1, [x0]",
-                options(nomem, nostack)
-            );
-        }
+        // aarch64: skipped for now
     }
     
     // Continue with kernel initialization

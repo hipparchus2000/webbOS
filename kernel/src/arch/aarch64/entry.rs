@@ -11,8 +11,8 @@ pub unsafe extern "C" fn _start() -> ! {
         // Save boot info pointer
         "mov x19, x0",
         
-        // UART at 0x09000000
-        "mov x20, 0x09000000",
+        // UART at 0x09000000 - use movz with shift
+        "movz x20, 0x0900, lsl 16",  // x20 = 0x09000000
         
         // "AKERNEL"
         "mov w3, 0x41", "str w3, [x20]",  // A
@@ -23,11 +23,15 @@ pub unsafe extern "C" fn _start() -> ! {
         "mov w3, 0x45", "str w3, [x20]",  // E
         "mov w3, 0x4C", "str w3, [x20]",  // L
         
-        // Set up stack at 0x500000 (5MB)
-        "mov sp, 0x500000",
+        // Set up stack at 0x500000 (5MB) - load into temp register first
+        "movz x1, 0x50, lsl 16",  // x1 = 0x500000
+        "mov sp, x1",
         
         // "S" for stack setup
         "mov w3, 0x53", "str w3, [x20]",
+        
+        // "X" for calling kernel_entry
+        "mov w3, 0x58", "str w3, [x20]",
         
         // Call kernel_entry
         "mov x0, x19",
