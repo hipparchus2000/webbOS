@@ -138,19 +138,22 @@ fn main() -> Status {
     println!("Boot info prepared");
     println!("Exiting boot services and jumping to kernel...");
 
-    // Exit boot services
-    unsafe {
-        // We need to get the memory map again after exiting boot services
-        let _ = boot::exit_boot_services(MemoryType::LOADER_DATA);
-    }
+    // NOTE: exit_boot_services hangs in this configuration.
+    // As a workaround, we skip it and jump directly to the kernel.
+    // This leaves UEFI boot services active, which is not ideal
+    // but allows us to test the kernel boot process.
+    println!("WARNING: Skipping exit_boot_services due to hang issue");
+    println!("Kernel will run with UEFI boot services still active");
 
     // Jump to kernel using the entry point from ELF header
     let kernel_entry_virt = unsafe { KERNEL_ENTRY_POINT };
     
     println!("Jumping to kernel at {:#x}...", kernel_entry_virt);
     
+    println!("Switching page tables and jumping to kernel...");
+    
     unsafe {
-        // Disable interrupts during page table switch
+        // Disable interrupts during transition
         core::arch::asm!("cli");
         
         // Switch to the new page tables
@@ -160,9 +163,6 @@ fn main() -> Status {
         );
         
         // Jump to kernel at virtual address
-        // The kernel's _start function expects:
-        // - RDI = pointer to BootInfo
-        // - Stack at 0xFFFF_8000_0050_0000 (set up by kernel's _start)
         let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
             core::mem::transmute(kernel_entry_virt as *const u8);
         kernel_entry(boot_info.as_ptr::<BootInfo>());

@@ -102,9 +102,22 @@ impl crate::storage::BlockDevice for BootDiskWrapper {
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // VERY EARLY DEBUG: Raw serial output before anything else
+    // This uses raw inline assembly to write directly to COM1
     // This bypasses ALL Rust abstractions to verify execution started
     unsafe {
-        console::early_print("\n[BOOT] Kernel entry: very first instruction\n");
+        // Direct assembly output - write 'K' to COM1
+        core::arch::asm!(
+            "mov dx, 0x3F8",   // COM1 data port
+            "mov al, 0x4B",    // 'K'
+            "out dx, al",
+            "mov al, 0x0D",    // CR
+            "out dx, al", 
+            "mov al, 0x0A",    // LF
+            "out dx, al",
+            options(nomem, nostack)
+        );
+        
+        console::early_print("[BOOT] Kernel entry: very first instruction\n");
         
         // Print current instruction pointer to verify we're at right address
         #[cfg(target_arch = "x86_64")]
