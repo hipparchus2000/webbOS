@@ -102,38 +102,35 @@ impl crate::storage::BlockDevice for BootDiskWrapper {
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // VERY FIRST: Raw serial output - just write 'X' to indicate we got here
+    #[cfg(target_arch = "x86_64")]
     unsafe {
-        #[cfg(target_arch = "x86_64")]
-        {
-            core::arch::asm!(
-                "mov dx, 0x3F8",
-                "mov al, 0x58",  // 'X' - we made it!
-                "out dx, al",
-                options(nomem, nostack)
-            );
-        }
-        
+        use arch::constants::serial::{COM1_PORT, ascii};
+        core::arch::asm!(
+            "mov dx, {port}",
+            "mov al, {ascii_x}",
+            "out dx, al",
+            port = const COM1_PORT,
+            ascii_x = const ascii::X,
+            options(nomem, nostack)
+        );
     }
     
-    // TODO: Set up page tables and transition to higher half
-    // For now, run in physical mode with limited functionality
-    
     // Output more debug info
+    #[cfg(target_arch = "x86_64")]
     unsafe {
-        #[cfg(target_arch = "x86_64")]
-        {
-            // Output "OK" to show we're continuing
-            core::arch::asm!(
-                "mov dx, 0x3F8",
-                "mov al, 0x4F",  // 'O'
-                "out dx, al",
-                "mov al, 0x4B",  // 'K'
-                "out dx, al",
-                options(nomem, nostack)
-            );
-        }
-        
-        // aarch64: skipped for now
+        use arch::constants::serial::{COM1_PORT, ascii};
+        // Output "OK" to show we're continuing
+        core::arch::asm!(
+            "mov dx, {port}",
+            "mov al, {ascii_o}",
+            "out dx, al",
+            "mov al, {ascii_k}",
+            "out dx, al",
+            port = const COM1_PORT,
+            ascii_o = const ascii::O,
+            ascii_k = const ascii::K,
+            options(nomem, nostack)
+        );
     }
     
     // Continue with kernel initialization

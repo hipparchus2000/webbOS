@@ -2,6 +2,7 @@
 
 use crate::println;
 
+pub mod constants;
 pub mod cpu;
 pub mod entry;
 pub mod interrupts;
