@@ -105,7 +105,8 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // This uses raw inline assembly to write directly to COM1
     // This bypasses ALL Rust abstractions to verify execution started
     unsafe {
-        // Direct assembly output - write 'K' to COM1
+        // Direct assembly output - write 'K' to COM1 (x86_64 only)
+        #[cfg(target_arch = "x86_64")]
         core::arch::asm!(
             "mov dx, 0x3F8",   // COM1 data port
             "mov al, 0x4B",    // 'K'
