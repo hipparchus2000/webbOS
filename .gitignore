@@ -1,5 +1,5 @@
 # --- Rust / Cargo ---
-/target/
+**/target/
 **/*.rs.bk
 Cargo.lock
 
@@ -9,15 +9,15 @@ Cargo.lock
 *.iso
 *.img
 *.img.tmp
-/boot/isofiles/
-/isofiles/
-/target
+**/boot/isofiles/
+**/isofiles/
+**/target
 
 # --- Browser/Frontend Assets ---
-node_modules/
+**/node_modules/
 .env
-dist/
-build/
+**/dist/
+**/build/
 
 # --- IDEs & System ---
 .vscode/

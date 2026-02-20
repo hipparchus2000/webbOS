@@ -1,0 +1,13 @@
+[build]
+target = "aarch64-unknown-none"
+
+[target.aarch64-unknown-none]
+runner = "qemu-system-aarch64 -M raspi3b -serial stdio -kernel"
+linker = "rust-lld"
+rustflags = [
+    "-C", "target-feature=+strict-align",
+]
+
+[unstable]
+build-std = ["core", "compiler_builtins", "alloc"]
+build-std-features = ["compiler-builtins-mem"]

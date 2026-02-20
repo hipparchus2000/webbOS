@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Let the dice decide - What to eat, wear, or do">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Decide">
+    <link rel="manifest" href="./decision.manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%236366f1'/%3E%3Cstop offset='100%25' style='stop-color:%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Crect x='28' y='28' width='44' height='44' rx='6' fill='white' opacity='0.95'/%3E%3Ccircle cx='38' cy='38' r='3' fill='%230f172a'/%3E%3Ccircle cx='62' cy='62' r='3' fill='%230f172a'/%3E%3Ccircle cx='38' cy='62' r='3' fill='%230f172a'/%3E%3Ccircle cx='62' cy='38' r='3' fill='%230f172a'/%3E%3Ccircle cx='50' cy='50' r='3' fill='%230f172a'/%3E%3C/svg%3E">
+    <title>Decision Fatigue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #a855f7;
+            --accent-color: #ec4899;
+            --text-color: #f8fafc;
+            --bg-color: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --font-main: 'Outfit', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Background Animation */
+        .background-blobs {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 10s infinite ease-in-out alternate;
+        }
+
+        .blob-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary-color);
+            top: -100px;
+            left: -100px;
+        }
+
+        .blob-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--secondary-color);
+            bottom: -50px;
+            right: -50px;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            width: 250px;
+            height: 250px;
+            background: var(--accent-color);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-duration: 15s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(30px, 50px) scale(1.1);
+            }
+        }
+
+        /* Glass Container */
+        .glass-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #c084fc, #6366f1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        header p {
+            color: #cbd5e1;
+            margin-bottom: 2rem;
+        }
+
+        /* Category Selection */
+        .categories {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-main);
+            font-weight: 500;
+        }
+
+        .category-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .category-btn.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+
+        /* Dice Animation */
+        .dice-section {
+            perspective: 1000px;
+            margin: 2rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .dice-container {
+            width: 100px;
+            height: 100px;
+        }
+
+        .dice {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 1s ease-out;
+        }
+
+        .face {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #fff;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: var(--bg-color);
+            font-weight: bold;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .front {
+            transform: rotateY(0deg) translateZ(50px);
+        }
+
+        .back {
+            transform: rotateY(180deg) translateZ(50px);
+        }
+
+        .right {
+            transform: rotateY(90deg) translateZ(50px);
+        }
+
+        .left {
+            transform: rotateY(-90deg) translateZ(50px);
+        }
+
+        .top {
+            transform: rotateX(90deg) translateZ(50px);
+        }
+
+        .bottom {
+            transform: rotateX(-90deg) translateZ(50px);
+        }
+
+        .rolling {
+            animation: roll 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+        }
+
+        @keyframes roll {
+            0% {
+                transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+            }
+
+            25% {
+                transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg);
+            }
+
+            50% {
+                transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg);
+            }
+
+            75% {
+                transform: rotateX(540deg) rotateY(270deg) rotateZ(135deg);
+            }
+
+            100% {
+                transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg);
+            }
+        }
+
+        /* Roll Button */
+        .roll-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: var(--font-main);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .roll-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        .roll-btn:active {
+            transform: translateY(1px);
+        }
+
+        .roll-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Result Section */
+        .result-section {
+            min-height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #result-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease;
+        }
+
+        #result-text.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <main class="glass-container">
+        <header>
+            <h1>Decision Fatigue</h1>
+        </header>
+
+        <section class="category-selection">
+            <div class="categories">
+                <button class="category-btn active" data-category="food">
+                    <span class="icon">🍔</span>
+                    What to Eat
+                </button>
+                <button class="category-btn" data-category="wear">
+                    <span class="icon">👕</span>
+                    What to Wear
+                </button>
+                <button class="category-btn" data-category="activity">
+                    <span class="icon">🎨</span>
+                    What to Do
+                </button>
+            </div>
+        </section>
+
+        <section class="dice-section">
+            <div class="dice-container">
+                <div class="dice" id="dice">
+                    <div class="face front">1</div>
+                    <div class="face back">2</div>
+                    <div class="face right">3</div>
+                    <div class="face left">5</div>
+                    <div class="face top">6</div>
+                    <div class="face bottom">4</div>
+                </div>
+            </div>
+            <button id="roll-btn" class="roll-btn">Roll the Dice</button>
+        </section>
+
+        <section class="result-section">
+            <h3 id="result-text">Select a category and roll!</h3>
+        </section>
+    </main>
+
+    <script>
+        const categories = {
+            food: [
+                "Soup", "Salad", "Curry", "Meat, Potatoes & Veg",
+                "Indian", "Pizza", "Pasta", "Sushi", "Chinese",
+                "Burgers", "Tacos", "Stir Fry", "Sandwich"
+            ],
+            wear: [
+                "Casual Jeans & Tee", "Dressy Casual", "Sporty / Athleisure",
+                "Formal Wear", "Comfy Loungewear", "All Black",
+                "Bright Colors", "Layers", "Vintage Style"
+            ],
+            activity: [
+                "Go for a walk", "Paint / Draw", "Read a book",
+                "Listen to music", "Play an instrument", "Watch a movie",
+                "Clean / Organize", "Call a friend", "Meditate / Yoga",
+                "Cook something new", "Learn a new skill"
+            ]
+        };
+
+        let currentCategory = 'food';
+        const dice = document.getElementById('dice');
+        const rollBtn = document.getElementById('roll-btn');
+        const resultText = document.getElementById('result-text');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        // Category Selection
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all
+                categoryBtns.forEach(b => b.classList.remove('active'));
+                // Add active class to clicked
+                btn.classList.add('active');
+                // Update current category
+                currentCategory = btn.dataset.category;
+                // Reset result
+                resultText.classList.remove('show');
+                setTimeout(() => {
+                    resultText.textContent = "Ready to roll?";
+                    resultText.classList.add('show');
+                }, 300);
+            });
+        });
+
+        // Roll Logic
+        rollBtn.addEventListener('click', () => {
+            if (rollBtn.disabled) return;
+
+            // Disable button during roll
+            rollBtn.disabled = true;
+            resultText.classList.remove('show');
+
+            // Start animation
+            dice.classList.add('rolling');
+
+            // Play sound effect (optional, but nice)
+            // const audio = new Audio('roll-sound.mp3');
+            // audio.play().catch(e => console.log('Audio play failed', e));
+
+            // Determine result after 2 seconds
+            setTimeout(() => {
+                dice.classList.remove('rolling');
+
+                // Get random item
+                const items = categories[currentCategory];
+                const randomItem = items[Math.floor(Math.random() * items.length)];
+
+                // Random final rotation for visual flair (not accurate to dice faces, but looks cool)
+                const x = Math.floor(Math.random() * 4) * 90;
+                const y = Math.floor(Math.random() * 4) * 90;
+                dice.style.transform = `rotateX(${x}deg) rotateY(${y}deg)`;
+
+                // Show result
+                resultText.textContent = randomItem;
+                resultText.classList.add('show');
+
+                // Re-enable button
+                rollBtn.disabled = false;
+            }, 2000);
+        });
+
+        // Initial Fade In
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                resultText.classList.add('show');
+            }, 500);
+        });
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./decision-sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>

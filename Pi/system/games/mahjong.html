@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A classic Mahjong Solitaire game with turtle layout">
+    <meta name="theme-color" content="#7a8450">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mahjong">
+    <link rel="manifest" href="./mahjong.manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f5f5dc'/%3E%3Ctext x='50' y='70' font-size='50' text-anchor='middle'%3E🀄%3C/text%3E%3C/svg%3E">
+    <title>Mahjong Solitaire</title>
+    <style>
+        :root {
+            --tile-width: 50px;
+            --tile-height: 66px;
+            --tile-color: #f5f5dc;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: repeating-linear-gradient(45deg,
+                    #9b8b4f 0px,
+                    #9b8b4f 10px,
+                    #a09557 10px,
+                    #a09557 20px),
+                repeating-linear-gradient(-45deg,
+                    #a09557 0px,
+                    #a09557 10px,
+                    #9b8b4f 10px,
+                    #9b8b4f 20px);
+            background-blend-mode: multiply;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            user-select: none;
+            padding: 10px;
+        }
+
+        header {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        h1 span:nth-child(1) {
+            color: #c00;
+        }
+
+        h1 span:nth-child(2) {
+            color: #080;
+        }
+
+        h1 span:nth-child(3) {
+            color: #00c;
+        }
+
+        .controls {
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        @media (min-width: 768px) {
+            .controls {
+                top: 10px;
+                transform: none;
+            }
+        }
+
+        button {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: linear-gradient(to bottom, #fff 0%, #e6e6e6 100%);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: normal;
+            color: #333;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+            transition: all 0.15s ease;
+        }
+
+        button:hover {
+            background: linear-gradient(to bottom, #e6e6e6 0%, #d4d4d4 100%);
+            border-color: #adadad;
+        }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(to bottom, #d4d4d4 0%, #e6e6e6 100%);
+        }
+
+        .status-bar {
+            position: fixed;
+            right: 10px;
+            bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #fff;
+            z-index: 100;
+            align-items: flex-end;
+        }
+
+        @media (min-width: 768px) {
+            .status-bar {
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            user-select: none;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        #game-board {
+            position: relative;
+            background: linear-gradient(135deg, #7a8450 0%, #8a9460 50%, #7a8450 100%);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3),
+                0 10px 30px rgba(0, 0, 0, 0.5);
+            max-width: calc(100% - 120px);
+            overflow: auto;
+        }
+
+        @media (min-width: 768px) {
+            #game-board {
+                padding: 40px;
+            }
+        }
+
+        .board-container {
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .tile {
+            position: absolute;
+            width: var(--tile-width);
+            height: var(--tile-height);
+            background: linear-gradient(135deg,
+                    #fdfdf8 0%,
+                    #f8f8ed 20%,
+                    #e5e5d5 60%,
+                    #d0d0c0 100%);
+            border: none;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.4rem;
+            cursor: pointer;
+            box-shadow: inset 3px 3px 4px rgba(255, 255, 255, 0.95),
+                inset -3px -3px 4px rgba(0, 0, 0, 0.25),
+                5px 5px 10px rgba(0, 0, 0, 0.8),
+                3px 3px 0px rgba(0, 0, 0, 0.9);
+            transition: transform 0.1s;
+        }
+
+        .tile::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 4px solid;
+            border-color: #b0b0a0 #1a1a10 #1a1a10 #b0b0a0;
+            border-radius: 6px;
+            pointer-events: none;
+        }
+
+        .tile::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            border: 1px solid #2a2a20;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .tile.selected {
+            background: #ffd700;
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.7);
+        }
+
+        .tile.hint {
+            animation: pulse 1.5s infinite;
+            background: #ffeb3b;
+        }
+
+        body.show-blocked .tile.blocked {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .tile-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .tile-season-label {
+            font-family: Arial, sans-serif;
+            font-size: 0.5rem;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .tile-season-img,
+        .tile-flower-img {
+            font-size: 1.4rem;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        #message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #message-overlay.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .message-box {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            color: #2c3e50;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-box h2 {
+            margin-top: 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Suit Colors */
+        .suit-dots {
+            color: #2980b9;
+        }
+
+        .suit-bams {
+            color: #27ae60;
+        }
+
+        .suit-chars {
+            color: #c0392b;
+        }
+
+        .suit-winds {
+            color: #2c3e50;
+        }
+
+        .suit-dragons {
+            color: #e74c3c;
+        }
+
+        /* Red dragon */
+        .suit-dragons[data-value="Green"] {
+            color: #27ae60;
+        }
+
+        .suit-dragons[data-value="White"] {
+            color: #2980b9;
+        }
+
+        .suit-flowers {
+            color: #8e44ad;
+        }
+
+        .suit-seasons {
+            color: #d35400;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+    </header>
+
+    <div class="game-container">
+        <div class="controls">
+            <button id="btn-new-game">New</button>
+            <button id="btn-undo">Undo</button>
+            <button id="btn-hint">Hint</button>
+        </div>
+
+        <div id="game-board">
+            <div id="board-container" class="board-container">
+                <!-- Tiles will be injected here -->
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span id="score-display">Pairs: 0</span>
+            <span id="remaining-display">Tiles: 144</span>
+            <label class="checkbox-label">
+                <input type="checkbox" id="show-blocked-toggle">
+                <span>Grey blocked</span>
+            </label>
+        </div>
+    </div>
+
+    <div id="message-overlay">
+        <div class="message-box">
+            <h2 id="message-title">Game Over</h2>
+            <p id="message-text">No more moves!</p>
+            <button onclick="game.newGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class MahjongGame {
+            constructor() {
+                this.tiles = [];
+                this.selectedTile = null;
+                this.history = [];
+                this.tileTypes = this.generateTileDeck();
+                this.layout = this.generateTurtleLayout();
+
+                this.boardContainer = document.getElementById('board-container');
+                this.scoreDisplay = document.getElementById('score-display');
+                this.remainingDisplay = document.getElementById('remaining-display');
+                this.messageOverlay = document.getElementById('message-overlay');
+                this.messageTitle = document.getElementById('message-title');
+                this.messageText = document.getElementById('message-text');
+
+                // Bind buttons
+                document.getElementById('btn-new-game').addEventListener('click', () => this.newGame());
+                document.getElementById('btn-undo').addEventListener('click', () => this.undo());
+                document.getElementById('btn-hint').addEventListener('click', () => this.hint());
+
+                // Bind show-blocked toggle
+                document.getElementById('show-blocked-toggle').addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        document.body.classList.add('show-blocked');
+                    } else {
+                        document.body.classList.remove('show-blocked');
+                    }
+                });
+
+                this.newGame();
+            }
+
+            generateTileDeck() {
+                const deck = [];
+                // Simple suits: 1-9 (4 of each)
+                ['Dots', 'Bams', 'Chars'].forEach(suit => {
+                    for (let i = 1; i <= 9; i++) {
+                        for (let j = 0; j < 4; j++) deck.push({ type: suit, value: i });
+                    }
+                });
+                // Winds: East, South, West, North (4 of each)
+                ['East', 'South', 'West', 'North'].forEach(val => {
+                    for (let j = 0; j < 4; j++) deck.push({ type: 'Winds', value: val });
+                });
+                // Dragons: Red, Green, White (4 of each)
+                ['Red', 'Green', 'White'].forEach(val => {
+                    for (let j = 0; j < 4; j++) deck.push({ type: 'Dragons', value: val });
+                });
+                // Flowers: 1-4 (1 of each)
+                for (let i = 1; i <= 4; i++) deck.push({ type: 'Flowers', value: i });
+                // Seasons: 1-4 (1 of each)
+                for (let i = 1; i <= 4; i++) deck.push({ type: 'Seasons', value: i });
+
+                return deck;
+            }
+
+            getSymbol(tile) {
+                // Unicode mapping
+                // U+1F000 is Mahjong Tile East Wind
+                // Base offsets
+                const bases = {
+                    'Winds': 0x1F000, // East, South, West, North -> 0, 1, 2, 3
+                    'Dragons': 0x1F004, // Red, Green, White -> 0, 1, 2
+                    'Chars': 0x1F007, // 1-9 -> 0..8
+                    'Bams': 0x1F010, // 1-9 -> 0..8
+                    'Dots': 0x1F019, // 1-9 -> 0..8
+                    'Flowers': 0x1F022, // 1-4 -> 0..3
+                    'Seasons': 0x1F026 // 1-4 -> 0..3
+                };
+
+                let code = 0;
+                if (tile.type === 'Winds') {
+                    const map = { 'East': 0, 'South': 1, 'West': 2, 'North': 3 };
+                    code = bases['Winds'] + map[tile.value];
+                } else if (tile.type === 'Dragons') {
+                    const map = { 'Red': 0, 'Green': 1, 'White': 2 };
+                    code = bases['Dragons'] + map[tile.value];
+                } else if (tile.type === 'Chars' || tile.type === 'Bams' || tile.type === 'Dots') {
+                    code = bases[tile.type] + (tile.value - 1);
+                } else if (tile.type === 'Flowers' || tile.type === 'Seasons') {
+                    code = bases[tile.type] + (tile.value - 1);
+                }
+
+                return String.fromCodePoint(code);
+            }
+
+            renderTileContent(el, tile) {
+                const content = document.createElement('div');
+                content.className = 'tile-content';
+
+                if (tile.type === 'Seasons') {
+                    // Render season tiles with text label and icon
+                    const seasonNames = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
+                    const seasonIcons = ['🌸', '☀️', '🍂', '❄️'];
+                    const idx = tile.value - 1;
+
+                    const iconDiv = document.createElement('div');
+                    iconDiv.className = 'tile-season-img';
+                    iconDiv.textContent = seasonIcons[idx];
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'tile-season-label';
+                    labelDiv.textContent = seasonNames[idx];
+
+                    content.appendChild(iconDiv);
+                    content.appendChild(labelDiv);
+                } else if (tile.type === 'Flowers') {
+                    // Render flower tiles with text label and icon
+                    const flowerNames = ['PLUM', 'ORCHID', 'CHRYSAN', 'BAMBOO'];
+                    const flowerIcons = ['🌺', '🌼', '🌻', '🎋'];
+                    const idx = tile.value - 1;
+
+                    const iconDiv = document.createElement('div');
+                    iconDiv.className = 'tile-flower-img';
+                    iconDiv.textContent = flowerIcons[idx];
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'tile-season-label';
+                    labelDiv.textContent = flowerNames[idx];
+
+                    content.appendChild(iconDiv);
+                    content.appendChild(labelDiv);
+                } else {
+                    // Use unicode symbol for other tiles
+                    content.textContent = this.getSymbol(tile);
+                }
+
+                el.appendChild(content);
+            }
+
+            generateTurtleLayout() {
+                // Turtle layout coordinates (x, y, z)
+                // Grid units: 1 tile width = 2 units, 1 tile height = 2 units (to allow half steps)
+                // Standard tile is roughly 2x2 in this grid.
+                // x increases right, y increases down, z increases up.
+
+                const layout = [];
+
+                // Level 0 (Bottom) - 87 tiles
+                // Main block: 12 wide (from x=2 to x=24 step 2), 7 high (y=2 to y=14 step 2) -> 12*7 = 84? No.
+                // Let's define rows.
+                // Row 0: tiles at x=2,4,6...24?
+                // Standard Turtle:
+                // 14, 12, 10, 8, 10, 12, 14 pattern?
+                // Let's use a simplified explicit list for a "Pyramid" if Turtle is too hard to hardcode perfectly.
+                // But user asked for Mahjong, which implies Turtle.
+
+                // Let's try to build it layer by layer.
+                // Center is roughly x=14, y=8
+
+                // Layer 0
+                // Top and Bottom rows (2 tiles each): (x=6,8,20,22? No)
+                // Let's do a solid rectangle 12x8 minus corners.
+                // Rows:
+                // y=0: x=2,4,6,8,10,12,14,16,18,20,22,24 (12 tiles)
+                // ...
+
+                // Let's use a predefined map for Turtle.
+                // Format: [x, y, z] (x,y in half-tile units)
+
+                const addRect = (x1, x2, y1, y2, z) => {
+                    for (let y = y1; y <= y2; y += 2) {
+                        for (let x = x1; x <= x2; x += 2) {
+                            layout.push({ x, y, z });
+                        }
+                    }
+                };
+
+                // Layer 0 (87 tiles)
+                // Main body
+                addRect(2, 24, 2, 14, 0); // 12 * 7 = 84 tiles
+                // Add "ears" (left/right extensions)
+                // Left: x=-2, y=8 (center y)
+                layout.push({ x: -2, y: 7, z: 0 }); // Left ear 1
+                layout.push({ x: -2, y: 9, z: 0 }); // Left ear 2? No usually just one or two.
+                // Standard turtle has 2 tiles on far left, 2 on far right.
+                // Let's stick to the 144 count.
+                // Current: 84. Need 3 more for 87?
+                // Let's adjust:
+                // Top row (y=0): x=12, 14 (2 tiles)
+                // Bottom row (y=16): x=12, 14 (2 tiles)
+                // Left side (x=0): y=6, 8, 10 (3 tiles)
+                // Right side (x=26): y=6, 8, 10 (3 tiles)
+                // This is getting complicated.
+
+                // Alternative: Simple Pyramid Layout (easier to code, still 144)
+                // 8x10 base = 80
+                // 6x8 = 48 -> 128
+                // 4x6 = 24 -> 152 (too many)
+
+                // Let's try to replicate Turtle accurately enough.
+                // Layer 1 (0):
+                // Row 1: x=2..24 (12 tiles)
+                // Row 2: x=4..22 (10 tiles) -- wait, standard is rectangular with sticky out bits.
+
+                // Let's just define a nice 144 tile layout.
+                // Layer 0: 12x8 grid (96 tiles). Remove 4 corners (92). Remove 2 from center? (90).
+                // Let's do: 10x8 = 80.
+                // Layer 1: 6x6 = 36. (Total 116)
+                // Layer 2: 4x4 = 16. (Total 132)
+                // Layer 3: 2x2 = 4. (Total 136)
+                // Layer 4: 1 tile on top. (Total 137)
+                // Need 7 more.
+                // Add 2 on left, 2 on right (ears) -> 141.
+                // Add 3 more somewhere?
+
+                // Let's reset and do a clean 144 construction.
+                // Layer 0: 8x12 grid (x=0..22, y=0..14). 
+                // Let's do 6 rows of 12 = 72.
+                // Layer 1: 4 rows of 8 = 32. (104)
+                // Layer 2: 2 rows of 4 = 8. (112)
+                // This is too small.
+
+                // Let's use the standard Turtle counts: 87, 36, 16, 4, 1. Total 144.
+                // Layer 0 (87):
+                //   Rows 1-7 (y=0 to 12).
+                //   Row 1 (y=0): x=2,4,6,8,10,12,14,16,18,20,22,24 (12 tiles)
+                //   Row 2 (y=2): x=4..22 (10 tiles) -> No, standard is rectangular.
+                //   Let's do:
+                //   Row 0: x=2..24 (12)
+                //   Row 1: x=2..24 (12)
+                //   Row 2: x=2..24 (12)
+                //   Row 3: x=-2..28 (16) -- The long middle row with ears?
+                //   Row 4: x=2..24 (12)
+                //   Row 5: x=2..24 (12)
+                //   Row 6: x=2..24 (12)
+                //   Total: 12*6 + 16 = 88. Close enough to 87. Remove one?
+                //   Let's remove x=24 from Row 6. -> 87.
+
+                // Layer 1 (36):
+                //   6x6 square in center.
+                //   Center of layer 0 is approx x=13, y=6.
+                //   6x6 grid: x=8..18, y=2..12?
+                //   Let's do x=8,10,12,14,16,18 (6) and y=2,4,6,8,10,12 (6). Total 36.
+
+                // Layer 2 (16):
+                //   4x4 square.
+                //   x=10,12,14,16. y=4,6,8,10. Total 16.
+
+                // Layer 3 (4):
+                //   2x2 square.
+                //   x=12,14. y=6,8. Total 4.
+
+                // Layer 4 (1):
+                //   Center. x=13, y=7. (Half step to center it perfectly on 2x2)
+                //   Wait, my grid is steps of 2.
+                //   x=13 is valid (half overlap).
+
+                const l = [];
+                // Layer 0
+                const rowY = [0, 2, 4, 6, 8, 10, 12];
+                rowY.forEach((y, idx) => {
+                    if (idx === 3) { // Middle row (widest)
+                        for (let x = -2; x <= 28; x += 2) l.push({ x, y, z: 0 }); // 16 tiles
+                    } else {
+                        for (let x = 2; x <= 24; x += 2) l.push({ x, y, z: 0 }); // 12 tiles
+                    }
+                });
+                // That's 16 + 12*6 = 88. Remove last one to get 87? Or just keep 88.
+                // If I have 144 tiles total, I need exactly 144 positions.
+                // 88 + 36 + 16 + 4 + 1 = 145.
+                // Remove one from Layer 0. Let's remove x=24, y=12 (bottom right corner).
+                l.pop();
+
+                // Layer 1 (36)
+                for (let y = 2; y <= 12; y += 2) {
+                    for (let x = 8; x <= 18; x += 2) l.push({ x, y, z: 1 });
+                }
+
+                // Layer 2 (16)
+                for (let y = 4; y <= 10; y += 2) {
+                    for (let x = 10; x <= 16; x += 2) l.push({ x, y, z: 2 });
+                }
+
+                // Layer 3 (4)
+                for (let y = 6; y <= 8; y += 2) {
+                    for (let x = 12; x <= 14; x += 2) l.push({ x, y, z: 3 });
+                }
+
+                // Layer 4 (1)
+                l.push({ x: 13, y: 7, z: 4 });
+
+                return l;
+            }
+
+            shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+
+            newGame() {
+                this.history = [];
+                this.selectedTile = null;
+                this.messageOverlay.classList.remove('visible');
+                this.boardContainer.innerHTML = '';
+
+                // Shuffle deck
+                this.shuffle(this.tileTypes);
+
+                // Create tile objects
+                this.tiles = this.layout.map((pos, index) => {
+                    if (index >= this.tileTypes.length) return null; // Should not happen if counts match
+                    const type = this.tileTypes[index];
+                    return {
+                        id: index,
+                        ...pos,
+                        ...type,
+                        element: null,
+                        removed: false
+                    };
+                }).filter(t => t !== null);
+
+                // Render
+                this.renderBoard();
+                this.updateStatus();
+                this.checkForMoves();
+            }
+
+            renderBoard() {
+                // Find board bounds to center it
+                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                this.tiles.forEach(t => {
+                    minX = Math.min(minX, t.x);
+                    maxX = Math.max(maxX, t.x);
+                    minY = Math.min(minY, t.y);
+                    maxY = Math.max(maxY, t.y);
+                });
+
+                // Calculate size
+                const tileW = 42; // matches css
+                const tileH = 58;
+                const unitX = tileW / 2;
+                const unitY = tileH / 2;
+
+                const boardW = (maxX - minX + 2) * unitX;
+                const boardH = (maxY - minY + 2) * unitY;
+
+                this.boardContainer.style.width = `${boardW}px`;
+                this.boardContainer.style.height = `${boardH}px`;
+
+                this.tiles.forEach(tile => {
+                    const el = document.createElement('div');
+                    el.className = `tile suit-${tile.type.toLowerCase()}`;
+                    el.dataset.id = tile.id;
+                    el.dataset.value = tile.value;
+                    el.dataset.layer = tile.z;
+
+                    // Create tile content
+                    this.renderTileContent(el, tile);
+
+                    // Position
+                    // x,y are in half-tile units.
+                    // We need to offset by minX, minY to start at 0,0
+                    const left = (tile.x - minX) * unitX;
+                    const top = (tile.y - minY) * unitY;
+                    const zIndex = tile.z * 10 + tile.x + tile.y; // Simple z-index sort
+
+                    el.style.left = `${left}px`;
+                    el.style.top = `${top}px`;
+                    el.style.zIndex = zIndex;
+
+                    // 3D lift - Enhanced for clearer layer separation
+                    el.style.transform = `translateZ(${tile.z * 15}px) translateX(${-tile.z * 2}px) translateY(${-tile.z * 2}px)`;
+
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        this.handleTileClick(tile);
+                    };
+
+                    tile.element = el;
+                    this.boardContainer.appendChild(el);
+                });
+
+                this.updateBlockedStatus();
+            }
+
+            isBlocked(tile) {
+                if (tile.removed) return true;
+
+                let blockedByTop = false;
+                let blockedLeft = false;
+                let blockedRight = false;
+
+                for (const other of this.tiles) {
+                    if (other.removed || other.id === tile.id) continue;
+
+                    // Check Top: z is tile.z + 1
+                    // Overlap condition: abs(x - other.x) < 2 && abs(y - other.y) < 2
+                    if (other.z === tile.z + 1) {
+                        if (Math.abs(other.x - tile.x) < 2 && Math.abs(other.y - tile.y) < 2) {
+                            blockedByTop = true;
+                        }
+                    }
+
+                    // Check Sides: z is same
+                    // Left: other.x = tile.x - 2, abs(y overlap) < 2
+                    // Right: other.x = tile.x + 2, abs(y overlap) < 2
+                    if (other.z === tile.z) {
+                        if (Math.abs(other.y - tile.y) < 2) {
+                            if (other.x === tile.x - 2) blockedLeft = true;
+                            if (other.x === tile.x + 2) blockedRight = true;
+                        }
+                    }
+                }
+
+                return blockedByTop || (blockedLeft && blockedRight);
+            }
+
+            updateBlockedStatus() {
+                this.tiles.forEach(tile => {
+                    if (tile.removed) return;
+                    const blocked = this.isBlocked(tile);
+                    if (blocked) {
+                        tile.element.classList.add('blocked');
+                    } else {
+                        tile.element.classList.remove('blocked');
+                    }
+                });
+            }
+
+            handleTileClick(tile) {
+                if (tile.removed || this.isBlocked(tile)) return;
+
+                if (this.selectedTile === tile) {
+                    // Deselect
+                    this.selectedTile = null;
+                    tile.element.classList.remove('selected');
+                } else {
+                    if (this.selectedTile) {
+                        // Try match
+                        if (this.isMatch(this.selectedTile, tile)) {
+                            this.removeTiles(this.selectedTile, tile);
+                            this.selectedTile = null;
+                        } else {
+                            // Switch selection
+                            this.selectedTile.element.classList.remove('selected');
+                            this.selectedTile = tile;
+                            tile.element.classList.add('selected');
+                        }
+                    } else {
+                        // Select
+                        this.selectedTile = tile;
+                        tile.element.classList.add('selected');
+                    }
+                }
+            }
+
+            isMatch(t1, t2) {
+                if (t1.type !== t2.type) return false;
+
+                // Flowers and Seasons match any in their suit
+                if (t1.type === 'Flowers') return true;
+                if (t1.type === 'Seasons') return true;
+
+                // Others must match value
+                return t1.value === t2.value;
+            }
+
+            removeTiles(t1, t2) {
+                t1.removed = true;
+                t2.removed = true;
+                t1.element.style.display = 'none';
+                t2.element.style.display = 'none';
+                t1.element.classList.remove('selected');
+
+                this.history.push([t1, t2]);
+                this.updateBlockedStatus();
+                this.updateStatus();
+
+                // Clear hints
+                document.querySelectorAll('.hint').forEach(el => el.classList.remove('hint'));
+
+                this.checkForMoves();
+            }
+
+            undo() {
+                if (this.history.length === 0) return;
+
+                const pair = this.history.pop();
+                pair.forEach(t => {
+                    t.removed = false;
+                    t.element.style.display = 'flex';
+                });
+
+                this.selectedTile = null;
+                document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+
+                this.updateBlockedStatus();
+                this.updateStatus();
+                this.messageOverlay.classList.remove('visible');
+            }
+
+            hint() {
+                // Find a valid move
+                const freeTiles = this.tiles.filter(t => !t.removed && !this.isBlocked(t));
+
+                for (let i = 0; i < freeTiles.length; i++) {
+                    for (let j = i + 1; j < freeTiles.length; j++) {
+                        if (this.isMatch(freeTiles[i], freeTiles[j])) {
+                            // Highlight these two
+                            freeTiles[i].element.classList.add('hint');
+                            freeTiles[j].element.classList.add('hint');
+
+                            // Remove hint after 2s
+                            setTimeout(() => {
+                                freeTiles[i].element.classList.remove('hint');
+                                freeTiles[j].element.classList.remove('hint');
+                            }, 2000);
+                            return;
+                        }
+                    }
+                }
+                alert("No moves available! Try Undo or New Game.");
+            }
+
+            checkForMoves() {
+                const remaining = this.tiles.filter(t => !t.removed).length;
+                if (remaining === 0) {
+                    this.showWin();
+                    return;
+                }
+
+                const freeTiles = this.tiles.filter(t => !t.removed && !this.isBlocked(t));
+                let hasMove = false;
+
+                for (let i = 0; i < freeTiles.length; i++) {
+                    for (let j = i + 1; j < freeTiles.length; j++) {
+                        if (this.isMatch(freeTiles[i], freeTiles[j])) {
+                            hasMove = true;
+                            break;
+                        }
+                    }
+                    if (hasMove) break;
+                }
+
+                if (!hasMove) {
+                    this.messageTitle.textContent = "No More Moves";
+                    this.messageText.textContent = "There are no matching pairs available.";
+                    this.messageOverlay.classList.add('visible');
+                }
+            }
+
+            updateStatus() {
+                const remaining = this.tiles.filter(t => !t.removed).length;
+                this.remainingDisplay.textContent = `Tiles: ${remaining}`;
+                this.scoreDisplay.textContent = `Pairs: ${this.history.length}`;
+            }
+
+            showWin() {
+                this.messageTitle.textContent = "You Win!";
+                this.messageText.textContent = "Congratulations! You cleared the board.";
+                this.messageOverlay.classList.add('visible');
+            }
+        }
+
+        // Start game
+        const game = new MahjongGame();
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./mahjong-sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+    </script>
+</body>
+
+</html>

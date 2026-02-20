@@ -1,0 +1,117 @@
+# Raspberry Pi Boot Configuration for WebbOS
+# This file is read by the GPU firmware at boot time
+# Documentation: https://www.raspberrypi.com/documentation/computers/config_txt.html
+
+# ============================================================================
+# Architecture Configuration
+# ============================================================================
+
+# Enable 64-bit ARM mode (required for kernel8.img)
+# When enabled, the bootloader loads kernel8.img and enters EL2 (Hypervisor mode)
+arm_64bit=1
+
+# Load our 64-bit kernel
+kernel=kernel8.img
+
+# Disable automatic command line generation - we'll parse device tree instead
+disable_commandline_tags=1
+
+# ============================================================================
+# Memory Configuration
+# ============================================================================
+
+# GPU memory split
+# Minimum for headless operation, increase if using graphics
+# Pi 4/400: Can go as low as 16MB
+# Pi 3: Minimum 64MB recommended for some operations
+gpu_mem=16
+
+# ============================================================================
+# UART Configuration (for debugging)
+# ============================================================================
+
+# Enable UART for serial console
+enable_uart=1
+
+# Enable UART output during bootloader stage (very early boot messages)
+uart_2ndstage=1
+
+# Set UART baud rate (default is 115200)
+core_freq=250  # Required for stable UART on some Pi models
+
+# ============================================================================
+# Device Tree Configuration
+# ============================================================================
+
+# Specify device tree blob to load
+# Leave commented to use the default for your board:
+# - Pi 3: bcm2710-rpi-3-b-plus.dtb
+# - Pi 4: bcm2711-rpi-4-b.dtb
+# device_tree=bcm2710-rpi-3-b-plus.dtb
+
+# Load device tree overlays
+# Example overlays that may be useful:
+# dtoverlay=disable-bt      # Disable Bluetooth (frees UART0)
+# dtoverlay=disable-wifi    # Disable WiFi
+# dtoverlay=uart0           # Enable UART0
+# dtoverlay=uart1           # Enable UART1
+
+# ============================================================================
+# Boot Options
+# ============================================================================
+
+# Boot delay in seconds (useful for attaching serial console)
+boot_delay=1
+
+# Disable rainbow splash screen
+disable_splash=1
+
+# Disable Bluetooth (if not needed, frees up UART)
+# dtoverlay=disable-bt
+
+# Disable WiFi (if not needed)
+# dtoverlay=disable-wifi
+
+# ============================================================================
+# Performance Options (uncomment carefully)
+# ============================================================================
+
+# Overclock settings - only enable if you know what you're doing
+# arm_freq=1500
+# over_voltage=2
+
+# Force turbo mode (disables CPU throttling)
+# force_turbo=1
+
+# ============================================================================
+# HDMI Configuration (for graphics output)
+# ============================================================================
+
+# HDMI mode
+# hdmi_drive=2          # Normal DVI mode (no sound)
+# hdmi_group=2          # DMT (computer monitor) modes
+# hdmi_mode=82          # 1920x1080 @ 60Hz
+
+# Force HDMI hotplug detection
+# hdmi_force_hotplug=1
+
+# Disable HDMI output entirely (for headless operation)
+# hdmi_ignore_hotplug=1
+# hdmi_ignore_edid=0xa5000080
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+
+# Enable JTAG GPIO (for debugging with JTAG probe)
+# enable_jtag_gpio=1
+
+# Recovery mode - uncomment if you need to recover
+# recovery_mode=1
+
+# Run in safe mode
+# avoid_safe_mode=1
+
+# ============================================================================
+# End of Configuration
+# ============================================================================

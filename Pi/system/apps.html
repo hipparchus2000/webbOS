@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Apps & Games</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 48px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .section {
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            color: white;
+            font-size: 32px;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+            padding-bottom: 10px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .app-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .app-icon {
+            font-size: 64px;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .app-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            word-wrap: break-word;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 36px;
+            }
+
+            .section-title {
+                font-size: 24px;
+            }
+
+            .grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+            }
+
+            .app-card {
+                padding: 20px;
+            }
+
+            .app-icon {
+                font-size: 48px;
+                width: 60px;
+                height: 60px;
+            }
+
+            .app-name {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apps & Games</h1>
+
+        <div class="section">
+            <h2 class="section-title">GAMES</h2>
+            <div class="grid">
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/backgammon.html" class="app-card">
+                    <div class="app-icon">🎲</div>
+                    <div class="app-name">Backgammon</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/chicken-darts.html" class="app-card">
+                    <div class="app-icon">🐔</div>
+                    <div class="app-name">Chicken Darts</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/decision.html" class="app-card">
+                    <div class="app-icon">🤔</div>
+                    <div class="app-name">Decision Fatigue</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/mahjong.html" class="app-card">
+                    <div class="app-icon">🀄</div>
+                    <div class="app-name">Mahjong</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/solitaire.html" class="app-card">
+                    <div class="app-icon">🃏</div>
+                    <div class="app-name">Solitaire</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/invaders.html" class="app-card">
+                    <div class="app-icon">👾</div>
+                    <div class="app-name">Space Invaders</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/platform.html" class="app-card">
+                    <div class="app-icon">🕹️</div>
+                    <div class="app-name">Platform</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/games/swans.html" class="app-card">
+                    <div class="app-icon">🦢</div>
+                    <div class="app-name">Swans</div>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">APPS</h2>
+            <div class="grid">
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/apps/judge.html" class="app-card">
+                    <div class="app-icon">⚖️</div>
+                    <div class="app-name">Judge</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/apps/sheet.html" class="app-card">
+                    <div class="app-icon">📊</div>
+                    <div class="app-name">SpreadSheet</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/apps/richtext-editor.html" class="app-card">
+                    <div class="app-icon">📝</div>
+                    <div class="app-name">RichText Editor</div>
+                </a>
+
+                <a href="https://raw.githack.com/hipparchus2000/apps/main/apps/calc.html" class="app-card">
+                    <div class="app-icon">🔢</div>
+                    <div class="app-name">Calculator</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
