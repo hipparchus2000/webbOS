@@ -204,7 +204,9 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
         println!("[fb] Using framebuffer at: {:016X}", fb_info.addr.as_u64());
         println!("[fb] Resolution: {}x{} @ {}bpp", fb_info.width, fb_info.height, fb_info.bpp);
     } else {
-        println!("[fb] No valid framebuffer from bootloader");
+        println!("[fb] No valid framebuffer from bootloader, allocating via mailbox...");
+        // Initialize Pi framebuffer via mailbox
+        drivers::display::pi_framebuffer::init(1024, 768, 32);
     }
 
     // Initialize user management
