@@ -205,6 +205,16 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
    - Double-click HTML files to launch in browser
    - New `add-all-apps.py` script to batch-add apps to image
 
+3. **Browser DOM API Foundation** 🚧 IN PROGRESS (2026-02-22)
+   - Phase 1 Core Components:
+     - DOM API module (`dom_api.rs`): Element registry, getElementById, querySelector, innerHTML, attributes
+     - Event system (`event.rs`): Click, mouse, keyboard events with Event object
+     - Window/Document objects (`window.rs`): Global scope, location, basic methods
+   - Filesystem integration: `read_file()`, `read_dir()` in VFS
+   - SD card block reading: CMD17/CMD18 support in SDHCI controller
+   - Next: Connect DOM bindings to JavaScript engine for interactive apps
+   - See `BROWSER_IMPLEMENTATION.md` for full roadmap
+
 3. **Performance Optimizations** ✅ ADDED (2026-02-22)
    - Dirty rectangle tracking for desktop rendering
    - Only redraws changed regions instead of full screen clear
@@ -307,4 +317,4 @@ From original specification (urs.md):
 
 ---
 
-**Last Updated:** 2026-02-22
+**Last Updated:** 2026-02-22 (DOM API & Event System added)
