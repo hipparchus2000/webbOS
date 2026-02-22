@@ -12,7 +12,7 @@ use crate::browser::js::Value;
 use crate::println;
 
 /// Event type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventType {
     Click,
     DblClick,
@@ -46,6 +46,24 @@ impl EventType {
             "blur" => Some(Self::Blur),
             "load" => Some(Self::Load),
             _ => None,
+        }
+    }
+    
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Click => "click",
+            Self::DblClick => "dblclick",
+            Self::MouseDown => "mousedown",
+            Self::MouseUp => "mouseup",
+            Self::MouseMove => "mousemove",
+            Self::KeyDown => "keydown",
+            Self::KeyUp => "keyup",
+            Self::Submit => "submit",
+            Self::Change => "change",
+            Self::Input => "input",
+            Self::Focus => "focus",
+            Self::Blur => "blur",
+            Self::Load => "load",
         }
     }
 }
@@ -94,6 +112,19 @@ impl Event {
         obj.set("key", Value::String(self.key.clone()));
         Value::Object(obj)
     }
+}
+
+/// Handle window load event
+pub fn handle_window_load() {
+    println!("[event] Window load event");
+    // TODO: Dispatch load event to window event listeners
+}
+
+/// Handle element click
+pub fn handle_element_click(element_id: ElementId, x: i32, y: i32) {
+    let event = Event::mouse(EventType::Click, element_id, x, y);
+    println!("[event] Click on element {} at ({}, {})", element_id, x, y);
+    // TODO: Dispatch to JS event handlers
 }
 
 /// Initialize event system

@@ -18,6 +18,7 @@ pub mod render;
 pub mod dom_api;
 pub mod event;
 pub mod window;
+pub mod js_bindings;
 
 use crate::println;
 
@@ -181,9 +182,19 @@ impl Browser {
     /// Execute JavaScript in document
     fn execute_scripts(&mut self) -> Result<(), BrowserError> {
         if let Some(ref doc) = self.document {
+            // Get document pointer for DOM bindings
+            let doc_ptr = doc as *const _ as usize;
+            
+            // Initialize DOM bindings with this document
+            js_bindings::init_js_environment(doc_ptr);
+            
+            // Execute each script
             for script in &doc.scripts {
                 js::execute(&script.content)?;
             }
+            
+            // Dispatch load event
+            event::handle_window_load();
         }
         Ok(())
     }
@@ -341,6 +352,8 @@ pub fn init() {
     event::init();
     println!("[browser] Init window...");
     window::init(1024, 768);
+    println!("[browser] Init JS bindings...");
+    js_bindings::init();
 
     println!("[browser] Browser engine initialized");
 }
