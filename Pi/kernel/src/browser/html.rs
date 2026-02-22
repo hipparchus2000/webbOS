@@ -29,6 +29,7 @@ impl Document {
 }
 
 /// HTML Element
+#[derive(Clone)]
 pub struct Element {
     /// Tag name
     pub tag: String,
@@ -74,6 +75,7 @@ impl Element {
 }
 
 /// DOM Node
+#[derive(Clone)]
 pub enum Node {
     Element(Element),
     Text(String),

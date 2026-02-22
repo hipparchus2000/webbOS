@@ -15,6 +15,9 @@ pub mod js;
 pub mod wasm;
 pub mod layout;
 pub mod render;
+pub mod dom_api;
+pub mod event;
+pub mod window;
 
 use crate::println;
 
@@ -332,6 +335,12 @@ pub fn init() {
     layout::init();
     println!("[browser] Init render...");
     render::init();
+    println!("[browser] Init DOM API...");
+    dom_api::init();
+    println!("[browser] Init events...");
+    event::init();
+    println!("[browser] Init window...");
+    window::init(1024, 768);
 
     println!("[browser] Browser engine initialized");
 }
