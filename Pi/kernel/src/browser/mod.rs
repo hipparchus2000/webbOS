@@ -149,9 +149,22 @@ impl Browser {
     }
 
     /// Fetch local file
-    fn fetch_file(&self, _url: &Url) -> Result<Vec<u8>, BrowserError> {
+    fn fetch_file(&self, url: &Url) -> Result<Vec<u8>, BrowserError> {
         // File protocol - read from filesystem
-        Ok(Vec::new()) // Placeholder
+        let path = &url.path;
+        
+        println!("[browser] Reading file: {}", path);
+        
+        match crate::fs::read_file(path) {
+            Ok(data) => {
+                println!("[browser] Read {} bytes from {}", data.len(), path);
+                Ok(data)
+            }
+            Err(e) => {
+                println!("[browser] Failed to read {}: {:?}", path, e);
+                Err(BrowserError::NetworkError)
+            }
+        }
     }
 
     /// Apply stylesheets to document

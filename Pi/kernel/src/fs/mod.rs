@@ -5,6 +5,7 @@
 use alloc::sync::Arc;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use alloc::vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use crate::println;
@@ -360,6 +361,76 @@ pub fn open(path: &str, _flags: OpenFlags) -> FsResult<FileHandle> {
             *next_fd += 1;
             
             return Ok(FileHandle { fd });
+        }
+    }
+
+    Err(FsError::NotFound)
+}
+
+/// Read entire file contents
+pub fn read_file(path: &str) -> FsResult<Vec<u8>> {
+    let mounts = MOUNTS.lock();
+    
+    // Find the filesystem that owns this path
+    for mount in mounts.iter() {
+        if path.starts_with(&mount.path) {
+            let rel_path = &path[mount.path.len()..];
+            println!("[vfs] Reading file {} from {}", rel_path, mount.fs.name());
+            
+            // Get root inode
+            let root = mount.fs.root();
+            
+            // Lookup the file
+            if let Ok(inode) = mount.fs.lookup(root, rel_path.trim_start_matches('/')) {
+                // Get metadata to find size
+                let metadata = mount.fs.read_metadata(inode)?;
+                let size = metadata.size as usize;
+                
+                // Read file contents
+                let mut buf = vec![0u8; size];
+                let bytes_read = mount.fs.read(inode, 0, &mut buf)?;
+                buf.truncate(bytes_read);
+                
+                println!("[vfs] Read {} bytes from {}", bytes_read, path);
+                return Ok(buf);
+            }
+        }
+    }
+
+    Err(FsError::NotFound)
+}
+
+/// List directory contents
+pub fn read_dir(path: &str) -> FsResult<Vec<(String, bool)>> {
+    let mounts = MOUNTS.lock();
+    
+    // Find the filesystem that owns this path
+    for mount in mounts.iter() {
+        if path.starts_with(&mount.path) {
+            let rel_path = &path[mount.path.len()..];
+            println!("[vfs] Reading directory {} from {}", rel_path, mount.fs.name());
+            
+            // Get root inode
+            let root = mount.fs.root();
+            
+            // Get target directory inode
+            let dir_inode = if rel_path.is_empty() || rel_path == "/" {
+                root
+            } else {
+                mount.fs.lookup(root, rel_path.trim_start_matches('/'))?
+            };
+            
+            // Read directory entries
+            let entries = mount.fs.read_dir(dir_inode)?;
+            
+            let mut result = Vec::new();
+            for (name, entry_inode) in entries {
+                let metadata = mount.fs.read_metadata(entry_inode)?;
+                result.push((name, metadata.file_type == FileType::Directory));
+            }
+            
+            println!("[vfs] Found {} entries in {}", result.len(), path);
+            return Ok(result);
         }
     }
 

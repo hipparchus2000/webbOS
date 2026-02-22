@@ -50,6 +50,66 @@ fn test_fat32_root() {
     println!("[fs] FAT32 filesystem ready for use");
 }
 
+/// Mount SD card FAT32 filesystem
+fn mount_sd_card_filesystem() {
+    use alloc::sync::Arc;
+    use crate::fs::fat32::Fat32Fs;
+    
+    println!("[fs] Attempting to mount SD card FAT32 filesystem...");
+    
+    // Create a simple wrapper that uses the SD card driver
+    // The SdCardBlockDevice uses the public sd_card::read_blocks API
+    match Fat32Fs::new(Box::new(SdCardBlockDevice::new())) {
+        Ok(fs) => {
+            let fs_arc = Arc::new(fs);
+            match crate::fs::mount("/", fs_arc) {
+                Ok(()) => println!("[fs] FAT32 filesystem mounted at /"),
+                Err(e) => println!("[fs] Failed to mount filesystem: {:?}", e),
+            }
+        }
+        Err(e) => println!("[fs] Failed to create FAT32 filesystem: {:?}", e),
+    }
+}
+
+/// Simple wrapper to access SD card as BlockDevice
+struct SdCardBlockDevice;
+
+impl SdCardBlockDevice {
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl crate::storage::BlockDevice for SdCardBlockDevice {
+    fn name(&self) -> &str {
+        "sd_card"
+    }
+    
+    fn block_size(&self) -> usize {
+        512
+    }
+    
+    fn block_count(&self) -> u64 {
+        // Return a reasonable size for the SD card
+        // 256MB = ~524288 blocks
+        524288
+    }
+    
+    fn read_blocks(&self, start: u64, count: usize, buf: &mut [u8]) -> Result<(), crate::storage::StorageError> {
+        // Use the SD card driver to read blocks
+        crate::storage::sd_card::read_blocks(start, count, buf)
+    }
+    
+    fn write_blocks(&self, _start: u64, _count: usize, _buf: &[u8]) -> Result<(), crate::storage::StorageError> {
+        // Read-only for now
+        Err(crate::storage::StorageError::WriteProtected)
+    }
+    
+    fn flush(&self) -> Result<(), crate::storage::StorageError> {
+        Ok(())
+    }
+}
+
 /// Wrapper to use Arc<BootDisk> as Box<dyn BlockDevice>
 struct BootDiskWrapper(alloc::sync::Arc<crate::storage::boot_disk::BootDisk>);
 
@@ -174,7 +234,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     
     // Mount FAT32 filesystem from SD card
     println!("\n[fs] Mounting SD card filesystem...");
-    // TODO: Mount actual SD card filesystem once driver is fully implemented
+    mount_sd_card_filesystem();
 
     // Initialize network stack
     println!("\n[net] Initializing network stack...");

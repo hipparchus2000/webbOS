@@ -621,6 +621,76 @@ impl SdhciController {
         }
         Ok(())
     }
+    
+    /// Set block length (CMD16)
+    pub fn set_blocklen(&self, blocklen: u32) -> Result<(), DriverError> {
+        unsafe {
+            self.send_command(
+                SD_CMD_SET_BLOCKLEN,
+                blocklen,
+                SDHCI_CMD_RESP_SHORT | SDHCI_CMD_CRC | SDHCI_CMD_INDEX
+            )
+        }
+    }
+    
+    /// Read single block (CMD17)
+    pub fn read_single_block(&self, block_addr: u32, buffer: &mut [u8]) -> Result<(), DriverError> {
+        unsafe {
+            // Set block size
+            self.write16(SDHCI_BLOCK_SIZE, 512);
+            self.write16(SDHCI_BLOCK_COUNT, 1);
+            
+            // Set DMA address
+            let phys_addr = crate::mm::virt_to_phys_u64(buffer.as_mut_ptr() as u64);
+            self.write32(SDHCI_DMA_ADDRESS, phys_addr as u32);
+            
+            // Set transfer mode - read, single block
+            let mode = SDHCI_TRNS_BLK_CNT_EN | SDHCI_TRNS_DMA | SDHCI_TRNS_READ;
+            self.write16(SDHCI_TRANSFER_MODE, mode);
+            
+            // Send CMD17 - READ_SINGLE_BLOCK
+            self.send_command(
+                SD_CMD_READ_SINGLE_BLOCK,
+                block_addr,
+                SDHCI_CMD_RESP_SHORT | SDHCI_CMD_CRC | SDHCI_CMD_INDEX | SDHCI_CMD_DATA
+            )?;
+            
+            // Wait for transfer complete
+            self.wait_for_int(SDHCI_INT_DATA_END | SDHCI_INT_DMA_END, 5000)?;
+            
+            Ok(())
+        }
+    }
+    
+    /// Read multiple blocks (CMD18)
+    pub fn read_multiple_blocks(&self, block_addr: u32, count: u16, buffer: &mut [u8]) -> Result<(), DriverError> {
+        unsafe {
+            // Set block size and count
+            self.write16(SDHCI_BLOCK_SIZE, 512);
+            self.write16(SDHCI_BLOCK_COUNT, count);
+            
+            // Set DMA address
+            let phys_addr = crate::mm::virt_to_phys_u64(buffer.as_mut_ptr() as u64);
+            self.write32(SDHCI_DMA_ADDRESS, phys_addr as u32);
+            
+            // Set transfer mode - read, multiple blocks
+            let mode = SDHCI_TRNS_BLK_CNT_EN | SDHCI_TRNS_DMA | SDHCI_TRNS_READ | SDHCI_TRNS_MULTI;
+            self.write16(SDHCI_TRANSFER_MODE, mode);
+            
+            // Send CMD18 - READ_MULTIPLE_BLOCK
+            // Note: CMD18 constant not defined, using value 18 directly
+            self.send_command(
+                18, // CMD18
+                block_addr,
+                SDHCI_CMD_RESP_SHORT | SDHCI_CMD_CRC | SDHCI_CMD_INDEX | SDHCI_CMD_DATA
+            )?;
+            
+            // Wait for transfer complete
+            self.wait_for_int(SDHCI_INT_DATA_END | SDHCI_INT_DMA_END, 5000)?;
+            
+            Ok(())
+        }
+    }
 }
 
 // SAFETY: SDHCI controller is thread-safe when properly synchronized

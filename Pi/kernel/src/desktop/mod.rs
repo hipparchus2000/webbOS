@@ -629,19 +629,48 @@ pub fn process_messages() {
 
 /// Handle file system list request
 fn handle_fs_list(path: &str) {
-    // Map the path to a directory listing
-    // For now, provide static listings for known app directories
-    let files = if path == "/Apps" || path == "/apps" {
+    println!("[desktop] handle_fs_list: {}", path);
+    
+    // Try to read from actual filesystem first
+    let files = match crate::fs::read_dir(path) {
+        Ok(entries) => {
+            entries.into_iter()
+                .map(|(name, is_dir)| FileInfo {
+                    name: name.clone(),
+                    path: format!("{}/{}", path, name),
+                    is_dir,
+                })
+                .collect()
+        }
+        Err(_) => {
+            // Fallback to static listings for known app directories
+            get_static_app_listing(path)
+        }
+    };
+    
+    println!("[desktop] FsListResponse: {} files", files.len());
+    
+    // Store the response for the frontend to pick up
+    // TODO: Implement proper message passing to frontend
+    unsafe {
+        PENDING_FS_RESPONSE = Some(FsListResponse { files });
+    }
+}
+
+/// Get static app listing for fallback
+fn get_static_app_listing(path: &str) -> Vec<FileInfo> {
+    if path == "/Apps" || path == "/apps" {
         vec![
             FileInfo { name: "Calculator".to_string(), path: "/Apps/calc.html".to_string(), is_dir: false },
             FileInfo { name: "Judge".to_string(), path: "/Apps/judge.html".to_string(), is_dir: false },
-            FileInfo { name: "Rich Text Editor".to_string(), path: "/Apps/richtext-editor.html".to_string(), is_dir: false },
+            FileInfo { name: "Rich Text Editor".to_string(), path: "/Apps/richtext.html".to_string(), is_dir: false },
             FileInfo { name: "Spreadsheet".to_string(), path: "/Apps/sheet.html".to_string(), is_dir: false },
+            FileInfo { name: "Games".to_string(), path: "/Apps/Games".to_string(), is_dir: true },
         ]
-    } else if path == "/Games" || path == "/games" || path == "/Apps/Games" {
+    } else if path == "/Apps/Games" || path == "/apps/games" {
         vec![
-            FileInfo { name: "Backgammon".to_string(), path: "/Apps/Games/backgammon.html".to_string(), is_dir: false },
-            FileInfo { name: "Chicken Darts".to_string(), path: "/Apps/Games/chicken-darts.html".to_string(), is_dir: false },
+            FileInfo { name: "Backgammon".to_string(), path: "/Apps/Games/backgamon.html".to_string(), is_dir: false },
+            FileInfo { name: "Chicken Darts".to_string(), path: "/Apps/Games/chickens.html".to_string(), is_dir: false },
             FileInfo { name: "Decision".to_string(), path: "/Apps/Games/decision.html".to_string(), is_dir: false },
             FileInfo { name: "Invaders".to_string(), path: "/Apps/Games/invaders.html".to_string(), is_dir: false },
             FileInfo { name: "Mahjong".to_string(), path: "/Apps/Games/mahjong.html".to_string(), is_dir: false },
@@ -650,13 +679,24 @@ fn handle_fs_list(path: &str) {
             FileInfo { name: "Swans".to_string(), path: "/Apps/Games/swans.html".to_string(), is_dir: false },
         ]
     } else {
-        // Default empty or basic directories
         vec![]
-    };
-    
-    // Send response back to frontend
-    // TODO: Implement actual message passing to frontend
-    println!("[desktop] FsListResponse: {} files", files.len());
+    }
+}
+
+/// File list response for frontend
+#[derive(Clone, Debug)]
+pub struct FsListResponse {
+    pub files: Vec<FileInfo>,
+}
+
+/// Pending filesystem response (for frontend to pick up)
+static mut PENDING_FS_RESPONSE: Option<FsListResponse> = None;
+
+/// Get pending filesystem response (called by frontend message handler)
+pub fn get_pending_fs_response() -> Option<FsListResponse> {
+    unsafe {
+        PENDING_FS_RESPONSE.take()
+    }
 }
 
 // HTML/CSS/JS for applications will be in separate files
