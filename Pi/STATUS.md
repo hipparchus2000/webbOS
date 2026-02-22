@@ -205,15 +205,18 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
    - Double-click HTML files to launch in browser
    - New `add-all-apps.py` script to batch-add apps to image
 
-3. **Browser DOM API Foundation** 🚧 IN PROGRESS (2026-02-22)
-   - Phase 1 Core Components:
-     - DOM API module (`dom_api.rs`): Element registry, getElementById, querySelector, innerHTML, attributes
-     - Event system (`event.rs`): Click, mouse, keyboard events with Event object
-     - Window/Document objects (`window.rs`): Global scope, location, basic methods
+3. **Browser DOM API & JS Bindings** ✅ COMPLETED (2026-02-22)
+   - DOM API module (`dom_api.rs`): Element registry, getElementById, querySelector, innerHTML, attributes
+   - Event system (`event.rs`): Click, mouse, keyboard events with Event object
+   - Window/Document objects (`window.rs`): Global scope, location, basic methods
+   - JavaScript DOM Bindings (`js_bindings.rs`): Complete DOM API exposed to JS
+     - document.getElementById, querySelector, createElement
+     - window.alert, setTimeout, console.log
+     - Element: getAttribute, setAttribute, addEventListener
    - Filesystem integration: `read_file()`, `read_dir()` in VFS
    - SD card block reading: CMD17/CMD18 support in SDHCI controller
-   - Next: Connect DOM bindings to JavaScript engine for interactive apps
-   - See `BROWSER_IMPLEMENTATION.md` for full roadmap
+   - HTML5 apps can now use standard DOM APIs for interactivity
+   - See `BROWSER_IMPLEMENTATION.md` for remaining features (timers, fetch, storage)
 
 3. **Performance Optimizations** ✅ ADDED (2026-02-22)
    - Dirty rectangle tracking for desktop rendering
