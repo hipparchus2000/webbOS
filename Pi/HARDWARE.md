@@ -27,6 +27,17 @@ Detailed hardware specifications and driver implementation status for the Raspbe
 
 ## Peripheral Base Addresses
 
+### Raspberry Pi 5 (BCM2712) - NOT SUPPORTED
+
+| Peripheral | Base Address | Status |
+|------------|--------------|--------|
+| Mailbox | 0x10000B880 (estimated) | ❌ Not implemented |
+| USB | Unknown | ❌ Not implemented |
+| SDIO | Unknown | ❌ Not implemented |
+| UART | Unknown | ❌ Not implemented |
+
+**Note:** The Pi 5 uses a completely different memory map and hardware architecture. See [docs/PI5_SUPPORT.md](docs/PI5_SUPPORT.md) for details.
+
 ### Raspberry Pi 3 (BCM2837)
 
 | Peripheral | Base Address | Driver | Status |
@@ -178,7 +189,7 @@ Broadcom SDIO WiFi driver.
 - **USB partially works** - May have issues
 
 ### Real Hardware Requirements
-- Raspberry Pi 3 or 4
+- Raspberry Pi 3 or 4 (**NOT Pi 5** - see [PI5_SUPPORT.md](docs/PI5_SUPPORT.md))
 - HDMI display
 - USB keyboard (required for login)
 - SD card (4GB minimum)

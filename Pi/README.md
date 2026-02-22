@@ -67,7 +67,7 @@ This creates:
    - Use Raspberry Pi Imager, Rufus, or BalenaEtcher
    - Or: `dd if=webbos-pi.img of=/dev/sdX bs=4M` (Linux)
 
-2. Insert SD card into Raspberry Pi 3 or 4
+2. Insert SD card into **Raspberry Pi 3 or 4** (Pi 5 not supported)
 
 3. Power on - WebbOS will boot to desktop
 
@@ -110,6 +110,25 @@ This creates:
 ```
 
 ## 🔧 Hardware Support
+
+### Supported Hardware
+
+| Model | Status | Notes |
+|-------|--------|-------|
+| **Raspberry Pi 3B** | ✅ Fully Supported | BCM2837, 1GB RAM |
+| **Raspberry Pi 3B+** | ✅ Fully Supported | BCM2837B0, 1GB RAM |
+| **Raspberry Pi 4B** | ✅ Fully Supported | BCM2711, 1-8GB RAM |
+| **Raspberry Pi 5** | ❌ Not Supported | BCM2712 - [See details](docs/PI5_SUPPORT.md) |
+
+### Why Not Pi 5?
+
+The Pi 5 uses the **BCM2712** SoC with different peripheral addresses and new hardware features. Supporting it requires:
+- New peripheral base addresses (0x100000000 range)
+- Updated interrupt controller (GICv3)
+- Modified USB and display drivers
+- Different boot sequence
+
+See [PI5_SUPPORT.md](docs/PI5_SUPPORT.md) for full details and contribution guide.
 
 ### ✅ Fully Implemented
 
