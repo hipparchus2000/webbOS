@@ -5,8 +5,9 @@
 pub mod ui;
 pub mod embedded_icons;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use alloc::vec;
 use alloc::format;
 use alloc::collections::BTreeMap;
 use spin::Mutex;
@@ -450,6 +451,54 @@ pub fn launch_app(name: &str) -> Option<WindowId> {
     DESKTOP_MANAGER.lock().launch_app_by_name(name)
 }
 
+/// Launch HTML file in browser
+pub fn launch_html(path: &str) {
+    println!("[desktop] Launching HTML file: {}", path);
+    let url = format!("file://{}", path);
+    ui::browser_navigate(&url);
+}
+
+/// Receive message from HTML frontend (called by browser integration layer)
+pub fn receive_message(msg_type: &str, data: &str) {
+    println!("[desktop] Received message from frontend: type={}, data={}", msg_type, data);
+    
+    match msg_type {
+        "browser_navigate" => {
+            post_message(DesktopMessage::BrowserNavigate { url: data.to_string() });
+        }
+        "launch_app" => {
+            // Parse JSON-like data: path=...,app_type=...
+            if let Some(path) = parse_message_value(data, "path") {
+                post_message(DesktopMessage::LaunchHtml { path });
+            }
+        }
+        "fs_list" => {
+            post_message(DesktopMessage::FsList { path: data.to_string() });
+        }
+        "launch" => {
+            post_message(DesktopMessage::LaunchApp { name: data.to_string() });
+        }
+        _ => {
+            println!("[desktop] Unknown message type: {}", msg_type);
+        }
+    }
+}
+
+/// Parse a simple key=value message format
+fn parse_message_value(data: &str, key: &str) -> Option<String> {
+    // Simple parser for "key1=value1,key2=value2" format
+    for pair in data.split(',') {
+        if let Some(eq_pos) = pair.find('=') {
+            let k = &pair[..eq_pos];
+            let v = &pair[eq_pos + 1..];
+            if k == key {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Close window
 pub fn close_window(window_id: WindowId) -> bool {
     DESKTOP_MANAGER.lock().close_window(window_id)
@@ -496,6 +545,118 @@ pub fn print_info() {
     } else {
         println!("  Current user: none (login screen)");
     }
+}
+
+/// Desktop message types for communication between HTML frontend and backend
+#[derive(Debug, Clone)]
+pub enum DesktopMessage {
+    /// Browser navigation request
+    BrowserNavigate { url: String },
+    /// Open file manager
+    OpenFileManager { path: String },
+    /// Launch application
+    LaunchApp { name: String },
+    /// Launch HTML file in browser
+    LaunchHtml { path: String },
+    /// File system list request
+    FsList { path: String },
+    /// File system list response
+    FsListResponse { files: Vec<FileInfo> },
+    /// File system read request
+    FsRead { path: String },
+    /// File system write request
+    FsWrite { path: String, content: String },
+}
+
+/// File info for file manager
+#[derive(Clone, Debug)]
+pub struct FileInfo {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+/// Message queue for HTML frontend to backend communication
+static mut MESSAGE_QUEUE: Vec<DesktopMessage> = Vec::new();
+
+/// Post a message from HTML frontend to backend
+pub fn post_message(msg: DesktopMessage) {
+    unsafe {
+        MESSAGE_QUEUE.push(msg);
+    }
+}
+
+/// Process all pending messages
+pub fn process_messages() {
+    unsafe {
+        for msg in MESSAGE_QUEUE.drain(..) {
+            match msg {
+                DesktopMessage::BrowserNavigate { url } => {
+                    ui::browser_navigate(&url);
+                }
+                DesktopMessage::OpenFileManager { path } => {
+                    ui::open_file_manager(&path);
+                }
+                DesktopMessage::LaunchApp { name } => {
+                    launch_app(&name);
+                }
+                DesktopMessage::LaunchHtml { path } => {
+                    println!("[desktop] LaunchHtml requested for: {}", path);
+                    // Open HTML file in browser
+                    let file_url = format!("file://{}", path);
+                    ui::browser_navigate(&file_url);
+                }
+                DesktopMessage::FsList { path } => {
+                    println!("[desktop] FsList requested for: {}", path);
+                    // List files in the directory
+                    handle_fs_list(&path);
+                }
+                DesktopMessage::FsListResponse { .. } => {
+                    // This is sent TO the frontend, not handled here
+                }
+                DesktopMessage::FsRead { path } => {
+                    println!("[desktop] FsRead requested for: {}", path);
+                    // TODO: Implement file read
+                }
+                DesktopMessage::FsWrite { path, content } => {
+                    println!("[desktop] FsWrite requested for: {} ({} bytes)", path, content.len());
+                    // TODO: Implement file write
+                }
+            }
+        }
+    }
+}
+
+/// Handle file system list request
+fn handle_fs_list(path: &str) {
+    // Map the path to a directory listing
+    // For now, provide static listings for known app directories
+    let files = if path == "/Apps" || path == "/apps" {
+        vec![
+            FileInfo { name: "Calculator".to_string(), path: "/Apps/calc.html".to_string(), is_dir: false },
+            FileInfo { name: "Judge".to_string(), path: "/Apps/judge.html".to_string(), is_dir: false },
+            FileInfo { name: "Rich Text Editor".to_string(), path: "/Apps/richtext-editor.html".to_string(), is_dir: false },
+            FileInfo { name: "Spreadsheet".to_string(), path: "/Apps/sheet.html".to_string(), is_dir: false },
+        ]
+    } else if path == "/Games" || path == "/games" || path == "/Apps/Games" {
+        vec![
+            FileInfo { name: "Backgammon".to_string(), path: "/Apps/Games/backgammon.html".to_string(), is_dir: false },
+            FileInfo { name: "Chicken Darts".to_string(), path: "/Apps/Games/chicken-darts.html".to_string(), is_dir: false },
+            FileInfo { name: "Decision".to_string(), path: "/Apps/Games/decision.html".to_string(), is_dir: false },
+            FileInfo { name: "Invaders".to_string(), path: "/Apps/Games/invaders.html".to_string(), is_dir: false },
+            FileInfo { name: "Mahjong".to_string(), path: "/Apps/Games/mahjong.html".to_string(), is_dir: false },
+            FileInfo { name: "Platform".to_string(), path: "/Apps/Games/platform.html".to_string(), is_dir: false },
+            FileInfo { name: "Solitaire".to_string(), path: "/Apps/Games/solitaire.html".to_string(), is_dir: false },
+            FileInfo { name: "Swans".to_string(), path: "/Apps/Games/swans.html".to_string(), is_dir: false },
+        ]
+    } else {
+        // Default empty or basic directories
+        vec![]
+    };
+    
+    // Send response back to frontend
+    // TODO: Implement actual message passing to frontend
+    println!("[desktop] FsListResponse: {} files", files.len());
 }
 
 // HTML/CSS/JS for applications will be in separate files
@@ -1045,6 +1206,9 @@ function goUp() {
 function loadFiles() {
     // Request file list from kernel
     window.parent.postMessage({ type: 'fs_list', path: currentPath }, '*');
+    // Update path display
+    const pathEl = document.getElementById('current-path');
+    if (pathEl) pathEl.textContent = currentPath;
 }
 // Listen for file list response
 window.addEventListener('message', (e) => {
@@ -1054,12 +1218,34 @@ window.addEventListener('message', (e) => {
 });
 function renderFiles(files) {
     const list = document.getElementById('file-list');
-    list.innerHTML = files.map(f => `
-        <div class="file-item" data-path="${f.path}">
-            <div class="icon">${f.is_dir ? '📁' : '📄'}</div>
+    list.innerHTML = files.map(f => {
+        const isHtml = f.name.endsWith('.html') || f.name.endsWith('.htm');
+        const icon = f.is_dir ? '📁' : (isHtml ? '🌐' : '📄');
+        return `
+        <div class="file-item" data-path="${f.path}" data-is-dir="${f.is_dir}" data-name="${f.name}" onclick="handleClick(this)" ondblclick="handleDoubleClick(this)">
+            <div class="icon">${icon}</div>
             <div class="name">${f.name}</div>
         </div>
-    `).join('');
+    `}).join('');
+}
+function handleClick(el) {
+    // Select the item (could add visual feedback here)
+    document.querySelectorAll('.file-item').forEach(item => item.style.background = '');
+    el.style.background = '#e0e0e0';
+}
+function handleDoubleClick(el) {
+    const path = el.getAttribute('data-path');
+    const isDir = el.getAttribute('data-is-dir') === 'true';
+    const name = el.getAttribute('data-name');
+    
+    if (isDir) {
+        // Navigate into directory
+        currentPath = path;
+        loadFiles();
+    } else if (name.endsWith('.html') || name.endsWith('.htm')) {
+        // Open HTML files in browser
+        window.parent.postMessage({ type: 'launch_app', path: path, app_type: 'html' }, '*');
+    }
 }
 loadFiles();
 "#)

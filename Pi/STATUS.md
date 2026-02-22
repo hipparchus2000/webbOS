@@ -1,8 +1,8 @@
 # WebbOS Project Status
 
-## Date: 2026-01-30
+## Date: 2026-02-22
 
-## Current Status: FULLY BOOTING ✅
+## Current Status: PI PORT + APPS INTEGRATION ✅
 
 The WebbOS kernel now successfully boots and reaches the interactive command prompt. All major subsystems are operational.
 
@@ -108,6 +108,8 @@ The WebbOS kernel now successfully boots and reaches the interactive command pro
 
 ## System Specifications
 
+### x86_64 (PC) Platform
+
 | Component | Specification |
 |-----------|---------------|
 | **Architecture** | x86_64 |
@@ -119,6 +121,21 @@ The WebbOS kernel now successfully boots and reaches the interactive command pro
 | **Memory** | 128MB minimum recommended |
 | **Storage** | 64MB disk image (FAT32) |
 | **Network** | VirtIO networking |
+
+### ARM64 (Raspberry Pi) Platform
+
+| Component | Specification |
+|-----------|---------------|
+| **Architecture** | ARM64 (aarch64) |
+| **Boards** | Raspberry Pi 3 / 4 |
+| **Boot** | Direct kernel8.img (EL2→EL1) |
+| **Kernel Base** | 0xFFFF000000100000 (higher half) |
+| **Stack** | 0xFFFF000000500000 (128KB) |
+| **Framebuffer** | Mailbox interface to VideoCore |
+| **Input** | USB HID (DWC OTG) |
+| **Storage** | SD card (SDHCI) |
+| **WiFi** | BCM43438/43455 (SDIO) |
+| **Disk Image** | 256MB SD card image (FAT32 boot + ext4 root) |
 
 ---
 
@@ -169,7 +186,37 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
 
 ## Recently Completed
 
-1. **Icon Infrastructure** ✅ ADDED (2026-02-03)
+1. **Raspberry Pi Port** ✅ ADDED (2026-02-22)
+   - ARM64 (aarch64) port for Raspberry Pi 3/4
+   - New bootloader at EL2→EL1 transition with MMU enable
+   - Mailbox framebuffer driver for VideoCore GPU
+   - USB HID driver (DWC OTG) for keyboard/mouse
+   - SDHCI/SDIO driver for SD card and WiFi
+   - BCM43438/43455 WiFi driver (stubbed firmware loading)
+   - Build scripts: `build.bat` and `run.bat` for Windows
+   - 256MB SD card image with boot partition
+
+2. **Apps Folder & PWA Integration** ✅ ADDED (2026-02-22)
+   - Added "Apps" desktop icon linking to `/Apps` folder
+   - Sample PWAs bundled in disk image:
+     - Apps: Calculator, Judge, Rich Text Editor, Spreadsheet
+     - Games: Backgammon, Invaders, Mahjong, Solitaire, Chicken Darts, Decision, Platform, Swans
+   - File manager displays HTML files with 🌐 icon
+   - Double-click HTML files to launch in browser
+   - New `add-all-apps.py` script to batch-add apps to image
+
+3. **Performance Optimizations** ✅ ADDED (2026-02-22)
+   - Dirty rectangle tracking for desktop rendering
+   - Only redraws changed regions instead of full screen clear
+   - Significantly reduces CPU usage for mouse movement and UI updates
+   - `DirtyRect` struct with merge/intersect operations
+
+4. **SD Card Block Device** ✅ ADDED (2026-02-22)
+   - `SdCard` struct implementing `BlockDevice` trait
+   - Uses SDHCI controller for SD card access
+   - Registered with storage subsystem for filesystem mounting
+
+5. **Icon Infrastructure** ✅ ADDED (2026-02-03)
    - Added 8 PNG icon files to FAT32 image in `system/icons/` folder
    - Updated Icon struct to support icon_path field
    - Browser, File Manager, and folder icons configured with PNG paths
@@ -200,13 +247,16 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
 
 | Component | Files | Code |
 |-----------|-------|------|
-| Bootloader | 3 | ~800 |
-| Kernel | 50+ | ~15,000 |
+| Bootloader (x86_64) | 3 | ~800 |
+| Bootloader (ARM64) | 4 | ~900 |
+| Kernel (x86_64) | 50+ | ~15,000 |
+| Kernel (ARM64) | 50+ | ~18,000 |
 | Shared | 3 | ~500 |
-| Scripts | 6 | ~1,400 |
-| Docs | 10 | ~3,000 |
+| Scripts | 8 | ~2,000 |
+| Docs | 12 | ~4,000 |
 | Icons | 8 PNG | - |
-| **Total** | **80+** | **~20,700** |
+| Apps | 13 HTML | ~500KB |
+| **Total** | **150+** | **~42,000+** |
 
 ---
 
@@ -217,18 +267,27 @@ Same cargo commands, but use `mcopy` instead of Python script for disk image upd
    - Load icon files from FAT32 filesystem
    - Render decoded pixels in icon drawing functions
 
-2. **Fix Mouse Cursor Freezing** 🔥 CRITICAL - Resolve mouse freezing issue
+2. **Fix Mouse Cursor Freezing** 🔥 CRITICAL (x86_64) - Resolve mouse freezing issue
    - Investigate interrupt handler timing
    - Consider alternative cursor rendering approaches
    - May need to reduce update frequency or use hardware cursor
 
-3. **Test Browser** - Verify browser works and can display web pages
+3. **Pi Hardware Testing** - Test on real Raspberry Pi hardware
+   - Current: Works in QEMU (no display due to missing VideoCore emulation)
+   - Need: Real Pi 3/4 for framebuffer, USB, SD card, WiFi testing
 
-4. **FAT32 Desktop Integration** - Show `/Desktop` folder as desktop, enable file saving
+4. **WiFi Firmware Loading** - Complete BCM43438/43455 driver
+   - Load firmware from SD card filesystem
+   - Implement SDIO communication
+   - Connect to network stack
 
-5. **App Store Implementation** - Final requirement from urs.md
-5. **Real Hardware Testing** - Test on physical machines
-6. **Performance Optimization** - Profile and optimize hot paths
+5. **FAT32 Desktop Integration** - Show `/Desktop` folder as desktop, enable file saving
+
+6. **App Store Implementation** - Final requirement from urs.md
+
+7. **Real Hardware Testing** - Test on physical machines (x86_64 and Pi)
+
+8. **Performance Optimization** - Profile and optimize hot paths
 
 ---
 
@@ -248,4 +307,4 @@ From original specification (urs.md):
 
 ---
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-22

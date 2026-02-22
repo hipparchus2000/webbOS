@@ -167,6 +167,14 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Initialize storage subsystem
     println!("\n[storage] Initializing...");
     storage::init();
+    
+    // Initialize SD card
+    println!("\n[sd_card] Initializing SD card...");
+    storage::sd_card::init();
+    
+    // Mount FAT32 filesystem from SD card
+    println!("\n[fs] Mounting SD card filesystem...");
+    // TODO: Mount actual SD card filesystem once driver is fully implemented
 
     // Initialize network stack
     println!("\n[net] Initializing network stack...");
@@ -357,6 +365,9 @@ fn desktop_event_loop() {
         
         if current_tick >= last_timer + 2 {
             LAST_TIMER_TICK.store(current_tick, Ordering::Relaxed);
+            
+            // Process messages from HTML frontend
+            desktop::process_messages();
             
             // Poll mouse from timer
             if let Some(event) = drivers::input::poll_mouse_from_timer() {

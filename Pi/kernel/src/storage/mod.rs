@@ -14,6 +14,7 @@ pub mod ahci;
 pub mod nvme;
 pub mod boot_disk;
 pub mod simple_disk;
+pub mod sd_card;
 
 use crate::drivers::pci::PciDevice;
 use crate::println;
