@@ -1,225 +1,172 @@
-# Build Instructions for WebbOS
+# Building WebbOS for Raspberry Pi
 
-## Overview
+This guide covers building WebbOS Pi from source.
 
-WebbOS requires a cross-compilation toolchain to build the kernel and bootloader. This document provides platform-specific build instructions.
+## Quick Start
 
-> **Note:** This project was developed and tested on Windows 11. The build process uses native Windows tools (PowerShell, Python) rather than WSL.
+```powershell
+cd Pi
+./build.bat
+```
+
+This builds everything and creates:
+- `webbos-pi-raw.img` - For QEMU testing
+- `webbos-pi.img` - For SD card deployment
 
 ## Prerequisites
 
-### Required Tools
-
-1. **Rust nightly toolchain** (specified in `rust-toolchain.toml`):
-   ```powershell
-   rustup install nightly-2025-01-15
-   rustup component add rust-src --toolchain nightly-2025-01-15
-   rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
-   ```
-
-2. **QEMU** for testing:
-   - Windows: `choco install qemu` or download from https://www.qemu.org/download/#windows
-   - macOS: `brew install qemu`
-   - Linux: `sudo apt-get install qemu-system-x86`
-
-3. **Python 3** (for disk image updates on Windows):
-   - Windows: Usually pre-installed or from Microsoft Store
-   - Used by `update-image.py` script
-
-## Windows 11 Toolchain (Primary Development Platform)
-
-This is the toolchain used for active development:
-
-### 1. Build the Kernel
-
+### Windows 11
 ```powershell
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+# Install Rust
+irm https://win.rustup.rs | iex
+
+# Install nightly toolchain
+rustup toolchain install nightly-2025-01-15
+rustup component add rust-src --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
+
+# Install Python (usually pre-installed)
+python --version
 ```
 
-**Output:** `target/x86_64-unknown-none/debug/kernel`
+### Linux/macOS
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-### 2. Build the Bootloader
-
-```powershell
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+# Install nightly toolchain
+rustup toolchain install nightly-2025-01-15
+rustup component add rust-src --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 ```
 
-**Output:** `target/x86_64-unknown-uefi/debug/bootloader.efi`
+## Build Process
 
-### 3. Update Disk Image
-
-The disk image (`webbos.img`) is a FAT32 filesystem. Use the Python script to update files:
-
-```powershell
-# Update bootloader
-python update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-
-# Update kernel
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-```
-
-> **Note:** The `update-image.py` script locates files by name in the FAT32 image and overwrites them. It automatically handles file growth by allocating new clusters. No WSL or `mtools` required.
-
-> **First time?** If you don't have `webbos.img`, create it with:
-> ```powershell
-> python scripts/create-image.py
-> ```
-
-See [docs/DISK_IMAGE.md](DISK_IMAGE.md) for complete disk image management documentation.
-
-### 4. Run in QEMU
-
-```powershell
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
-```
-
-### Complete Build Script
-
-```powershell
-# Build everything
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# Update disk image
-python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
-```
-
-## Alternative Platforms
-
-### Linux (Ubuntu/Debian)
+### 1. Build Bootloader
 
 ```bash
-# Install build dependencies
-sudo apt-get update
-sudo apt-get install -y build-essential lld qemu-system-x86 mtools
-
-# Build
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# Create/update disk image with mtools
-mcopy -o -i webbos.img target/x86_64-unknown-uefi/debug/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI
-mcopy -o -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel.elf
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+cargo +nightly-2025-01-15 build -p bootloader \
+    --target aarch64-unknown-none \
+    -Z build-std=core,compiler_builtins,alloc \
+    --release
 ```
 
-### macOS
+**Output:** `target/aarch64-unknown-none/release/bootloader`
+
+The bootloader:
+- Loads at address 0x80000
+- Initializes ARM64 CPU (EL2→EL1)
+- Parses device tree blob
+- Sets up MMU page tables
+- Loads kernel at 0x100000
+- Jumps to kernel at 0xFFFF000000100000
+
+### 2. Build Kernel
 
 ```bash
-# Install dependencies
-brew install llvm qemu mtools
-
-# Build
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# Use Python script or mtools for disk image
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+cargo +nightly-2025-01-15 build -p kernel \
+    --target aarch64-unknown-none \
+    -Z build-std=core,compiler_builtins,alloc \
+    --release
 ```
 
-## Build Output
+**Output:** `target/aarch64-unknown-none/release/kernel`
 
-After a successful build, you should have:
+The kernel includes:
+- ARM64 MMU management
+- Process scheduler
+- Network stack (TCP/IP, TLS 1.3)
+- Pi drivers (mailbox, USB, SDIO)
+- Desktop environment
+- Browser engine
 
-- `target/x86_64-unknown-uefi/debug/bootloader.efi` - UEFI bootloader
-- `target/x86_64-unknown-none/debug/kernel` - Kernel binary
-- `webbos.img` - Bootable disk image (updated in place)
+### 3. Create Raw Image (for QEMU)
 
-## Build Configuration
-
-### Rust Toolchain
-
-Specified in `rust-toolchain.toml`:
-```toml
-[toolchain]
-channel = "nightly-2025-01-15"
-components = ["rust-src"]
+```bash
+python make-raw-image.py \
+    target/aarch64-unknown-none/release/bootloader \
+    target/aarch64-unknown-none/release/kernel \
+    webbos-pi-raw.img
 ```
 
-### Cargo Configuration
+This creates a combined image with:
+- Bootloader at offset 0x80000 (512KB)
+- Kernel at offset 0x100000 (1MB)
 
-Located in `.cargo/config.toml`:
-```toml
-[unstable]
-build-std = ["core", "compiler_builtins", "alloc"]
+### 4. Create SD Card Image (for real Pi)
+
+```bash
+python scripts/create-sdcard.py \
+    target/aarch64-unknown-none/release/bootloader \
+    -o webbos-pi.img
 ```
 
-### Kernel Entry Point
+This creates a partitioned SD card image with:
+- FAT32 boot partition (256MB)
+- Root filesystem partition (remaining space)
+- `kernel8.img` in boot partition
+- `config.txt` and `cmdline.txt`
 
-The kernel entry point changes with each build. The bootloader reads the ELF header to get the correct address. Current entry point can be checked with:
+## Build Options
 
-```powershell
-python -c "import struct; f=open('target/x86_64-unknown-none/debug/kernel','rb'); f.seek(0x18); print(f'Entry: {struct.unpack('<Q', f.read(8))[0]:#x}')"
+### Debug Build
+```bash
+./build.bat debug
+# or
+cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc
 ```
+
+### Release Build (Optimized)
+```bash
+./build.bat release
+# or
+cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
+```
+
+## Output Files
+
+| File | Size | Purpose |
+|------|------|---------|
+| `bootloader` | ~70KB | Bare metal bootloader |
+| `kernel` | ~420KB | Kernel ELF |
+| `webbos-pi-raw.img` | ~1.3MB | QEMU test image |
+| `webbos-pi.img` | ~256MB | SD card image |
 
 ## Troubleshooting
 
-### "cargo not found"
-
-```powershell
-# Ensure Rust is installed and in PATH
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-# Or restart your terminal
-```
-
-### "target not found"
-
+### "target not found" Error
 ```bash
-# Install the target
-rustup target add x86_64-unknown-none --toolchain nightly-2025-01-15
-rustup target add x86_64-unknown-uefi --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 ```
 
-### "rust-src component not found"
-
+### "rust-src not found" Error
 ```bash
 rustup component add rust-src --toolchain nightly-2025-01-15
 ```
 
-### "cannot find -lgcc"
-
-When using GNU toolchain, you may need to install the appropriate target libraries. The build uses `compiler_builtins` instead.
-
-### Kernel crashes immediately after boot
-
-Check that the entry point in `bootloader/src/main.rs` matches the actual kernel entry point:
-```rust
-const KERNEL_ENTRY_PHYS: u64 = 0xXXXXXX; // Must match kernel ELF entry point
-```
-
-### QEMU "cannot set up guest memory"
-
-Kill existing QEMU processes:
-```powershell
-taskkill /F /IM qemu-system-x86_64.exe
-```
-
-## Testing
-
+### Clean Build
 ```bash
-# Run unit tests (host platform)
-cargo test -p webbos-shared
-
-# Run kernel tests (requires QEMU)
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+cargo clean
+cargo +nightly-2025-01-15 build -p bootloader --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
+cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
 ```
 
-## Release Builds
+### Linker Errors
+Ensure you're using `rust-lld` (specified in `.cargo/config.toml`).
 
-For optimized builds:
+## Cross-Compilation Notes
 
-```powershell
-cargo +nightly-2025-01-15 build --release -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build --release -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-```
+WebbOS Pi is cross-compiled from x86_64 Windows/Linux to ARM64:
+
+| Host | Target | Status |
+|------|--------|--------|
+| Windows x86_64 | ARM64 | ✅ Primary |
+| Linux x86_64 | ARM64 | ✅ Supported |
+| macOS x86_64 | ARM64 | ✅ Supported |
+| macOS ARM64 | ARM64 | ✅ Native |
+
+## Next Steps
+
+- [Running Guide](RUNNING.md) - How to run on QEMU or real Pi
+- [HARDWARE.md](../HARDWARE.md) - Hardware specifications
+- [PORTING.md](../PORTING.md) - ARM64 port details

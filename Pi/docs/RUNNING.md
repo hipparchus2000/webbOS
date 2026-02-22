@@ -1,15 +1,22 @@
-# Running WebbOS
+# Running WebbOS on Raspberry Pi
 
-This guide explains how to build and run WebbOS on your system.
+This guide explains how to build and run WebbOS Pi on both QEMU (for testing) and real Raspberry Pi hardware.
 
-> **Platform Note:** WebbOS was developed and tested on **Windows 11**. While it should work on Linux and macOS, the primary development toolchain is Windows-native (PowerShell + Python).
+## ⚠️ Important Notice
+
+**QEMU does NOT support the Raspberry Pi's VideoCore GPU mailbox interface.** This means:
+- ✅ The OS boots and runs in QEMU
+- ❌ No display output in QEMU (VideoCore not emulated)
+- ❌ No WiFi in QEMU (SDIO not emulated)
+
+**For a working display, you must run on real Raspberry Pi hardware.**
 
 ## Prerequisites
 
 ### Required Tools
 - **Rust** (nightly toolchain: `nightly-2025-01-15`)
-- **QEMU** (for virtualization)
-- **Python 3** (for disk image updates on Windows)
+- **QEMU** (optional - for testing boot only)
+- **Python 3** (for image creation)
 
 ### Installation
 
@@ -18,15 +25,15 @@ This guide explains how to build and run WebbOS on your system.
 # Install Rust
 irm https://win.rustup.rs | iex
 
-# Install QEMU (using chocolatey)
+# Install QEMU (optional - for testing)
 choco install qemu
 
-# Install nightly toolchain
+# Install nightly toolchain with ARM64 support
 rustup toolchain install nightly-2025-01-15
 rustup component add rust-src --toolchain nightly-2025-01-15
-rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 
-# Verify Python is installed (usually pre-installed on Windows 11)
+# Verify Python
 python --version
 ```
 
@@ -34,7 +41,7 @@ python --version
 ```bash
 # Install dependencies
 sudo apt update
-sudo apt install qemu-system-x86 mtools python3
+sudo apt install qemu-system-arm python3
 
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -42,13 +49,13 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Install nightly toolchain
 rustup toolchain install nightly-2025-01-15
 rustup component add rust-src --toolchain nightly-2025-01-15
-rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 ```
 
 #### macOS
 ```bash
 # Install dependencies
-brew install qemu mtools python3
+brew install qemu python3
 
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -56,354 +63,163 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Install nightly toolchain
 rustup toolchain install nightly-2025-01-15
 rustup component add rust-src --toolchain nightly-2025-01-15
-rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 ```
 
-## Building WebbOS
+## Building WebbOS Pi
 
-### Quick Build (Windows 11)
+### Quick Build (Windows)
 
 ```powershell
+# Build everything and create images
+./build.bat
+```
+
+This creates:
+- `webbos-pi-raw.img` - Combined bootloader+kernel (for QEMU)
+- `webbos-pi.img` - SD card image (for real Pi)
+
+### Manual Build
+
+```bash
 # Build bootloader
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+cargo +nightly-2025-01-15 build -p bootloader --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
 
 # Build kernel
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
 
-# Update disk image
-python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
+# Create raw image (for QEMU)
+python make-raw-image.py target/aarch64-unknown-none/release/bootloader target/aarch64-unknown-none/release/kernel webbos-pi-raw.img
+
+# Create SD card image (for real Pi)
+python scripts/create-sdcard.py target/aarch64-unknown-none/release/bootloader -o webbos-pi.img
 ```
 
-### Detailed Build Process
+## Running on QEMU (Testing Only)
 
-#### 1. Build the Kernel
+**Note:** QEMU cannot show the display, but you can verify the OS boots.
 
+### Windows
+```powershell
+./run.bat
+```
+
+### Manual QEMU Command
 ```bash
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+qemu-system-aarch64 \
+    -M raspi3b \
+    -cpu cortex-a53 \
+    -m 1G \
+    -kernel webbos-pi-raw.img \
+    -display sdl \
+    -device usb-kbd \
+    -device usb-mouse \
+    -snapshot \
+    -no-reboot
 ```
 
-**Output:** `target/x86_64-unknown-none/debug/kernel` (~10MB ELF binary)
+### Expected Behavior
+- QEMU window opens
+- Window may show black screen (no GPU emulation)
+- OS is running - no crash = success
+- Close window or press Ctrl+C to stop
 
-**What it does:**
-- Compiles the kernel for bare-metal x86_64
-- Links with custom start code
-- Outputs an ELF64 binary
+## Running on Real Raspberry Pi
 
-#### 2. Build the Bootloader
+### What You Need
+- Raspberry Pi 3 or 4
+- MicroSD card (4GB or larger)
+- HDMI display
+- USB keyboard (required for login)
+- USB mouse (optional)
+- Power supply
 
+### Prepare SD Card
+
+#### Windows
+1. Insert SD card
+2. Use Raspberry Pi Imager or Rufus to write `webbos-pi.img`
+3. Or use Win32DiskImager
+
+#### Linux/macOS
 ```bash
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+# Find your SD card device (e.g., /dev/sdb, /dev/mmcblk0)
+lsblk
+
+# Write image (replace /dev/sdX with your device)
+sudo dd if=webbos-pi.img of=/dev/sdX bs=4M status=progress
+
+# Or use Etcher (GUI tool)
 ```
 
-**Output:** `target/x86_64-unknown-uefi/debug/bootloader.efi` (~220KB UEFI executable)
+### First Boot
 
-**What it does:**
-- Compiles UEFI bootloader
-- Links as EFI application
-- Can be loaded by UEFI firmware
+1. Insert prepared SD card into Pi
+2. Connect HDMI display
+3. Connect USB keyboard
+4. Connect power
+5. WebbOS will boot to login screen
 
-#### 3. Create/Update Boot Disk Image
-
-The disk image (`webbos.img`) is a pre-formatted FAT32 image containing:
-- `/EFI/BOOT/BOOTX64.EFI` - The bootloader
-- `/kernel.elf` - The kernel binary
-
-**On Windows (using Python script - Recommended):**
-```powershell
-python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-```
-
-The `update-image.py` script:
-- Parses the FAT32 filesystem structure
-- Locates files by their 8.3 directory entry names
-- Overwrites file content in-place
-- **Automatically allocates new clusters when files grow**
-- Does NOT require WSL, mtools, or mounting
-
-**On Linux (using mtools):**
-```bash
-mcopy -o -i webbos.img target/x86_64-unknown-uefi/debug/bootloader.efi ::/EFI/BOOT/BOOTX64.EFI
-mcopy -o -i webbos.img target/x86_64-unknown-none/debug/kernel ::/kernel.elf
-```
-
-**Creating a new disk image (if needed):**
-```powershell
-# Using Python script (Windows/Linux/macOS)
-python scripts/create-image.py
-
-# Or create with custom size
-python scripts/create-image.py --size 128
-```
-
-See `docs/DISK_IMAGE.md` for complete disk image management documentation.
-
-## Running WebbOS
-
-### Method 1: QEMU with Serial Output (Recommended)
-
-```powershell
-qemu-system-x86_64 `
-    -bios OVMF.fd `
-    -drive format=raw,file=webbos.img `
-    -m 128M `
-    -smp 1 `
-    -nographic `
-    -serial stdio
-```
-
-**Parameters:**
-- `-bios OVMF.fd` - UEFI firmware (included in repo)
-- `-drive format=raw,file=webbos.img` - Boot disk
-- `-m 128M` - 128MB RAM (sufficient for WebbOS)
-- `-smp 1` - Single CPU core
-- `-nographic` - No GUI window, use serial for display
-- `-serial stdio` - Connect serial port to terminal
-
-### Method 2: QEMU with Graphics
-
-```powershell
-qemu-system-x86_64 `
-    -bios OVMF.fd `
-    -drive format=raw,file=webbos.img `
-    -vga std `
-    -m 256M `
-    -smp 1 `
-    -serial stdio
-```
-
-### Method 3: QEMU with Network
-
-```powershell
-qemu-system-x86_64 `
-    -bios OVMF.fd `
-    -drive format=raw,file=webbos.img `
-    -m 256M `
-    -smp 1 `
-    -serial stdio `
-    -netdev user,id=net0,hostfwd=tcp::8080-:80 `
-    -device virtio-net-pci,netdev=net0
-```
-
-### Method 4: Debug Mode (with GDB)
-
-Terminal 1:
-```powershell
-qemu-system-x86_64 `
-    -bios OVMF.fd `
-    -drive format=raw,file=webbos.img `
-    -m 128M `
-    -smp 1 `
-    -nographic `
-    -serial stdio `
-    -s -S
-```
-
-Terminal 2:
-```bash
-# Connect GDB
-gdb target/x86_64-unknown-none/debug/kernel
-(gdb) target remote :1234
-(gdb) break kernel_entry
-(gdb) continue
-```
-
-## First Boot
-
-When WebbOS boots successfully, you'll see:
-
-```
-╔══════════════════════════════════════════════════╗
-║                                                  ║
-║  ██╗    ██╗███████╗██████╗ ██████╗  ██████╗ ███████╗
-║  ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
-║  ██║ █╗ ██║█████╗  ██████╔╝██████╔╝██║   ██║███████╗
-║  ██║███╗██║██╔══╝  ██╔══██╗██╔══██╗██║   ██║╚════██║
-║  ╚███╔███╔╝███████╗██████╔╝██║  ██║╚██████╔╝███████║
-║   ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
-║                                                  ║
-║           Version 0.1.0 - x86_64                 ║
-╚══════════════════════════════════════════════════╝
-
-Boot Info:
-  Version: 1
-  Kernel: PhysAddr(1048576) (size: ... bytes)
-  Stack: top=VirtAddr(...), size=128KB
-  Memory map: 114 entries
-  Bootloader: WebbOS Bootloader
-
-[cpu] Initializing...
-[cpu] CPU features detected
-
-[mm] Initializing memory management...
-  Total available memory: ... MB
-  Heap initialized: 8192 KB at ...
-[mm] Memory management initialized
-
-... (more initialization) ...
-
-✓ WebbOS kernel initialized successfully!
-
-System is ready. Type 'help' for available commands.
-$ 
-```
-
-### Default Credentials
-
-When the desktop environment starts:
+### Default Login
 
 | Username | Password | Type |
 |----------|----------|------|
 | `admin` | `admin` | Administrator |
 | `user` | `user` | Standard User |
 
-## Available Commands
-
-Once at the command prompt, try these commands:
-
-```
-help              - Show all commands
-info              - System information
-memory            - Memory statistics
-processes         - Show running processes
-network           - Network status
-users             - List user accounts
-desktop           - Desktop environment info
-launch notepad    - Open Notepad
-launch paint      - Open Paint
-launch filemanager - Open File Manager
-launch browser    - Open WebbBrowser
-test              - Run test suite
-reboot            - Reboot system
-shutdown          - Shutdown system
-```
-
-## Development Workflow
-
-### Quick Development Cycle
-
-```powershell
-# 1. Make changes to source code
-# 2. Build kernel
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# 3. Update disk image
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# 4. Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
-```
-
-### One-Line Build and Run
-
-```powershell
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc; python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel; qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
-```
-
 ## Troubleshooting
 
+### QEMU Shows Black Screen
+**This is normal.** QEMU doesn't emulate the VideoCore GPU. The OS is still running - it just can't display. Use real Pi hardware for display.
+
 ### Build Errors
-
-#### "cargo not found"
 ```powershell
-# Ensure Rust is installed and in PATH
-$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-# Or restart your terminal
+# Clean and rebuild
+cargo clean
+cargo +nightly-2025-01-15 build -p bootloader --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
+cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc --release
 ```
 
-#### "target not found"
-```bash
-# Install the target
-rustup target add x86_64-unknown-none --toolchain nightly-2025-01-15
-rustup target add x86_64-unknown-uefi --toolchain nightly-2025-01-15
-```
+### Pi Won't Boot
+- Check SD card is properly written
+- Try different SD card
+- Check power supply (needs 2.5A for Pi 3, 3A for Pi 4)
+- Ensure HDMI cable is connected before power
 
-#### "rust-src component not found"
-```bash
-rustup component add rust-src --toolchain nightly-2025-01-15
-```
+### No WiFi
+WiFi requires firmware files on the SD card. These are not included:
+- `brcmfmac43430-sdio.bin` (Pi 3)
+- `brcmfmac43430-sdio.txt` (Pi 3)
+- `brcmfmac43455-sdio.bin` (Pi 4)
+- `brcmfmac43455-sdio.txt` (Pi 4)
 
-### QEMU Issues
+Copy these from Raspberry Pi OS firmware to `/lib/firmware/brcm/` on the SD card.
 
-#### "OVMF.fd not found"
-The `OVMF.fd` file is included in the repository. If missing, download from:
-https://github.com/retrage/edk2-nightly/raw/master/bin/RELEASEX64_OVMF.fd
+## For Display Testing Use PC Version
 
-#### "cannot set up guest memory"
-Kill existing QEMU processes:
+If you need to test the desktop without real Pi hardware:
+
 ```powershell
-taskkill /F /IM qemu-system-x86_64.exe
+cd PC
+./build.bat
+./run.bat
 ```
 
-#### Kernel crashes immediately
-The kernel entry point changes with each build. The bootloader has a hardcoded address that must match. Check the entry point:
-```powershell
-python -c "import struct; f=open('target/x86_64-unknown-none/debug/kernel','rb'); f.seek(0x18); print(f'Entry: {struct.unpack('<Q', f.read(8))[0]:#x}')"
-```
+The PC version uses VESA framebuffer which QEMU emulates properly.
 
-Then update `bootloader/src/main.rs`:
-```rust
-const KERNEL_ENTRY_PHYS: u64 = 0xXXXXXX; // Use the printed address
-```
+## Hardware Differences
 
-### Disk Image Issues
+| Feature | PC (x86_64) | Pi (ARM64) |
+|---------|-------------|------------|
+| Boot | UEFI | Bare metal |
+| Display | VESA BIOS | Mailbox/VideoCore |
+| Input | PS/2 | USB HID |
+| Storage | ATA/NVMe | SD card |
+| Network | PCI Ethernet/WiFi | SDIO WiFi |
+| QEMU Display | ✅ Works | ❌ Not supported |
 
-#### "File not found" in update-image.py
-The script looks for files by their 8.3 FAT32 names:
-- `EFI/BOOT/BOOTX64.EFI` → looks for `BOOTX64 EFI`
-- `kernel.elf` → looks for `KERNEL  ELF`
+## See Also
 
-If the files don't exist in the image yet, create a new image:
-```powershell
-python scripts/create-image.py
-```
-
-Or add new files using:
-```powershell
-python scripts/add-files-to-image.py webbos.img path/in/image.txt source.txt
-```
-
-See `docs/DISK_IMAGE.md` for complete documentation.
-
-## Performance Tips
-
-### Faster Builds
-```bash
-# Use release mode (slower compile, faster runtime)
-cargo build --release ...
-```
-
-### Faster QEMU
-```bash
-# Reduce memory
-qemu-system-x86_64 ... -m 128M
-
-# Disable graphics
-qemu-system-x86_64 ... -nographic
-```
-
-## Real Hardware (USB Boot)
-
-**⚠️ Warning: This will erase your USB drive!**
-
-```bash
-# Find your USB device (e.g., /dev/sdb on Linux, /dev/disk2 on macOS)
-lsblk  # Linux
-diskutil list  # macOS
-
-# Copy the image to USB (replace X with your device)
-sudo dd if=webbos.img of=/dev/sdX bs=4M status=progress
-sync
-```
-
-Then boot from the USB drive on your target computer.
-
-## Support
-
-For help and questions:
-- Check `docs/ARCHITECTURE.md` for system details
-- Check `docs/BUILD.md` for build instructions
-- Check `docs/FEATURES.md` for feature list
-
-Happy hacking! 🌐
+- [HARDWARE.md](../HARDWARE.md) - Detailed hardware specifications
+- [BUILD.md](BUILD.md) - Detailed build instructions
+- [PORTING.md](../PORTING.md) - ARM64 porting notes

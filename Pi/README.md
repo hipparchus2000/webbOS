@@ -1,16 +1,8 @@
-## Support the Project ☕
-If you find this tool helpful, feel free to buy me a coffee!
+# 🌐 WebbOS for Raspberry Pi (ARM64)
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Stripe-orange?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://buy.stripe.com/cNi5kDb0Q5Wp663gdgbjW00)
+A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management. This is the **ARM64/AArch64** port for Raspberry Pi.
 
-
-# 🌐 WebbOS
-
-A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management.
-
-> **Status:** ~95% Complete | [See Detailed Status](STATUS.md) | **✅ FULLY BOOTING!**
-
-![WebbOS](docs/assets/webbos-logo.png)
+> **Status:** Bootloader & Kernel Working | Display on Real Hardware Only
 
 ## ✨ Features
 
@@ -18,120 +10,66 @@ A web browser operating system that boots directly into a desktop environment wi
 - **🎨 Built-in Apps** - Notepad, Paint, File Manager, Task Manager, User Manager, Terminal, Web Browser
 - **👤 User Management** - Multi-user support with SHA-256 authentication and sessions
 - **🌐 Full Networking** - TCP/IP, HTTP/HTTPS, TLS 1.3, DNS resolver, DHCP
-- **💾 File Systems** - EXT2, FAT32 with storage drivers (ATA, NVMe, AHCI)
+- **💾 File Systems** - EXT2, FAT32 with SD card storage
 - **🔒 Security** - SHA-256 password hashing, ChaCha20-Poly1305, X25519 key exchange
-- **🎮 Input** - PS/2 keyboard and mouse support
-- **🖼️ Graphics** - VESA framebuffer 1024x768 @ 32-bit color
+- **🎮 Input** - USB HID keyboard and mouse (DWC OTG)
+- **🖼️ Graphics** - HDMI via VideoCore mailbox framebuffer (1024x768 @ 32-bit)
+- **📡 WiFi** - BCM43438/BCM43455 SDIO WiFi (Pi 3/4)
+
+## ⚠️ Important: QEMU Limitations
+
+**The Pi version requires REAL Raspberry Pi hardware for display output.**
+
+QEMU's `raspi3b` machine does NOT emulate the VideoCore GPU mailbox interface. While the OS boots and runs in QEMU, the display will not be visible.
+
+**For testing with display, use the PC version:** `cd PC && ./run.bat`
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-**Windows 11 (Primary Development Platform):**
+**Windows 11:**
 ```powershell
 # Install Rust
 irm https://win.rustup.rs | iex
 
-# Install QEMU
+# Install QEMU (optional - for testing boot only)
 choco install qemu
 
-# Install nightly toolchain
+# Install nightly toolchain with ARM64 support
 rustup toolchain install nightly-2025-01-15
 rustup component add rust-src --toolchain nightly-2025-01-15
-rustup target add x86_64-unknown-none x86_64-unknown-uefi --toolchain nightly-2025-01-15
+rustup target add aarch64-unknown-none --toolchain nightly-2025-01-15
 ```
 
-### Quick Build & Run
+### Build
 
-**Windows 11 (PowerShell):**
 ```powershell
-# First time: Create disk image
-python scripts/create-image.py
-
-# Build
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
-
-# Update disk image (Python script - no WSL required)
-python scripts/update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python scripts/update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+cd Pi
+./build.bat
 ```
 
-**Linux/macOS:**
-```bash
-# First time: Create disk image
-python3 create-image.py
+This creates:
+- `webbos-pi-raw.img` - Combined bootloader+kernel (for QEMU testing)
+- `webbos-pi.img` - SD card image (for real Pi hardware)
 
-# Build (same commands)
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+### Test in QEMU (Boot Only - No Display)
 
-# Update disk image with Python (or use mtools if preferred)
-python3 update-image.py webbos.img "EFI/BOOT/BOOTX64.EFI" target/x86_64-unknown-uefi/debug/bootloader.efi
-python3 update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio
+```powershell
+./run.bat
 ```
 
-### Default Login
+**Note:** QEMU will boot but display won't work. This is normal - the VideoCore GPU is not emulated.
 
-When WebbOS boots, use these credentials:
+### Run on Real Raspberry Pi
 
-| Username | Password | Type |
-|----------|----------|------|
-| `admin` | `admin` | Administrator |
-| `user` | `user` | Standard User |
+1. Write `webbos-pi.img` to an SD card:
+   - Use Raspberry Pi Imager, Rufus, or BalenaEtcher
+   - Or: `dd if=webbos-pi.img of=/dev/sdX bs=4M` (Linux)
 
-## 📸 Screenshots
+2. Insert SD card into Raspberry Pi 3 or 4
 
-### Boot Sequence
-```
-╔═══════════════════════════════════════╗
-║      WebbOS UEFI Bootloader           ║
-║      Version 0.1.0                    ║
-╚═══════════════════════════════════════╝
-...
-╔══════════════════════════════════════════════════╗
-║                                                  ║
-║  ██╗    ██╗███████╗██████╗ ██████╗  ██████╗ ███████╗
-║  ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔════╝
-║  ██║ █╗ ██║█████╗  ██████╔╝██████╔╝██║   ██║███████╗
-║  ██║███╗██║██╔══╝  ██╔══██╗██╔══██╗██║   ██║╚════██║
-║  ╚███╔███╔╝███████╗██████╔╝██║  ██║╚██████╔╝███████║
-║   ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
-║                                                  ║
-╚══════════════════════════════════════════════════╝
-
-[cpu] Initializing...
-[mm] Memory management initialized
-[network] Network stack initialized
-[browser] Browser engine initialized
-...
-✓ WebbOS kernel initialized successfully!
-
-System is ready. Type 'help' for available commands.
-$
-```
-
-### Available Commands
-```
-help          - Show all commands
-info          - System information
-memory        - Memory statistics
-processes     - Show running processes
-network       - Network status
-users         - List user accounts
-launch notepad     - Open Notepad
-launch paint       - Open Paint
-launch browser     - Open WebbBrowser
-test          - Run test suite
-reboot        - Reboot system
-shutdown      - Shutdown system
-```
+3. Power on - WebbOS will boot to desktop
 
 ## 🏗️ Architecture
 
@@ -149,34 +87,73 @@ shutdown      - Shutdown system
 ├─────────────────────────────────────────────────────────┤
 │  System Services                                        │
 │  ├── User Management (SHA-256, Sessions)               │
-│  ├── Graphics (VESA Framebuffer)                       │
-│  ├── Input (PS/2 Keyboard, Mouse)                      │
+│  ├── Graphics (Pi Mailbox Framebuffer)                 │
+│  ├── Input (USB HID via DWC OTG)                       │
 ├─────────────────────────────────────────────────────────┤
 │  Network Stack                                          │
 │  ├── HTTP/HTTPS Client                                 │
 │  ├── TLS 1.3 (ChaCha20-Poly1305, X25519)              │
 │  ├── TCP/IP, DNS, DHCP                                 │
+│  └── WiFi (BCM43438/43455 via SDIO)                    │
 ├─────────────────────────────────────────────────────────┤
 │  Kernel Core                                            │
-│  ├── Memory Management (8MB Heap)                      │
-│  ├── Process Scheduler (Round-Robin)                   │
-│  ├── VFS (EXT2, FAT32), Storage (ATA/NVMe/AHCI)       │
-│  └── Interrupt Handling (IDT)                          │
+│  ├── Memory Management (ARM64 MMU)                     │
+│  ├── Process Scheduler                                 │
+│  ├── VFS (EXT2, FAT32), SD Storage                     │
+│  └── Exception Handling (VBAR_EL1)                     │
 ├─────────────────────────────────────────────────────────┤
-│  UEFI Bootloader                                        │
-│  ├── ELF64 Kernel Loading                              │
-│  ├── Page Table Setup (4KB pages)                      │
+│  Bare Metal Bootloader                                  │
+│  ├── ARM64 Entry at 0x80000                            │
+│  ├── MMU Setup (4KB pages)                             │
 │  └── Higher-Half Kernel Mapping                        │
 └─────────────────────────────────────────────────────────┘
 ```
+
+## 🔧 Hardware Support
+
+### ✅ Fully Implemented
+
+| Component | Driver | Hardware Address | Status |
+|-----------|--------|------------------|--------|
+| **CPU** | ARM64 Cortex-A53/A72 | - | ✅ Working |
+| **MMU** | 4-level page tables | - | ✅ Working |
+| **Timer** | ARM Generic Timer | `CNTPCT_EL0` | ✅ Working |
+| **Mailbox** | VideoCore GPU | `0x3F00B880` (Pi3) | ✅ Working |
+| **Framebuffer** | HDMI Output | GPU allocated | ✅ Working |
+| **USB Host** | DWC OTG | `0x3F980000` (Pi3) | ✅ Implemented |
+| **USB HID** | Keyboard/Mouse | USB bus | ✅ Implemented |
+| **SDIO** | Arasan SDHCI | `0x3F300000` (Pi3) | ✅ Implemented |
+| **WiFi** | BCM43438/43455 | SDIO bus | ⚠️ Needs firmware |
+
+### ❌ Not Available on Pi
+
+| Component | Reason |
+|-----------|--------|
+| PCI/PCIe | Pi doesn't have PCI bus |
+| SATA/NVMe | No PCI = no SATA/NVMe |
+| VESA BIOS | x86 only |
+| PS/2 | Pi uses USB |
+
+### ⚠️ QEMU Emulation Status
+
+| Feature | QEMU Support | Notes |
+|---------|--------------|-------|
+| CPU | ✅ Yes | Full ARM64 emulation |
+| MMU | ✅ Yes | Page tables work |
+| Timer | ✅ Yes | Generic timer |
+| Mailbox | ❌ No | No VideoCore GPU |
+| Framebuffer | ❌ No | No display output |
+| USB | ⚠️ Partial | May work partially |
+| SDIO | ❌ No | No WiFi emulation |
 
 ## 📊 Implementation Status
 
 | Component | Status |
 |-----------|--------|
-| UEFI Bootloader | ✅ Complete |
-| Kernel Core | ✅ Complete |
-| Memory Management | ✅ Complete (8MB heap) |
+| Bare Metal Bootloader | ✅ Complete |
+| ARM64 Kernel Core | ✅ Complete |
+| ARM64 MMU | ✅ Complete |
+| Memory Management | ✅ Complete |
 | Process Scheduler | ✅ Complete |
 | VFS (EXT2/FAT32) | ✅ Complete |
 | Network Stack | ✅ Complete |
@@ -184,98 +161,66 @@ shutdown      - Shutdown system
 | HTTP Client | ✅ Complete |
 | Desktop Environment | ✅ Complete |
 | User Management | ✅ Complete |
-| VESA Graphics | ✅ Complete |
-| PS/2 Input | ✅ Complete |
-| Browser Engine | ✅ Complete (parsers ready) |
-| App Store | ❌ Not Implemented |
-
-**Total Lines of Code:** ~20,000
-**Kernel Size:** ~10 MB (debug)
-
-### Known Issues
-- **Mouse Refresh**: Mouse movement causes complete screen refresh (needs dirty rectangle tracking)
-
-See [STATUS.md](STATUS.md) for detailed status and [TODO.md](TODO.md) for planned work.
+| Mailbox Interface | ✅ Complete |
+| Pi Framebuffer | ✅ Complete |
+| USB DWC OTG | ✅ Complete |
+| USB HID | ✅ Complete |
+| SDIO Controller | ✅ Complete |
+| WiFi Driver | ⚠️ Firmware needed |
 
 ## 🛠️ Development
 
 ### Platform
 
-This project was developed and tested on **Windows 11** using:
-- PowerShell for build scripts
-- Python 3 for disk image updates (`update-image.py`)
-- Native Windows toolchain (no WSL required)
+Developed and tested on **Windows 11** using cross-compilation for ARM64.
 
 ### Build Commands
 
 ```powershell
+# Build bootloader
+cargo +nightly-2025-01-15 build -p bootloader --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc
+
 # Build kernel
-cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc
+cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build-std=core,compiler_builtins,alloc
 
-# Build bootloader  
-cargo +nightly-2025-01-15 build -p bootloader --target x86_64-unknown-uefi -Z build-std=core,compiler_builtins,alloc
+# Create raw image (for QEMU)
+python make-raw-image.py target/aarch64-unknown-none/release/bootloader target/aarch64-unknown-none/release/kernel webbos-pi-raw.img
 
-# Update disk image
-python update-image.py webbos.img kernel.elf target/x86_64-unknown-none/debug/kernel
-
-# Run with network
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio -netdev user,id=net0 -device virtio-net-pci,netdev=net0
-
-# Debug mode (with GDB)
-qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=webbos.img -m 128M -smp 1 -nographic -serial stdio -s -S
+# Create SD card image (for real Pi)
+python scripts/create-sdcard.py target/aarch64-unknown-none/release/bootloader -o webbos-pi.img
 ```
 
 ## 📚 Documentation
 
 - [Build Instructions](docs/BUILD.md) - Detailed build process
-- [Running Guide](docs/RUNNING.md) - How to run WebbOS
-- [Status](STATUS.md) - Current implementation status
-- [Architecture](docs/ARCHITECTURE.md) - System design and components
-- [Features](docs/FEATURES.md) - Complete feature list
+- [Running Guide](docs/RUNNING.md) - How to run (QEMU vs real hardware)
+- [Hardware Details](HARDWARE.md) - Pi-specific hardware information
+- [Porting Notes](PORTING.md) - ARM64 porting details
 
 ## 📊 Specifications
 
 | Component | Specification |
 |-----------|---------------|
-| **Architecture** | x86_64 |
-| **Boot** | UEFI |
-| **Kernel Base** | 0xFFFF800000100000 |
+| **Architecture** | ARM64 (AArch64) |
+| **Boot** | Bare metal (kernel8.img) |
+| **Kernel Base** | 0xFFFF000000100000 |
+| **Physical Load** | 0x100000 |
 | **Heap** | 8MB |
 | **Resolution** | 1024x768 (32-bit color) |
-| **Memory** | 128MB minimum |
-| **Storage** | 64MB disk image (FAT32) |
-| **Network** | VirtIO networking |
-
-## 📝 Requirements Compliance
-
-From original specification (urs.md):
-
-| # | Requirement | Status |
-|---|-------------|--------|
-| 0 | UEFI Bootloader | ✅ Complete |
-| 1 | Minimal x64 OS | ✅ Complete |
-| 2 | Web Browser | ⚠️ Core Complete (needs testing) |
-| 3 | Login/Desktop | ✅ Complete |
-| 4 | App Store | ❌ Not Implemented |
-
-**Note:** WebAssembly execution is deferred to future work (parser exists).
+| **Memory** | 1GB minimum |
+| **Storage** | SD card (FAT32) |
+| **Network** | WiFi (BCM43438/43455) |
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our contributing guidelines for details.
+Contributions welcome! This is a complex bare-metal ARM64 project.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Rust programming language
-- QEMU for virtualization
-- Various open-source references and specifications
+MIT License - see LICENSE file.
 
 ---
 
-**WebbOS** - A web browser operating system for the modern era. 🌐✨
+**WebbOS for Raspberry Pi** - A web browser OS for ARM64. 🌐✨
 
 Built with ❤️ and Rust.
