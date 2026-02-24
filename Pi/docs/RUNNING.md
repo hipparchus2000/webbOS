@@ -136,12 +136,28 @@ qemu-system-aarch64 \
 
 ### Prepare SD Card
 
-#### Windows
+#### Option 1: Quick Build with WiFi (Recommended)
+
+```bash
+# Build everything including WiFi firmware
+cd Pi
+
+# Download WiFi firmware
+python scripts/download-wifi-firmware.py
+
+# Build and create SD card image with WiFi support
+./build.bat
+python scripts/create-sdcard.py --wifi-firmware-dir pi-wifi-firmware -o webbos-pi.img
+```
+
+#### Option 2: Manual SD Card Preparation
+
+**Windows:**
 1. Insert SD card
 2. Use Raspberry Pi Imager or Rufus to write `webbos-pi.img`
 3. Or use Win32DiskImager
 
-#### Linux/macOS
+**Linux/macOS:**
 ```bash
 # Find your SD card device (e.g., /dev/sdb, /dev/mmcblk0)
 lsblk
@@ -187,13 +203,29 @@ cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build
 - Ensure HDMI cable is connected before power
 
 ### No WiFi
-WiFi requires firmware files on the SD card. These are not included:
-- `brcmfmac43430-sdio.bin` (Pi 3)
-- `brcmfmac43430-sdio.txt` (Pi 3)
-- `brcmfmac43455-sdio.bin` (Pi 4)
-- `brcmfmac43455-sdio.txt` (Pi 4)
 
-Copy these from Raspberry Pi OS firmware to `/lib/firmware/brcm/` on the SD card.
+WiFi requires proprietary firmware files that must be downloaded separately.
+
+**Quick Fix:**
+```bash
+# Download WiFi firmware
+cd Pi
+python scripts/download-wifi-firmware.py
+
+# Recreate SD card image with WiFi support
+python scripts/create-sdcard.py --wifi-firmware-dir pi-wifi-firmware -o webbos-pi.img
+
+# Re-write to SD card
+```
+
+**Manual Fix:**
+Copy firmware files from Raspberry Pi OS to SD card:
+- Pi 3: `brcmfmac43430-sdio.bin`, `brcmfmac43430-sdio.txt`
+- Pi 4: `brcmfmac43455-sdio.bin`, `brcmfmac43455-sdio.txt`
+
+Destination: `/firmware/brcm/` on the boot partition
+
+See [WIFI_SETUP.md](WIFI_SETUP.md) for detailed WiFi setup instructions.
 
 ## For Display Testing Use PC Version
 
@@ -220,6 +252,7 @@ The PC version uses VESA framebuffer which QEMU emulates properly.
 
 ## See Also
 
+- [WiFi Setup](WIFI_SETUP.md) - Configure WiFi networking
 - [HARDWARE.md](../HARDWARE.md) - Detailed hardware specifications
 - [BUILD.md](BUILD.md) - Detailed build instructions
 - [PORTING.md](../PORTING.md) - ARM64 porting notes

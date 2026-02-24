@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A full-featured scientific and programmer calculator">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Calculator">
+    <link rel="manifest" href="./calc.manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232a2a2a'/%3E%3Crect x='10' y='10' width='80' height='30' rx='3' fill='%230a0a0a'/%3E%3Ctext x='85' y='32' font-size='14' fill='%23ff3333' text-anchor='end'%3E123%3C/text%3E%3C/svg%3E">
+    <title>Scientific Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .calculator {
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            width: 420px;
+            transition: background 0.3s ease;
+        }
+
+        .calculator.metallic {
+            background: linear-gradient(145deg, #c0c5ce, #a8adb8, #8f95a0, #c0c5ce);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        .brand {
+            color: #ff6b6b;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: left;
+            font-style: italic;
+            transition: color 0.3s ease;
+        }
+
+        .calculator.metallic .brand {
+            color: #000;
+        }
+
+        .model {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .display-container {
+            background: #1a1a1a;
+            border: 3px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .mode-indicators {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+
+        .mode-indicator {
+            color: #444;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .mode-indicator.active {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .display {
+            background: #0a0a0a;
+            color: #ff3333;
+            font-size: 32px;
+            padding: 15px;
+            text-align: right;
+            border-radius: 5px;
+            min-height: 50px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .display.lcd {
+            background: #a8b5a0;
+            color: #1a1a1a;
+            text-shadow: none;
+        }
+
+        .secondary-display {
+            color: #ff6666;
+            font-size: 14px;
+            text-align: right;
+            margin-top: 5px;
+            min-height: 18px;
+        }
+
+        .secondary-display.lcd {
+            color: #333;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        button {
+            background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            padding: 15px 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            position: relative;
+            min-height: 55px;
+        }
+
+        button:hover {
+            background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-number {
+            background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .btn-operator {
+            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
+        }
+
+        .btn-function {
+            background: linear-gradient(145deg, #5f72bd, #4f5f9f);
+            font-size: 12px;
+        }
+
+        .btn-memory {
+            background: linear-gradient(145deg, #48a999, #3d8a7a);
+            font-size: 12px;
+        }
+
+        .btn-clear {
+            background: linear-gradient(145deg, #f39c12, #e67e22);
+            font-weight: bold;
+        }
+
+        .btn-equals {
+            background: linear-gradient(145deg, #2ecc71, #27ae60);
+            grid-column: span 2;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .btn-secondary {
+            font-size: 10px;
+            color: #ffd700;
+            position: absolute;
+            top: 3px;
+            left: 5px;
+        }
+
+        .mode-switch {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+            color: #888;
+            border: none;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .btn-span-2 {
+            grid-column: span 2;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div class="brand">Instruments</div>
+        <div class="model">Scientific Calculator</div>
+
+        <div class="display-container">
+            <div class="mode-indicators">
+                <span class="mode-indicator" id="ind-deg">DEG</span>
+                <span class="mode-indicator" id="ind-rad">RAD</span>
+                <span class="mode-indicator" id="ind-grad">GRAD</span>
+                <span class="mode-indicator" id="ind-hex">HEX</span>
+                <span class="mode-indicator" id="ind-bin">BIN</span>
+                <span class="mode-indicator" id="ind-2nd">2nd</span>
+            </div>
+            <div class="secondary-display" id="secondary-display"></div>
+            <div class="display" id="display">0</div>
+        </div>
+
+        <div class="mode-switch">
+            <button class="mode-btn active" onclick="setMode('scientific')">SCIENTIFIC</button>
+            <button class="mode-btn" onclick="setMode('programmer')">PROGRAMMER</button>
+            <button class="mode-btn" onclick="setAngleMode()">DEG/RAD/GRAD</button>
+            <button class="mode-btn" onclick="toggleDisplay()">LED/LCD</button>
+        </div>
+
+        <div class="button-grid" id="button-grid">
+            <!-- Buttons will be generated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        let display = '0';
+        let memory = Array(8).fill(0);
+        let currentMemoryIndex = 0;
+        let angleMode = 'deg'; // deg, rad, grad
+        let secondFunction = false;
+        let currentMode = 'scientific'; // scientific, programmer
+        let numberBase = 10; // 10, 16, 2
+        let pendingOperation = null;
+        let pendingValue = null;
+        let waitingForOperand = false;
+        let statisticalData = [];
+        let parenthesesLevel = 0;
+        let operationStack = [];
+        let valueStack = [];
+        let lastResult = null;
+        let isLCD = false;
+        let displayMode = 'normal'; // normal, sci, eng
+        let fixedDecimals = null; // null = auto, or number of decimals
+        let enteringExponent = false; // true when entering exponent after EE
+
+        const scientificButtons = [
+            {text: '2nd', class: 'btn-function', action: 'toggle2nd', secondary: ''},
+            {text: 'Ans', class: 'btn-function', action: 'ans', secondary: ''},
+            {text: 'lnx', class: 'btn-function', action: 'ln', secondary: 'eˣ'},
+            {text: 'CE', class: 'btn-clear', action: 'ce', secondary: ''},
+            {text: 'CLR', class: 'btn-clear', action: 'clr', secondary: ''},
+
+            {text: 'STO', class: 'btn-memory', action: 'sto', secondary: 'EXC'},
+            {text: 'RCL', class: 'btn-memory', action: 'rcl', secondary: 'PRD'},
+            {text: 'SUM', class: 'btn-memory', action: 'sum', secondary: 'Σ+'},
+            {text: 'yˣ', class: 'btn-function', action: 'power', secondary: 'ˣ√y'},
+            {text: '1/x', class: 'btn-function', action: 'reciprocal', secondary: 'x²'},
+
+            {text: 'x̄', class: 'btn-function', action: 'mean', secondary: 's'},
+            {text: '(', class: 'btn-function', action: 'lparen', secondary: ')'},
+            {text: 'sin', class: 'btn-function', action: 'sin', secondary: 'sin⁻¹'},
+            {text: 'cos', class: 'btn-function', action: 'cos', secondary: 'cos⁻¹'},
+            {text: 'tan', class: 'btn-function', action: 'tan', secondary: 'tan⁻¹'},
+
+            {text: 'FIX', class: 'btn-function', action: 'fix', secondary: 'SCI'},
+            {text: 'EE', class: 'btn-function', action: 'ee', secondary: 'ENG'},
+            {text: 'log', class: 'btn-function', action: 'log', secondary: '10ˣ'},
+            {text: '√', class: 'btn-function', action: 'sqrt', secondary: 'x!'},
+            {text: '÷', class: 'btn-operator', action: 'divide', secondary: ''},
+
+            {text: 'π', class: 'btn-function', action: 'pi', secondary: 'R↔P'},
+            {text: '7', class: 'btn-number', action: '7', secondary: ''},
+            {text: '8', class: 'btn-number', action: '8', secondary: ''},
+            {text: '9', class: 'btn-number', action: '9', secondary: ''},
+            {text: '×', class: 'btn-operator', action: 'multiply', secondary: ''},
+
+            {text: '+/-', class: 'btn-function', action: 'negate', secondary: 'ABS'},
+            {text: '4', class: 'btn-number', action: '4', secondary: ''},
+            {text: '5', class: 'btn-number', action: '5', secondary: ''},
+            {text: '6', class: 'btn-number', action: '6', secondary: ''},
+            {text: '-', class: 'btn-operator', action: 'subtract', secondary: ''},
+
+            {text: 'R0', class: 'btn-memory', action: 'r0', secondary: 'R4'},
+            {text: '1', class: 'btn-number', action: '1', secondary: ''},
+            {text: '2', class: 'btn-number', action: '2', secondary: ''},
+            {text: '3', class: 'btn-number', action: '3', secondary: ''},
+            {text: '+', class: 'btn-operator', action: 'add', secondary: ''},
+
+            {text: 'R1', class: 'btn-memory', action: 'r1', secondary: 'R5'},
+            {text: '0', class: 'btn-number', action: '0', secondary: ''},
+            {text: '.', class: 'btn-number', action: 'decimal', secondary: ''},
+            {text: '=', class: 'btn-equals', action: 'equals', secondary: '', span: 2}
+        ];
+
+        const programmerButtons = [
+            {text: 'HEX', class: 'btn-function', action: 'hexMode', secondary: ''},
+            {text: 'DEC', class: 'btn-function', action: 'decMode', secondary: ''},
+            {text: 'BIN', class: 'btn-function', action: 'binMode', secondary: ''},
+            {text: 'CE', class: 'btn-clear', action: 'ce', secondary: ''},
+            {text: 'CLR', class: 'btn-clear', action: 'clr', secondary: ''},
+
+            {text: 'AND', class: 'btn-function', action: 'and', secondary: ''},
+            {text: 'OR', class: 'btn-function', action: 'or', secondary: ''},
+            {text: 'XOR', class: 'btn-function', action: 'xor', secondary: ''},
+            {text: 'NOT', class: 'btn-function', action: 'not', secondary: ''},
+            {text: '<<', class: 'btn-function', action: 'lshift', secondary: '>>'},
+
+            {text: 'A', class: 'btn-number', action: 'A', secondary: ''},
+            {text: 'B', class: 'btn-number', action: 'B', secondary: ''},
+            {text: 'C', class: 'btn-number', action: 'C', secondary: ''},
+            {text: 'D', class: 'btn-number', action: 'D', secondary: ''},
+            {text: 'E', class: 'btn-number', action: 'E', secondary: ''},
+
+            {text: 'F', class: 'btn-number', action: 'F', secondary: ''},
+            {text: '7', class: 'btn-number', action: '7', secondary: ''},
+            {text: '8', class: 'btn-number', action: '8', secondary: ''},
+            {text: '9', class: 'btn-number', action: '9', secondary: ''},
+            {text: '÷', class: 'btn-operator', action: 'divide', secondary: ''},
+
+            {text: '(', class: 'btn-function', action: 'lparen', secondary: ')'},
+            {text: '4', class: 'btn-number', action: '4', secondary: ''},
+            {text: '5', class: 'btn-number', action: '5', secondary: ''},
+            {text: '6', class: 'btn-number', action: '6', secondary: ''},
+            {text: '×', class: 'btn-operator', action: 'multiply', secondary: ''},
+
+            {text: 'MOD', class: 'btn-function', action: 'mod', secondary: ''},
+            {text: '1', class: 'btn-number', action: '1', secondary: ''},
+            {text: '2', class: 'btn-number', action: '2', secondary: ''},
+            {text: '3', class: 'btn-number', action: '3', secondary: ''},
+            {text: '-', class: 'btn-operator', action: 'subtract', secondary: ''},
+
+            {text: '+/-', class: 'btn-function', action: 'negate', secondary: ''},
+            {text: '0', class: 'btn-number', action: '0', secondary: ''},
+            {text: '.', class: 'btn-number', action: 'decimal', secondary: ''},
+            {text: '=', class: 'btn-equals', action: 'equals', secondary: '', span: 2},
+            {text: '+', class: 'btn-operator', action: 'add', secondary: ''}
+        ];
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                if (btn.textContent.includes(mode.toUpperCase())) {
+                    btn.classList.add('active');
+                } else if (btn.textContent === 'SCIENTIFIC' || btn.textContent === 'PROGRAMMER') {
+                    btn.classList.remove('active');
+                }
+            });
+            renderButtons();
+            updateModeIndicators();
+        }
+
+        function setAngleMode() {
+            const modes = ['deg', 'rad', 'grad'];
+            const currentIndex = modes.indexOf(angleMode);
+            angleMode = modes[(currentIndex + 1) % modes.length];
+            updateModeIndicators();
+        }
+
+        function toggleDisplay() {
+            isLCD = !isLCD;
+            const displayEl = document.getElementById('display');
+            const secondaryEl = document.getElementById('secondary-display');
+            const calculatorEl = document.querySelector('.calculator');
+            if (isLCD) {
+                displayEl.classList.add('lcd');
+                secondaryEl.classList.add('lcd');
+                calculatorEl.classList.add('metallic');
+            } else {
+                displayEl.classList.remove('lcd');
+                secondaryEl.classList.remove('lcd');
+                calculatorEl.classList.remove('metallic');
+            }
+        }
+
+        function updateModeIndicators() {
+            document.getElementById('ind-deg').classList.toggle('active', angleMode === 'deg');
+            document.getElementById('ind-rad').classList.toggle('active', angleMode === 'rad');
+            document.getElementById('ind-grad').classList.toggle('active', angleMode === 'grad');
+            document.getElementById('ind-hex').classList.toggle('active', numberBase === 16);
+            document.getElementById('ind-bin').classList.toggle('active', numberBase === 2);
+            document.getElementById('ind-2nd').classList.toggle('active', secondFunction);
+        }
+
+        function renderButtons() {
+            const buttons = currentMode === 'scientific' ? scientificButtons : programmerButtons;
+            const grid = document.getElementById('button-grid');
+            grid.innerHTML = '';
+
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = btn.class;
+                if (btn.span === 2) button.classList.add('btn-span-2');
+
+                if (btn.secondary) {
+                    const secondary = document.createElement('span');
+                    secondary.className = 'btn-secondary';
+                    secondary.textContent = btn.secondary;
+                    button.appendChild(secondary);
+                }
+
+                const textNode = document.createTextNode(btn.text);
+                button.appendChild(textNode);
+                button.onclick = () => handleButton(btn.action);
+
+                // Disable hex letters in non-hex mode
+                if (currentMode === 'programmer' && 'ABCDEF'.includes(btn.action) && numberBase !== 16) {
+                    button.disabled = true;
+                    button.style.opacity = '0.3';
+                }
+
+                // Disable digits >= base in programmer mode
+                if (currentMode === 'programmer' && !isNaN(btn.action)) {
+                    const digit = parseInt(btn.action);
+                    if (digit >= numberBase) {
+                        button.disabled = true;
+                        button.style.opacity = '0.3';
+                    }
+                }
+
+                grid.appendChild(button);
+            });
+        }
+
+        function updateDisplay() {
+            const displayEl = document.getElementById('display');
+            const secondaryEl = document.getElementById('secondary-display');
+
+            if (currentMode === 'programmer' && numberBase !== 10) {
+                const num = parseFloat(display);
+                if (!isNaN(num) && Number.isInteger(num)) {
+                    if (numberBase === 16) {
+                        displayEl.textContent = '0x' + num.toString(16).toUpperCase();
+                    } else if (numberBase === 2) {
+                        displayEl.textContent = '0b' + num.toString(2);
+                    }
+                } else {
+                    displayEl.textContent = display;
+                }
+            } else {
+                displayEl.textContent = display;
+            }
+
+            // Show pending operation in secondary display
+            if (pendingOperation && pendingValue !== null) {
+                secondaryEl.textContent = `${pendingValue} ${pendingOperation}`;
+            } else {
+                secondaryEl.textContent = '';
+            }
+        }
+
+        function handleButton(action) {
+            if (action === 'toggle2nd') {
+                secondFunction = !secondFunction;
+                updateModeIndicators();
+                return;
+            }
+
+            // Handle number and hex digit input
+            if (!isNaN(action) || 'ABCDEF'.includes(action)) {
+                inputDigit(action);
+                secondFunction = false;
+                updateModeIndicators();
+                updateDisplay();
+                return;
+            }
+
+            switch(action) {
+                case 'decimal':
+                    inputDecimal();
+                    break;
+                case 'ans':
+                    if (lastResult !== null) {
+                        display = lastResult.toString();
+                        waitingForOperand = false;
+                    }
+                    break;
+                case 'ce':
+                    clearEntry();
+                    break;
+                case 'clr':
+                    clearAll();
+                    break;
+                case 'add':
+                case 'subtract':
+                case 'multiply':
+                case 'divide':
+                    handleOperator(action);
+                    break;
+                case 'equals':
+                    calculateResult();
+                    break;
+                case 'sin':
+                    handleTrig(secondFunction ? 'asin' : 'sin');
+                    break;
+                case 'cos':
+                    handleTrig(secondFunction ? 'acos' : 'cos');
+                    break;
+                case 'tan':
+                    handleTrig(secondFunction ? 'atan' : 'tan');
+                    break;
+                case 'ln':
+                    handleFunction(secondFunction ? 'exp' : 'ln');
+                    break;
+                case 'log':
+                    handleFunction(secondFunction ? 'pow10' : 'log');
+                    break;
+                case 'sqrt':
+                    handleFunction(secondFunction ? 'factorial' : 'sqrt');
+                    break;
+                case 'reciprocal':
+                    handleFunction(secondFunction ? 'square' : 'reciprocal');
+                    break;
+                case 'power':
+                    handleBinaryFunction(secondFunction ? 'root' : 'power');
+                    break;
+                case 'negate':
+                    handleFunction(secondFunction ? 'abs' : 'negate');
+                    break;
+                case 'pi':
+                    display = Math.PI.toString();
+                    waitingForOperand = true;
+                    break;
+                case 'sto':
+                    storeMemory();
+                    break;
+                case 'rcl':
+                    recallMemory();
+                    break;
+                case 'r0':
+                case 'r1':
+                    selectMemoryRegister(action);
+                    break;
+                case 'sum':
+                    if (secondFunction) {
+                        statisticalData.push(parseFloat(display));
+                        waitingForOperand = true;
+                    }
+                    break;
+                case 'mean':
+                    if (secondFunction) {
+                        calculateStdDev();
+                    } else {
+                        calculateMean();
+                    }
+                    break;
+                case 'lparen':
+                    if (secondFunction) {
+                        handleParenthesis(')');
+                    } else {
+                        handleParenthesis('(');
+                    }
+                    break;
+                case 'hexMode':
+                    numberBase = 16;
+                    convertDisplayBase();
+                    renderButtons();
+                    updateModeIndicators();
+                    break;
+                case 'decMode':
+                    numberBase = 10;
+                    convertDisplayBase();
+                    renderButtons();
+                    updateModeIndicators();
+                    break;
+                case 'binMode':
+                    numberBase = 2;
+                    convertDisplayBase();
+                    renderButtons();
+                    updateModeIndicators();
+                    break;
+                case 'and':
+                    handleBitwiseOperator('and');
+                    break;
+                case 'or':
+                    handleBitwiseOperator('or');
+                    break;
+                case 'xor':
+                    handleBitwiseOperator('xor');
+                    break;
+                case 'not':
+                    handleBitwiseOperator('not');
+                    break;
+                case 'lshift':
+                    handleBitwiseOperator(secondFunction ? 'rshift' : 'lshift');
+                    break;
+                case 'mod':
+                    handleBinaryFunction('mod');
+                    break;
+                case 'ee':
+                    if (secondFunction) {
+                        // ENG mode
+                        displayMode = 'eng';
+                    } else {
+                        handleEE();
+                    }
+                    break;
+                case 'fix':
+                    if (secondFunction) {
+                        // SCI mode
+                        displayMode = 'sci';
+                    } else {
+                        // FIX mode - prompt for decimal places
+                        handleFIX();
+                    }
+                    break;
+            }
+
+            secondFunction = false;
+            updateModeIndicators();
+            updateDisplay();
+        }
+
+        function inputDigit(digit) {
+            if (waitingForOperand && !enteringExponent) {
+                display = digit.toString();
+                waitingForOperand = false;
+            } else {
+                display = display === '0' && !enteringExponent ? digit.toString() : display + digit;
+            }
+        }
+
+        function inputDecimal() {
+            if (currentMode === 'programmer' && numberBase !== 10) return;
+            if (waitingForOperand) {
+                display = '0.';
+                waitingForOperand = false;
+            } else if (display.indexOf('.') === -1) {
+                display += '.';
+            }
+        }
+
+        function clearEntry() {
+            // Remove last digit instead of clearing entire entry
+            if (display.length > 1) {
+                display = display.slice(0, -1);
+                // Check if we removed the 'e' for exponent
+                if (display.indexOf('e') === -1 && display.indexOf('E') === -1) {
+                    enteringExponent = false;
+                }
+            } else {
+                display = '0';
+                enteringExponent = false;
+            }
+            waitingForOperand = false;
+        }
+
+        function clearAll() {
+            display = '0';
+            pendingOperation = null;
+            pendingValue = null;
+            waitingForOperand = false;
+            operationStack = [];
+            valueStack = [];
+            parenthesesLevel = 0;
+            statisticalData = [];
+            displayMode = 'normal';
+            fixedDecimals = null;
+            enteringExponent = false;
+        }
+
+        function parseDisplayValue() {
+            if (currentMode === 'programmer' && numberBase !== 10) {
+                return parseInt(display, numberBase) || 0;
+            }
+            // parseFloat handles scientific notation (e.g., "1.5e3")
+            const value = parseFloat(display);
+            if (!isNaN(value)) {
+                enteringExponent = false; // Reset exponent entry mode
+            }
+            return value;
+        }
+
+        function handleOperator(op) {
+            const inputValue = parseDisplayValue();
+
+            if (pendingOperation && !waitingForOperand) {
+                calculateResult();
+            }
+
+            pendingValue = parseDisplayValue();
+            pendingOperation = op;
+            waitingForOperand = true;
+        }
+
+        function calculateResult() {
+            const inputValue = parseDisplayValue();
+
+            if (pendingOperation && pendingValue !== null) {
+                let result;
+                switch(pendingOperation) {
+                    case 'add':
+                        result = pendingValue + inputValue;
+                        break;
+                    case 'subtract':
+                        result = pendingValue - inputValue;
+                        break;
+                    case 'multiply':
+                        result = pendingValue * inputValue;
+                        break;
+                    case 'divide':
+                        result = pendingValue / inputValue;
+                        break;
+                    case 'and':
+                        result = pendingValue & inputValue;
+                        break;
+                    case 'or':
+                        result = pendingValue | inputValue;
+                        break;
+                    case 'xor':
+                        result = pendingValue ^ inputValue;
+                        break;
+                    case 'lshift':
+                        result = pendingValue << inputValue;
+                        break;
+                    case 'rshift':
+                        result = pendingValue >> inputValue;
+                        break;
+                    case 'mod':
+                        result = pendingValue % inputValue;
+                        break;
+                    case 'power':
+                        result = Math.pow(pendingValue, inputValue);
+                        break;
+                    case 'root':
+                        result = Math.pow(pendingValue, 1 / inputValue);
+                        break;
+                }
+
+                display = formatResult(result);
+                lastResult = result;
+                pendingOperation = null;
+                pendingValue = null;
+                waitingForOperand = true;
+            }
+        }
+
+        function handleTrig(func) {
+            let value = parseFloat(display);
+
+            // Convert angle to radians if needed
+            if (!func.startsWith('a')) {
+                if (angleMode === 'deg') {
+                    value = value * Math.PI / 180;
+                } else if (angleMode === 'grad') {
+                    value = value * Math.PI / 200;
+                }
+            }
+
+            let result;
+            switch(func) {
+                case 'sin':
+                    result = Math.sin(value);
+                    break;
+                case 'cos':
+                    result = Math.cos(value);
+                    break;
+                case 'tan':
+                    result = Math.tan(value);
+                    break;
+                case 'asin':
+                    result = Math.asin(value);
+                    break;
+                case 'acos':
+                    result = Math.acos(value);
+                    break;
+                case 'atan':
+                    result = Math.atan(value);
+                    break;
+            }
+
+            // Convert result from radians if needed
+            if (func.startsWith('a')) {
+                if (angleMode === 'deg') {
+                    result = result * 180 / Math.PI;
+                } else if (angleMode === 'grad') {
+                    result = result * 200 / Math.PI;
+                }
+            }
+
+            display = formatResult(result);
+            waitingForOperand = true;
+        }
+
+        function handleFunction(func) {
+            const value = parseDisplayValue();
+            let result;
+
+            switch(func) {
+                case 'ln':
+                    result = Math.log(value);
+                    break;
+                case 'log':
+                    result = Math.log10(value);
+                    break;
+                case 'exp':
+                    result = Math.exp(value);
+                    break;
+                case 'pow10':
+                    result = Math.pow(10, value);
+                    break;
+                case 'sqrt':
+                    result = Math.sqrt(value);
+                    break;
+                case 'square':
+                    result = value * value;
+                    break;
+                case 'reciprocal':
+                    result = 1 / value;
+                    break;
+                case 'negate':
+                    result = -value;
+                    break;
+                case 'abs':
+                    result = Math.abs(value);
+                    break;
+                case 'factorial':
+                    result = factorial(Math.floor(value));
+                    break;
+            }
+
+            display = formatResult(result);
+            waitingForOperand = true;
+        }
+
+        function handleBinaryFunction(func) {
+            const inputValue = parseDisplayValue();
+
+            if (pendingOperation && !waitingForOperand) {
+                calculateResult();
+            }
+
+            pendingValue = parseDisplayValue();
+            pendingOperation = func;
+            waitingForOperand = true;
+        }
+
+        function handleBitwiseOperator(op) {
+            const value = parseDisplayValue();
+
+            if (op === 'not') {
+                const result = ~value;
+                display = formatResult(result);
+                waitingForOperand = true;
+                return;
+            }
+
+            if (pendingOperation && !waitingForOperand) {
+                const inputValue = parseDisplayValue();
+                let result;
+
+                switch(pendingOperation) {
+                    case 'and':
+                        result = pendingValue & inputValue;
+                        break;
+                    case 'or':
+                        result = pendingValue | inputValue;
+                        break;
+                    case 'xor':
+                        result = pendingValue ^ inputValue;
+                        break;
+                    case 'lshift':
+                        result = pendingValue << inputValue;
+                        break;
+                    case 'rshift':
+                        result = pendingValue >> inputValue;
+                        break;
+                }
+
+                display = formatResult(result);
+                pendingOperation = null;
+                pendingValue = null;
+                waitingForOperand = true;
+            } else {
+                pendingValue = value;
+                pendingOperation = op;
+                waitingForOperand = true;
+            }
+        }
+
+        function handleParenthesis(paren) {
+            // Simplified parenthesis handling
+            if (paren === '(') {
+                parenthesesLevel++;
+            } else if (paren === ')' && parenthesesLevel > 0) {
+                parenthesesLevel--;
+            }
+        }
+
+        function storeMemory() {
+            memory[currentMemoryIndex] = parseFloat(display);
+            waitingForOperand = true;
+        }
+
+        function recallMemory() {
+            display = memory[currentMemoryIndex].toString();
+            waitingForOperand = true;
+        }
+
+        function selectMemoryRegister(register) {
+            const index = parseInt(register.charAt(1));
+            if (secondFunction) {
+                currentMemoryIndex = index + 4;
+            } else {
+                currentMemoryIndex = index;
+            }
+        }
+
+        function calculateMean() {
+            if (statisticalData.length === 0) {
+                display = 'Error';
+                return;
+            }
+            const sum = statisticalData.reduce((a, b) => a + b, 0);
+            display = formatResult(sum / statisticalData.length);
+            waitingForOperand = true;
+        }
+
+        function calculateStdDev() {
+            if (statisticalData.length === 0) {
+                display = 'Error';
+                return;
+            }
+            const mean = statisticalData.reduce((a, b) => a + b, 0) / statisticalData.length;
+            const variance = statisticalData.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / statisticalData.length;
+            display = formatResult(Math.sqrt(variance));
+            waitingForOperand = true;
+        }
+
+        function factorial(n) {
+            if (n < 0) return NaN;
+            if (n === 0 || n === 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) {
+                result *= i;
+            }
+            return result;
+        }
+
+        function convertDisplayBase() {
+            const num = parseFloat(display);
+            if (!isNaN(num) && Number.isInteger(num)) {
+                display = num.toString();
+            }
+        }
+
+        function handleEE() {
+            if (enteringExponent) return; // Already entering exponent
+
+            // Add 'e' or 'E' to display to indicate exponent entry
+            if (display.indexOf('e') === -1 && display.indexOf('E') === -1) {
+                display += 'e';
+                enteringExponent = true;
+            }
+        }
+
+        function handleFIX() {
+            // Get current display value as decimal places
+            const decimals = parseInt(display);
+            if (!isNaN(decimals) && decimals >= 0 && decimals <= 9) {
+                fixedDecimals = decimals;
+                displayMode = 'fixed';
+                waitingForOperand = true;
+            }
+        }
+
+        function formatResult(value) {
+            if (isNaN(value) || !isFinite(value)) {
+                return 'Error';
+            }
+
+            // Round to 11 digits of precision (TI-57 spec)
+            const rounded = parseFloat(value.toPrecision(11));
+
+            // Apply display mode
+            if (displayMode === 'sci') {
+                return rounded.toExponential(fixedDecimals !== null ? fixedDecimals : 7);
+            } else if (displayMode === 'eng') {
+                return formatEngineering(rounded);
+            } else if (displayMode === 'fixed' && fixedDecimals !== null) {
+                return rounded.toFixed(fixedDecimals);
+            }
+
+            // Normal mode - Format based on magnitude
+            if (Math.abs(rounded) >= 1e8 || (Math.abs(rounded) < 1e-8 && rounded !== 0)) {
+                return rounded.toExponential(7);
+            }
+
+            return rounded.toString();
+        }
+
+        function formatEngineering(value) {
+            if (value === 0) return '0';
+
+            const exponent = Math.floor(Math.log10(Math.abs(value)));
+            const engExponent = Math.floor(exponent / 3) * 3;
+            const mantissa = value / Math.pow(10, engExponent);
+
+            const decimals = fixedDecimals !== null ? fixedDecimals : 6;
+            return mantissa.toFixed(decimals) + 'E' + (engExponent >= 0 ? '+' : '') + engExponent;
+        }
+
+        // Keyboard event handler
+        document.addEventListener('keydown', function(event) {
+            // Prevent default behavior for keys we handle
+            const key = event.key;
+
+            // Number keys 0-9
+            if (key >= '0' && key <= '9') {
+                event.preventDefault();
+                handleButton(key);
+                return;
+            }
+
+            // Hex digits A-F
+            if (currentMode === 'programmer' && numberBase === 16) {
+                const upperKey = key.toUpperCase();
+                if ('ABCDEF'.includes(upperKey)) {
+                    event.preventDefault();
+                    handleButton(upperKey);
+                    return;
+                }
+            }
+
+            // Operators
+            switch(key) {
+                case '+':
+                    event.preventDefault();
+                    handleButton('add');
+                    break;
+                case '-':
+                    event.preventDefault();
+                    handleButton('subtract');
+                    break;
+                case '*':
+                    event.preventDefault();
+                    handleButton('multiply');
+                    break;
+                case '/':
+                    event.preventDefault();
+                    handleButton('divide');
+                    break;
+                case 'Enter':
+                case '=':
+                    event.preventDefault();
+                    handleButton('equals');
+                    break;
+                case 'c':
+                case 'C':
+                    event.preventDefault();
+                    handleButton('clr');
+                    break;
+                case 'Escape':
+                case 'Backspace':
+                    event.preventDefault();
+                    handleButton('ce');
+                    break;
+                case '.':
+                    event.preventDefault();
+                    handleButton('decimal');
+                    break;
+                case '(':
+                    event.preventDefault();
+                    handleButton('lparen');
+                    break;
+                case ')':
+                    event.preventDefault();
+                    secondFunction = true;
+                    handleButton('lparen');
+                    break;
+            }
+        });
+
+        // Initialize calculator
+        renderButtons();
+        updateDisplay();
+        updateModeIndicators();
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./calc-sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

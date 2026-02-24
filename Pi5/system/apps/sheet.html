@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Full-featured spreadsheet application with formulas and charts">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Spreadsheet">
+    <link rel="manifest" href="./sheet.manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232c3e50'/%3E%3Crect x='10' y='20' width='80' height='70' rx='4' fill='white'/%3E%3Cg stroke='%23bdc3c7' stroke-width='1'%3E%3Cline x1='10' y1='35' x2='90' y2='35'/%3E%3Cline x1='10' y1='50' x2='90' y2='50'/%3E%3Cline x1='10' y1='65' x2='90' y2='65'/%3E%3Cline x1='35' y1='20' x2='35' y2='90'/%3E%3Cline x1='62.5' y1='20' x2='62.5' y2='90'/%3E%3C/g%3E%3Crect x='10' y='20' width='80' height='15' fill='%23ecf0f1'/%3E%3C/svg%3E">
+    <title>Spreadsheet App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            background: #2c3e50;
+            color: white;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .toolbar button:hover {
+            background: #2980b9;
+        }
+
+        .toolbar input[type="color"],
+        .toolbar select {
+            height: 32px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toolbar label {
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .spreadsheet-container {
+            flex: 1;
+            overflow: auto;
+            background: white;
+            position: relative;
+            user-select: none; /* Prevent text selection during drag */
+        }
+
+        .spreadsheet {
+            display: inline-block;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .spreadsheet th {
+            background: #ecf0f1;
+            font-weight: 600;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            text-align: center;
+            min-width: 100px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .spreadsheet .row-header {
+            background: #ecf0f1;
+            font-weight: 600;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            text-align: center;
+            min-width: 40px;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+
+        .spreadsheet td {
+            border: 1px solid #bdc3c7;
+            padding: 0;
+            min-width: 100px;
+            height: 30px;
+            position: relative;
+        }
+
+        .spreadsheet td.selected {
+            outline: 2px solid #3498db;
+            outline-offset: -1px;
+        }
+
+        .spreadsheet td.in-range {
+            background: #d6eaf8;
+        }
+
+        .cell-display {
+            width: 100%;
+            height: 100%;
+            padding: 5px 8px;
+            cursor: cell;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cell-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 5px 8px;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .formula-bar {
+            background: #ecf0f1;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .formula-bar input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .cell-ref {
+            font-weight: 600;
+            min-width: 60px;
+            padding: 8px;
+            background: white;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+        }
+
+        .chart-container {
+            margin: 20px;
+            padding: 20px;
+            background: white;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .chart-container h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        canvas {
+            max-width: 600px;
+            max-height: 400px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 300px;
+            max-width: 500px;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+        }
+
+        .modal-content label {
+            display: block;
+            margin: 10px 0 5px 0;
+        }
+
+        .modal-content input,
+        .modal-content select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+
+        .modal-buttons button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-buttons .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .modal-buttons .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .context-menu {
+            display: none;
+            position: fixed;
+            background: white;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 150px;
+            padding: 4px 0;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .context-menu-item:hover {
+            background: #ecf0f1;
+        }
+
+        .context-menu-item.disabled {
+            color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .context-menu-item.disabled:hover {
+            background: transparent;
+        }
+
+        .context-menu-item.disabled {
+            pointer-events: none;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #bdc3c7;
+            margin: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button onclick="saveSpreadsheet()">💾 Save</button>
+        <button onclick="loadSpreadsheet()">📂 Load</button>
+        <button onclick="copyCell()">📋 Copy</button>
+        <button onclick="pasteCell()">📄 Paste</button>
+
+        <label>Font:</label>
+        <select id="fontSelect" onchange="formatCell('fontFamily', this.value)">
+            <option value="Arial">Arial</option>
+            <option value="'Courier New'">Courier New</option>
+            <option value="'Times New Roman'">Times New Roman</option>
+            <option value="Verdana">Verdana</option>
+        </select>
+
+        <label>Size:</label>
+        <select id="fontSizeSelect" onchange="formatCell('fontSize', this.value)">
+            <option value="12px">12</option>
+            <option value="14px" selected>14</option>
+            <option value="16px">16</option>
+            <option value="18px">18</option>
+            <option value="20px">20</option>
+        </select>
+
+        <button onclick="formatCell('fontWeight', 'bold')"><b>B</b></button>
+        <button onclick="formatCell('fontStyle', 'italic')"><i>I</i></button>
+        <button onclick="formatCell('textDecoration', 'underline')"><u>U</u></button>
+
+        <label>Color:</label>
+        <input type="color" id="textColor" onchange="formatCell('color', this.value)">
+
+        <label>Background:</label>
+        <input type="color" id="bgColor" onchange="formatCell('backgroundColor', this.value)" value="#ffffff">
+
+        <button onclick="showChartModal()">📊 Insert Chart</button>
+    </div>
+
+    <div class="formula-bar">
+        <span class="cell-ref" id="cellRef">A1</span>
+        <input type="text" id="formulaBar" placeholder="Enter value or formula (=A1+B1)">
+    </div>
+
+    <div class="spreadsheet-container">
+        <table class="spreadsheet" id="spreadsheet">
+            <!-- Generated by JavaScript -->
+        </table>
+    </div>
+
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <h3>Insert Chart</h3>
+            <label>Chart Type:</label>
+            <select id="chartType">
+                <option value="line">Line Chart</option>
+                <option value="bar">Bar Chart</option>
+                <option value="pie">Pie Chart</option>
+            </select>
+
+            <label>Data Range (e.g., A1:B5):</label>
+            <input type="text" id="chartRange" placeholder="A1:B5">
+            <small style="color: #666; display: block; margin-top: 5px;">
+                For pie charts: Select 2 columns (labels in first, values in second) or 1 column (values only)
+            </small>
+
+            <label>Chart Title:</label>
+            <input type="text" id="chartTitle" placeholder="My Chart">
+
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeChartModal()">Cancel</button>
+                <button class="btn-primary" onclick="insertChart()">Create Chart</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="contextMenuCopy()">
+            <span>📋</span> Copy
+        </div>
+        <div class="context-menu-item" id="contextMenuPaste" onclick="contextMenuPaste()">
+            <span>📄</span> Paste
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="contextMenuDelete()">
+            <span>🗑️</span> Delete
+        </div>
+    </div>
+
+    <script>
+        // Spreadsheet state
+        const ROWS = 50;
+        const COLS = 26;
+        let cells = {};
+        let charts = []; // Store chart data for save/load
+        let selectedCell = null;
+        let selectionStart = null;
+        let selectedRange = null;
+        let clipboard = null;
+        let isMouseDown = false;
+        let mouseDownCell = null;
+        let contextMenuCell = null;
+        let wasDragOperation = false; // Track if a drag occurred
+
+        // Initialize spreadsheet
+        function init() {
+            const table = document.getElementById('spreadsheet');
+
+            // Header row
+            const headerRow = document.createElement('tr');
+            headerRow.appendChild(document.createElement('th')); // Corner cell
+            for (let i = 0; i < COLS; i++) {
+                const th = document.createElement('th');
+                th.textContent = String.fromCharCode(65 + i);
+                headerRow.appendChild(th);
+            }
+            table.appendChild(headerRow);
+
+            // Data rows
+            for (let row = 0; row < ROWS; row++) {
+                const tr = document.createElement('tr');
+                const rowHeader = document.createElement('td');
+                rowHeader.className = 'row-header';
+                rowHeader.textContent = row + 1;
+                tr.appendChild(rowHeader);
+
+                for (let col = 0; col < COLS; col++) {
+                    const td = document.createElement('td');
+                    const cellRef = getCellRef(row, col);
+                    td.dataset.row = row;
+                    td.dataset.col = col;
+
+                    const cellDisplay = document.createElement('div');
+                    cellDisplay.className = 'cell-display';
+                    cellDisplay.onmousedown = (e) => {
+                        if (e.button === 2) {
+                            // Right click - handled by contextmenu event
+                            return;
+                        }
+                        isMouseDown = true;
+                        wasDragOperation = false; // Reset drag flag
+                        mouseDownCell = { row, col };
+                        if (e.shiftKey && selectionStart) {
+                            // Extend selection from start point
+                            selectCell(row, col, true);
+                        } else {
+                            // Start new selection
+                            selectionStart = { row, col };
+                            selectCell(row, col, false);
+                        }
+                        e.preventDefault();
+                        e.stopPropagation();
+                    };
+                    cellDisplay.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        contextMenuCell = { row, col };
+                        // If shift is held, extend selection; otherwise select the right-clicked cell
+                        if (e.shiftKey && selectionStart) {
+                            selectCell(row, col, true);
+                        } else {
+                            selectCell(row, col, false);
+                        }
+                        showContextMenu(e.clientX, e.clientY);
+                    };
+                    cellDisplay.onmouseenter = (e) => {
+                        if (isMouseDown && mouseDownCell) {
+                            // Check if we actually moved to a different cell (drag occurred)
+                            if (mouseDownCell.row !== row || mouseDownCell.col !== col) {
+                                wasDragOperation = true;
+                            }
+                            // Drag selection - extend from mouseDownCell
+                            if (selectionStart) {
+                                selectCell(row, col, true);
+                            }
+                        }
+                    };
+                    cellDisplay.onclick = (e) => {
+                        // Only handle click if it wasn't a drag operation
+                        // A drag is detected if wasDragOperation is true OR if mouseDownCell differs from current cell
+                        const isDrag = wasDragOperation || 
+                                      (mouseDownCell && (mouseDownCell.row !== row || mouseDownCell.col !== col));
+                        
+                        if (!isDrag) {
+                            // This was a genuine click, not a drag
+                            if (e.shiftKey && selectionStart) {
+                                selectCell(row, col, true);
+                            } else {
+                                selectCell(row, col, false);
+                            }
+                        }
+                    };
+                    cellDisplay.ondblclick = () => editCell(row, col);
+
+                    td.appendChild(cellDisplay);
+                    tr.appendChild(td);
+
+                    cells[cellRef] = {
+                        value: '',
+                        display: '',
+                        format: {}
+                    };
+                }
+                table.appendChild(tr);
+            }
+
+            // Formula bar events
+            const formulaBar = document.getElementById('formulaBar');
+            formulaBar.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && selectedCell) {
+                    updateCellValue(selectedCell.row, selectedCell.col, formulaBar.value);
+                    selectCell(selectedCell.row + 1, selectedCell.col);
+                }
+            });
+
+            selectCell(0, 0);
+            
+            // Handle mouse up globally to end drag selection
+            document.addEventListener('mouseup', (e) => {
+                // Reset isMouseDown immediately for other handlers
+                // But preserve wasDragOperation and mouseDownCell until after click event fires
+                // The click event needs to check these flags to determine if it was a drag
+                isMouseDown = false;
+                
+                // Use setTimeout to reset flags after click event has fired
+                // This ensures the click handler can check wasDragOperation before it's reset
+                setTimeout(() => {
+                    mouseDownCell = null;
+                    wasDragOperation = false;
+                }, 0);
+            });
+
+            // Hide context menu when clicking elsewhere
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.context-menu')) {
+                    hideContextMenu();
+                }
+            });
+
+            // Hide context menu on scroll
+            document.addEventListener('scroll', () => {
+                hideContextMenu();
+            });
+        }
+
+        function getCellRef(row, col) {
+            return String.fromCharCode(65 + col) + (row + 1);
+        }
+
+        function parseCellRef(ref) {
+            const match = ref.match(/^([A-Z]+)(\d+)$/);
+            if (!match) return null;
+            const colStr = match[1];
+            // Only support single-letter columns (A-Z) for now
+            if (colStr.length > 1) return null;
+            const col = colStr.charCodeAt(0) - 65;
+            const row = parseInt(match[2]) - 1;
+            // Validate bounds
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return null;
+            return { row, col };
+        }
+
+        function selectCell(row, col, shiftKey = false) {
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+
+            // Clear previous range highlighting
+            document.querySelectorAll('td.in-range').forEach(td => td.classList.remove('in-range'));
+
+            if (shiftKey && selectionStart) {
+                // Range selection with shift - extend from selectionStart
+                selectedRange = {
+                    startRow: Math.min(selectionStart.row, row),
+                    endRow: Math.max(selectionStart.row, row),
+                    startCol: Math.min(selectionStart.col, col),
+                    endCol: Math.max(selectionStart.col, col)
+                };
+
+                // Clear previous single cell selection
+                document.querySelectorAll('td.selected').forEach(td => td.classList.remove('selected'));
+
+                // Highlight range
+                for (let r = selectedRange.startRow; r <= selectedRange.endRow; r++) {
+                    for (let c = selectedRange.startCol; c <= selectedRange.endCol; c++) {
+                        const td = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+                        if (td) {
+                            td.classList.add('in-range');
+                            // Highlight the end cell more prominently
+                            if (r === row && c === col) {
+                                td.classList.add('selected');
+                            }
+                        }
+                    }
+                }
+
+                // Update cell ref to show range
+                const startRef = getCellRef(selectedRange.startRow, selectedRange.startCol);
+                const endRef = getCellRef(selectedRange.endRow, selectedRange.endCol);
+                document.getElementById('cellRef').textContent = `${startRef}:${endRef}`;
+                document.getElementById('formulaBar').value = '';
+
+                selectedCell = { row, col };
+            } else {
+                // Single cell selection
+                selectedRange = null;
+
+                // Deselect previous
+                if (selectedCell) {
+                    const prevTd = document.querySelector(`td[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+                    if (prevTd) prevTd.classList.remove('selected');
+                }
+
+                // Select new
+                selectedCell = { row, col };
+                selectionStart = { row, col };
+                const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+                td.classList.add('selected');
+
+                const cellRef = getCellRef(row, col);
+                document.getElementById('cellRef').textContent = cellRef;
+                document.getElementById('formulaBar').value = cells[cellRef].value || '';
+            }
+        }
+
+        function editCell(row, col) {
+            const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+            const cellDisplay = td.querySelector('.cell-display');
+            const cellRef = getCellRef(row, col);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'cell-input';
+            input.value = cells[cellRef].value || '';
+
+            let handled = false;
+
+            input.onblur = () => {
+                if (!handled) {
+                    updateCellValue(row, col, input.value);
+                    handled = true;
+                }
+            };
+
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handled = true;
+                    input.blur();
+                    updateCellValue(row, col, input.value);
+                    selectCell(row + 1, col);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handled = true;
+                    input.blur();
+                    renderCell(row, col);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handled = true;
+                    input.blur();
+                    updateCellValue(row, col, input.value);
+                    selectCell(row, col + 1);
+                }
+            };
+
+            cellDisplay.replaceWith(input);
+            input.focus();
+            input.select();
+        }
+
+        function updateCellValue(row, col, value) {
+            const cellRef = getCellRef(row, col);
+            cells[cellRef].value = value;
+
+            // Evaluate formula or set value
+            if (value.startsWith('=')) {
+                try {
+                    cells[cellRef].display = evaluateFormula(value.substring(1));
+                } catch (e) {
+                    cells[cellRef].display = '#ERROR!';
+                }
+            } else {
+                cells[cellRef].display = value;
+            }
+
+            renderCell(row, col);
+            recalculateAll();
+        }
+
+        function evaluateFormula(formula) {
+            // Replace cell references with values
+            let expression = formula.replace(/([A-Z]+\d+)/g, (match) => {
+                const cellData = cells[match];
+                if (!cellData) return '0';
+                const val = cellData.display || cellData.value || '0';
+                return isNaN(val) ? '0' : val;
+            });
+
+            // Handle common functions
+            expression = expression.replace(/SUM\(([^)]+)\)/gi, (match, range) => {
+                return sumRange(range);
+            });
+
+            expression = expression.replace(/AVG\(([^)]+)\)/gi, (match, range) => {
+                return avgRange(range);
+            });
+
+            expression = expression.replace(/MIN\(([^)]+)\)/gi, (match, range) => {
+                return minRange(range);
+            });
+
+            expression = expression.replace(/MAX\(([^)]+)\)/gi, (match, range) => {
+                return maxRange(range);
+            });
+
+            // Evaluate the expression
+            try {
+                return eval(expression);
+            } catch (e) {
+                return '#ERROR!';
+            }
+        }
+
+        function sumRange(range) {
+            const values = getRangeValues(range);
+            return values.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+        }
+
+        function avgRange(range) {
+            const values = getRangeValues(range);
+            const sum = values.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+            return values.length > 0 ? sum / values.length : 0;
+        }
+
+        function minRange(range) {
+            const values = getRangeValues(range).map(v => parseFloat(v) || 0);
+            return values.length > 0 ? Math.min(...values) : 0;
+        }
+
+        function maxRange(range) {
+            const values = getRangeValues(range).map(v => parseFloat(v) || 0);
+            return values.length > 0 ? Math.max(...values) : 0;
+        }
+
+        function getRangeValues(range) {
+            const values = [];
+
+            if (range.includes(':')) {
+                const [start, end] = range.split(':');
+                const startPos = parseCellRef(start);
+                const endPos = parseCellRef(end);
+
+                if (!startPos || !endPos) return values;
+
+                for (let r = startPos.row; r <= endPos.row; r++) {
+                    for (let c = startPos.col; c <= endPos.col; c++) {
+                        const ref = getCellRef(r, c);
+                        const val = cells[ref].display || cells[ref].value || '0';
+                        values.push(val);
+                    }
+                }
+            } else {
+                const refs = range.split(',');
+                refs.forEach(ref => {
+                    ref = ref.trim();
+                    if (cells[ref]) {
+                        const val = cells[ref].display || cells[ref].value || '0';
+                        values.push(val);
+                    }
+                });
+            }
+
+            return values;
+        }
+
+        function recalculateAll() {
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const cellRef = getCellRef(row, col);
+                    const value = cells[cellRef].value;
+
+                    if (value && value.startsWith('=')) {
+                        try {
+                            cells[cellRef].display = evaluateFormula(value.substring(1));
+                            renderCell(row, col);
+                        } catch (e) {
+                            cells[cellRef].display = '#ERROR!';
+                            renderCell(row, col);
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderCell(row, col) {
+            const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+            const cellRef = getCellRef(row, col);
+            const cellData = cells[cellRef];
+
+            const cellDisplay = document.createElement('div');
+            cellDisplay.className = 'cell-display';
+            cellDisplay.textContent = cellData.display;
+            cellDisplay.onclick = (e) => selectCell(row, col, e.shiftKey);
+            cellDisplay.ondblclick = () => editCell(row, col);
+
+            // Apply formatting
+            Object.assign(cellDisplay.style, cellData.format);
+
+            const existingChild = td.firstChild;
+            if (existingChild && existingChild.parentNode === td) {
+                existingChild.replaceWith(cellDisplay);
+            } else {
+                td.innerHTML = '';
+                td.appendChild(cellDisplay);
+            }
+        }
+
+        function formatCell(property, value) {
+            if (!selectedCell) return;
+
+            // Determine if we're formatting a range or single cell
+            const cellsToFormat = [];
+            
+            if (selectedRange) {
+                // Format entire range
+                for (let r = selectedRange.startRow; r <= selectedRange.endRow; r++) {
+                    for (let c = selectedRange.startCol; c <= selectedRange.endCol; c++) {
+                        cellsToFormat.push({ row: r, col: c });
+                    }
+                }
+            } else {
+                // Format single cell
+                cellsToFormat.push({ row: selectedCell.row, col: selectedCell.col });
+            }
+
+            // Apply formatting to all cells in the selection
+            cellsToFormat.forEach(({ row, col }) => {
+                const cellRef = getCellRef(row, col);
+                
+                if (!cells[cellRef]) {
+                    cells[cellRef] = { value: '', display: '', format: {} };
+                }
+                
+                const cellFormat = cells[cellRef].format;
+                
+                // Toggle for bold, italic, underline (same logic as original single-cell behavior)
+                if (property === 'fontWeight' && value === 'bold' && cellFormat.fontWeight === 'bold') {
+                    cellFormat.fontWeight = 'normal';
+                } else if (property === 'fontStyle' && value === 'italic' && cellFormat.fontStyle === 'italic') {
+                    cellFormat.fontStyle = 'normal';
+                } else if (property === 'textDecoration' && value === 'underline' && cellFormat.textDecoration === 'underline') {
+                    cellFormat.textDecoration = 'none';
+                } else {
+                    // Apply the format value
+                    cellFormat[property] = value;
+                }
+                
+                renderCell(row, col);
+            });
+        }
+
+        function copyCell() {
+            if (!selectedCell) return;
+
+            if (selectedRange) {
+                // Copy range
+                clipboard = {
+                    isRange: true,
+                    data: [],
+                    rows: selectedRange.endRow - selectedRange.startRow + 1,
+                    cols: selectedRange.endCol - selectedRange.startCol + 1
+                };
+
+                for (let r = selectedRange.startRow; r <= selectedRange.endRow; r++) {
+                    for (let c = selectedRange.startCol; c <= selectedRange.endCol; c++) {
+                        const cellRef = getCellRef(r, c);
+                        clipboard.data.push({
+                            value: cells[cellRef].value,
+                            format: { ...cells[cellRef].format }
+                        });
+                    }
+                }
+
+                const startRef = getCellRef(selectedRange.startRow, selectedRange.startCol);
+                const endRef = getCellRef(selectedRange.endRow, selectedRange.endCol);
+                console.log('Copied range:', `${startRef}:${endRef}`);
+            } else {
+                // Copy single cell
+                const cellRef = getCellRef(selectedCell.row, selectedCell.col);
+                clipboard = {
+                    isRange: false,
+                    value: cells[cellRef].value,
+                    format: { ...cells[cellRef].format }
+                };
+
+                console.log('Copied:', cellRef);
+            }
+        }
+
+        function deleteCell() {
+            if (!selectedCell) return;
+
+            if (selectedRange) {
+                // Delete range
+                for (let r = selectedRange.startRow; r <= selectedRange.endRow; r++) {
+                    for (let c = selectedRange.startCol; c <= selectedRange.endCol; c++) {
+                        const cellRef = getCellRef(r, c);
+                        cells[cellRef].value = '';
+                        cells[cellRef].display = '';
+                        updateCellValue(r, c, '');
+                    }
+                }
+            } else {
+                // Delete single cell
+                updateCellValue(selectedCell.row, selectedCell.col, '');
+            }
+            hideContextMenu();
+        }
+
+        function showContextMenu(x, y) {
+            const menu = document.getElementById('contextMenu');
+            
+            // Update paste button state
+            const pasteItem = document.getElementById('contextMenuPaste');
+            if (clipboard) {
+                pasteItem.classList.remove('disabled');
+                pasteItem.onclick = contextMenuPaste;
+            } else {
+                pasteItem.classList.add('disabled');
+                pasteItem.onclick = null;
+            }
+
+            // Show menu first to get dimensions
+            menu.style.display = 'block';
+            menu.style.visibility = 'hidden'; // Hide temporarily to measure
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            
+            // Calculate position with viewport bounds
+            let finalX = x;
+            let finalY = y;
+            
+            if (x + menuWidth > window.innerWidth) {
+                finalX = window.innerWidth - menuWidth - 5;
+            }
+            if (finalX < 5) finalX = 5;
+            
+            if (y + menuHeight > window.innerHeight) {
+                finalY = window.innerHeight - menuHeight - 5;
+            }
+            if (finalY < 5) finalY = 5;
+            
+            menu.style.left = finalX + 'px';
+            menu.style.top = finalY + 'px';
+            menu.style.visibility = 'visible';
+        }
+
+        function hideContextMenu() {
+            const menu = document.getElementById('contextMenu');
+            menu.style.display = 'none';
+            contextMenuCell = null;
+        }
+
+        function contextMenuCopy() {
+            // Use current selection (which was set when right-clicking)
+            copyCell();
+            hideContextMenu();
+        }
+
+        function contextMenuPaste() {
+            if (!clipboard) return;
+            // Use current selection (which was set when right-clicking)
+            pasteCell();
+            hideContextMenu();
+        }
+
+        function contextMenuDelete() {
+            // Use current selection (which was set when right-clicking)
+            deleteCell();
+        }
+
+        function pasteCell() {
+            if (!selectedCell || !clipboard) return;
+
+            if (clipboard.isRange) {
+                // Paste range
+                let dataIndex = 0;
+                for (let r = 0; r < clipboard.rows; r++) {
+                    for (let c = 0; c < clipboard.cols; c++) {
+                        const targetRow = selectedCell.row + r;
+                        const targetCol = selectedCell.col + c;
+
+                        if (targetRow < ROWS && targetCol < COLS) {
+                            const cellRef = getCellRef(targetRow, targetCol);
+                            const cellData = clipboard.data[dataIndex];
+
+                            cells[cellRef].value = cellData.value;
+                            cells[cellRef].format = { ...cellData.format };
+                            updateCellValue(targetRow, targetCol, cellData.value);
+                        }
+                        dataIndex++;
+                    }
+                }
+            } else {
+                // Paste single cell
+                const cellRef = getCellRef(selectedCell.row, selectedCell.col);
+                cells[cellRef].value = clipboard.value;
+                cells[cellRef].format = { ...clipboard.format };
+
+                updateCellValue(selectedCell.row, selectedCell.col, clipboard.value);
+            }
+        }
+
+        function saveSpreadsheet() {
+            // Prompt for filename
+            const defaultName = 'spreadsheet.json';
+            const filename = prompt('Enter filename to save:', defaultName);
+            if (!filename) return; // User cancelled
+            
+            // Ensure .json extension
+            const finalFilename = filename.endsWith('.json') ? filename : filename + '.json';
+            
+            // Save both cells and charts
+            const data = {
+                cells: cells,
+                charts: charts,
+                version: '1.0'
+            };
+            
+            const jsonData = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = finalFilename;
+            a.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        function loadSpreadsheet() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        // Handle both old format (cells only) and new format (with charts)
+                        if (data.cells) {
+                            // New format with charts
+                            cells = data.cells;
+                            charts = Array.isArray(data.charts) ? data.charts : [];
+                        } else {
+                            // Legacy format - cells only
+                            cells = data;
+                            charts = [];
+                        }
+
+                        // Clear existing charts
+                        document.querySelectorAll('.chart-container').forEach(chart => chart.remove());
+
+                        // Re-render all cells
+                        for (let row = 0; row < ROWS; row++) {
+                            for (let col = 0; col < COLS; col++) {
+                                renderCell(row, col);
+                            }
+                        }
+
+                        // Recreate charts
+                        charts.forEach(chartData => {
+                            createChart(chartData.type, chartData.data, chartData.title);
+                        });
+
+                        recalculateAll();
+                    } catch (err) {
+                        alert('Error loading file: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            input.click();
+        }
+
+        // Chart functionality
+        function showChartModal() {
+            // Auto-fill range if a selection exists
+            if (selectedRange) {
+                const startRef = getCellRef(selectedRange.startRow, selectedRange.startCol);
+                const endRef = getCellRef(selectedRange.endRow, selectedRange.endCol);
+                document.getElementById('chartRange').value = `${startRef}:${endRef}`;
+            } else if (selectedCell) {
+                // If single cell selected, try to detect a range around it
+                const cellRef = getCellRef(selectedCell.row, selectedCell.col);
+                document.getElementById('chartRange').value = cellRef;
+            } else {
+                document.getElementById('chartRange').value = '';
+            }
+            // Clear title field
+            document.getElementById('chartTitle').value = '';
+            document.getElementById('chartModal').style.display = 'flex';
+            // Focus on the title input for easy entry
+            setTimeout(() => {
+                document.getElementById('chartTitle').focus();
+            }, 100);
+        }
+
+        function closeChartModal() {
+            document.getElementById('chartModal').style.display = 'none';
+        }
+
+        function insertChart() {
+            const chartType = document.getElementById('chartType').value;
+            const chartRange = document.getElementById('chartRange').value;
+            const chartTitle = document.getElementById('chartTitle').value;
+
+            if (!chartRange) {
+                alert('Please specify a data range');
+                return;
+            }
+
+            try {
+                const data = getChartData(chartRange);
+                createChart(chartType, data, chartTitle);
+                closeChartModal();
+            } catch (e) {
+                alert('Error creating chart: ' + e.message);
+            }
+        }
+
+        function getChartData(range) {
+            let startPos, endPos;
+            
+            if (range.includes(':')) {
+                const [start, end] = range.split(':');
+                startPos = parseCellRef(start);
+                endPos = parseCellRef(end);
+            } else {
+                // Single cell reference - try to detect range
+                startPos = parseCellRef(range);
+                if (!startPos) {
+                    throw new Error('Invalid range format');
+                }
+                // Try to find adjacent data, but stay within bounds
+                endPos = { 
+                    row: Math.min(startPos.row + 10, ROWS - 1), 
+                    col: Math.min(startPos.col + 1, COLS - 1) 
+                };
+            }
+
+            if (!startPos || !endPos) {
+                throw new Error('Invalid range format');
+            }
+
+            // Validate bounds
+            if (startPos.row < 0 || startPos.row >= ROWS || 
+                startPos.col < 0 || startPos.col >= COLS ||
+                endPos.row < 0 || endPos.row >= ROWS || 
+                endPos.col < 0 || endPos.col >= COLS) {
+                throw new Error('Range is out of bounds');
+            }
+
+            const data = { labels: [], values: [] };
+
+            // For pie charts: if range spans multiple columns, use first column for labels, second for values
+            // If range is single column, use row headers as labels and column as values
+            const numCols = endPos.col - startPos.col + 1;
+            const numRows = endPos.row - startPos.row + 1;
+
+            if (numCols >= 2) {
+                // Two or more columns: first column = labels, second column = values
+                for (let r = startPos.row; r <= endPos.row && r < ROWS; r++) {
+                    if (startPos.col >= COLS || startPos.col + 1 >= COLS) break;
+                    const labelRef = getCellRef(r, startPos.col);
+                    const valueRef = getCellRef(r, startPos.col + 1);
+
+                    const label = cells[labelRef] ? (cells[labelRef].display || cells[labelRef].value || '') : '';
+                    const value = cells[valueRef] ? parseFloat(cells[valueRef].display || cells[valueRef].value || '0') : 0;
+
+                    if (label || value !== 0) {
+                        data.labels.push(label || `Item ${data.labels.length + 1}`);
+                        data.values.push(value);
+                    }
+                }
+            } else {
+                // Single column: use cell values as data, generate labels
+                for (let r = startPos.row; r <= endPos.row && r < ROWS; r++) {
+                    if (startPos.col >= COLS) break;
+                    const valueRef = getCellRef(r, startPos.col);
+                    const cellData = cells[valueRef];
+                    
+                    if (cellData) {
+                        const value = parseFloat(cellData.display || cellData.value || '0');
+                        if (value !== 0 || cellData.value) {
+                            data.labels.push(cellData.value || `Item ${data.labels.length + 1}`);
+                            data.values.push(value);
+                        }
+                    }
+                }
+            }
+
+            if (data.labels.length === 0) {
+                throw new Error('No data found in selected range');
+            }
+
+            return data;
+        }
+
+        function createChart(type, data, title) {
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+
+            // Only add title if one is provided
+            if (title && title.trim()) {
+                const titleElem = document.createElement('h3');
+                titleElem.textContent = title.trim();
+                container.appendChild(titleElem);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 400;
+            container.appendChild(canvas);
+
+            document.querySelector('.spreadsheet-container').appendChild(container);
+
+            drawChart(canvas, type, data);
+            
+            // Store chart data for saving
+            charts.push({
+                type: type,
+                data: data,
+                title: title || ''
+            });
+        }
+
+        function drawChart(canvas, type, data) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 60;
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, width, height);
+
+            if (type === 'pie') {
+                drawPieChart(ctx, data, width, height);
+            } else if (type === 'bar') {
+                drawBarChart(ctx, data, width, height, padding);
+            } else if (type === 'line') {
+                drawLineChart(ctx, data, width, height, padding);
+            }
+        }
+
+        function drawPieChart(ctx, data, width, height) {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) / 3;
+            const total = data.values.reduce((sum, val) => sum + Math.abs(val), 0);
+            
+            if (total === 0) {
+                ctx.fillStyle = '#000';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data to display', centerX, centerY);
+                return;
+            }
+
+            let currentAngle = -Math.PI / 2;
+            const colors = generateColors(data.values.length);
+
+            // Draw pie slices
+            data.values.forEach((value, i) => {
+                const sliceAngle = (Math.abs(value) / total) * 2 * Math.PI;
+
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw percentage label on slice if slice is large enough
+                if (sliceAngle > 0.1) {
+                    const labelAngle = currentAngle + sliceAngle / 2;
+                    const labelRadius = radius * 0.7;
+                    const labelX = centerX + Math.cos(labelAngle) * labelRadius;
+                    const labelY = centerY + Math.sin(labelAngle) * labelRadius;
+                    const percentage = ((Math.abs(value) / total) * 100).toFixed(1) + '%';
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(percentage, labelX, labelY);
+                }
+
+                currentAngle += sliceAngle;
+            });
+
+            // Draw legend with values and percentages
+            const legendX = width - 200;
+            const legendY = 20;
+            const legendItemHeight = 25;
+            
+            data.labels.forEach((label, i) => {
+                const y = legendY + i * legendItemHeight;
+                const percentage = ((Math.abs(data.values[i]) / total) * 100).toFixed(1);
+                
+                // Color box
+                ctx.fillStyle = colors[i];
+                ctx.fillRect(legendX, y, 15, 15);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(legendX, y, 15, 15);
+                
+                // Label and value
+                ctx.fillStyle = '#000';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                const labelText = label.length > 15 ? label.substring(0, 12) + '...' : label;
+                ctx.fillText(labelText, legendX + 20, y);
+                ctx.fillText(`${data.values[i]} (${percentage}%)`, legendX + 20, y + 14);
+            });
+        }
+
+        function drawBarChart(ctx, data, width, height, padding) {
+            if (data.values.length === 0) {
+                ctx.fillStyle = '#000';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data to display', width / 2, height / 2);
+                return;
+            }
+            const maxValue = Math.max(...data.values);
+            if (maxValue <= 0) {
+                ctx.fillStyle = '#000';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No valid data to display', width / 2, height / 2);
+                return;
+            }
+            const barWidth = (width - padding * 2) / data.values.length - 10;
+            const chartHeight = height - padding * 2;
+
+            // Draw axes
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+
+            // Draw bars
+            const colors = generateColors(data.values.length);
+
+            data.values.forEach((value, i) => {
+                const barHeight = (value / maxValue) * chartHeight;
+                const x = padding + i * (barWidth + 10) + 10;
+                const y = height - padding - barHeight;
+
+                ctx.fillStyle = colors[i];
+                ctx.fillRect(x, y, barWidth, barHeight);
+
+                // Label
+                ctx.fillStyle = '#000';
+                ctx.font = '12px Arial';
+                ctx.save();
+                ctx.translate(x + barWidth / 2, height - padding + 15);
+                ctx.rotate(-Math.PI / 4);
+                ctx.fillText(data.labels[i], 0, 0);
+                ctx.restore();
+
+                // Value
+                ctx.fillText(value.toString(), x + barWidth / 2 - 10, y - 5);
+            });
+        }
+
+        function drawLineChart(ctx, data, width, height, padding) {
+            if (data.values.length === 0) {
+                ctx.fillStyle = '#000';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data to display', width / 2, height / 2);
+                return;
+            }
+            const maxValue = Math.max(...data.values);
+            if (maxValue <= 0) {
+                ctx.fillStyle = '#000';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No valid data to display', width / 2, height / 2);
+                return;
+            }
+            // Handle single data point case
+            const pointSpacing = data.values.length > 1 
+                ? (width - padding * 2) / (data.values.length - 1)
+                : 0;
+            const chartHeight = height - padding * 2;
+
+            // Draw axes
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+
+            // Draw line
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            data.values.forEach((value, i) => {
+                const x = padding + (data.values.length > 1 ? i * pointSpacing : width / 2);
+                const y = height - padding - (value / maxValue) * chartHeight;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            if (data.values.length > 1) {
+                ctx.stroke();
+            }
+
+            // Draw points
+            data.values.forEach((value, i) => {
+                const x = padding + i * pointSpacing;
+                const y = height - padding - (value / maxValue) * chartHeight;
+
+                ctx.fillStyle = '#3498db';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Labels
+                ctx.fillStyle = '#000';
+                ctx.font = '12px Arial';
+                ctx.save();
+                ctx.translate(x, height - padding + 15);
+                ctx.rotate(-Math.PI / 4);
+                ctx.fillText(data.labels[i], 0, 0);
+                ctx.restore();
+
+                // Value
+                ctx.fillText(value.toString(), x - 10, y - 10);
+            });
+        }
+
+        function generateColors(count) {
+            const colors = [
+                '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#d35400'
+            ];
+
+            const result = [];
+            for (let i = 0; i < count; i++) {
+                result.push(colors[i % colors.length]);
+            }
+            return result;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (!selectedCell) return;
+
+            const input = document.querySelector('.cell-input');
+            if (input) return; // Don't navigate while editing
+
+            if (document.getElementById('formulaBar') === document.activeElement) return;
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (e.shiftKey && selectionStart) {
+                        selectCell(selectedCell.row - 1, selectedCell.col, true);
+                    } else {
+                        selectCell(selectedCell.row - 1, selectedCell.col, false);
+                    }
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (e.shiftKey && selectionStart) {
+                        selectCell(selectedCell.row + 1, selectedCell.col, true);
+                    } else {
+                        selectCell(selectedCell.row + 1, selectedCell.col, false);
+                    }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (e.shiftKey && selectionStart) {
+                        selectCell(selectedCell.row, selectedCell.col - 1, true);
+                    } else {
+                        selectCell(selectedCell.row, selectedCell.col - 1, false);
+                    }
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    if (e.shiftKey && selectionStart) {
+                        selectCell(selectedCell.row, selectedCell.col + 1, true);
+                    } else {
+                        selectCell(selectedCell.row, selectedCell.col + 1, false);
+                    }
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    editCell(selectedCell.row, selectedCell.col);
+                    break;
+                case 'Delete':
+                    e.preventDefault();
+                    updateCellValue(selectedCell.row, selectedCell.col, '');
+                    break;
+                case 'Backspace':
+                    e.preventDefault();
+                    updateCellValue(selectedCell.row, selectedCell.col, '');
+                    editCell(selectedCell.row, selectedCell.col);
+                    break;
+                default:
+                    // If it's a printable character, start editing the cell
+                    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        editCell(selectedCell.row, selectedCell.col);
+                        // The character will be captured by the input field
+                    }
+                    break;
+            }
+        });
+
+        // Initialize on load
+        window.onload = init;
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sheet-sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

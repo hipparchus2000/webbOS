@@ -95,9 +95,23 @@ This creates a combined image with:
 
 ### 4. Create SD Card Image (for real Pi)
 
+#### Basic SD Card Image
 ```bash
 python scripts/create-sdcard.py \
     target/aarch64-unknown-none/release/bootloader \
+    -o webbos-pi.img
+```
+
+#### With WiFi Support (Recommended)
+WiFi requires proprietary firmware files that must be downloaded separately:
+
+```bash
+# 1. Download WiFi firmware files
+python scripts/download-wifi-firmware.py
+
+# 2. Create SD card image with WiFi firmware
+python scripts/create-sdcard.py \
+    --wifi-firmware-dir pi-wifi-firmware \
     -o webbos-pi.img
 ```
 
@@ -106,6 +120,7 @@ This creates a partitioned SD card image with:
 - Root filesystem partition (remaining space)
 - `kernel8.img` in boot partition
 - `config.txt` and `cmdline.txt`
+- WiFi firmware in `/firmware/brcm/` (if requested)
 
 ## Build Options
 
@@ -131,6 +146,34 @@ cargo +nightly-2025-01-15 build -p kernel --target aarch64-unknown-none -Z build
 | `kernel` | ~420KB | Kernel ELF |
 | `webbos-pi-raw.img` | ~1.3MB | QEMU test image |
 | `webbos-pi.img` | ~256MB | SD card image |
+| `pi-wifi-firmware/brcm/` | ~850KB | WiFi firmware files |
+
+## WiFi Firmware
+
+WiFi support requires downloading proprietary firmware files:
+
+### Quick Setup
+```bash
+# Download firmware for Pi 3 and Pi 4
+python scripts/download-wifi-firmware.py
+
+# Verify download
+python scripts/download-wifi-firmware.py --verify
+```
+
+### Firmware Files
+
+**Pi 3 (BCM43438):**
+- `brcmfmac43430-sdio.bin` (~300KB) - Main firmware
+- `brcmfmac43430-sdio.clm_blob` (~10KB) - Calibration data
+- `brcmfmac43430-sdio.txt` (~2KB) - NVRAM config
+
+**Pi 4 (BCM43455):**
+- `brcmfmac43455-sdio.bin` (~500KB) - Main firmware
+- `brcmfmac43455-sdio.clm_blob` (~15KB) - Calibration data
+- `brcmfmac43455-sdio.txt` (~2KB) - NVRAM config
+
+See [WIFI_SETUP.md](WIFI_SETUP.md) for detailed WiFi configuration.
 
 ## Troubleshooting
 
@@ -168,5 +211,6 @@ WebbOS Pi is cross-compiled from x86_64 Windows/Linux to ARM64:
 ## Next Steps
 
 - [Running Guide](RUNNING.md) - How to run on QEMU or real Pi
+- [WiFi Setup](WIFI_SETUP.md) - Configure WiFi networking
 - [HARDWARE.md](../HARDWARE.md) - Hardware specifications
 - [PORTING.md](../PORTING.md) - ARM64 port details

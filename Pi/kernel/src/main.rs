@@ -541,7 +541,7 @@ fn process_command(cmd: &[u8]) {
             net::print_stats();
         }
         "dhcp" => {
-            net::dhcp::start_dhcp();
+            println!("DHCP is now integrated with WiFi. Connect to WiFi to use DHCP.");
         }
         "storage" => {
             storage::print_devices();

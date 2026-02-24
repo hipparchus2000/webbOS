@@ -1,0 +1,33 @@
+{
+  "name": "Backgammon",
+  "short_name": "Backgammon",
+  "description": "Play backgammon against a computer opponent",
+  "start_url": "./backgammon.html",
+  "display": "standalone",
+  "background_color": "#2c1810",
+  "theme_color": "#8b4513",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='20' fill='%238b4513'/%3E%3Crect x='20' y='20' width='152' height='152' rx='8' fill='%23d2691e'/%3E%3Cpath d='M40 40 L55 90 L40 140 M70 40 L55 90 L70 140 M100 40 L115 90 L100 140 M130 40 L115 90 L130 140 M160 40 L145 90 L160 140' stroke='%23654321' stroke-width='3' fill='none'/%3E%3Ccircle cx='65' cy='60' r='12' fill='white' stroke='%23999' stroke-width='2'/%3E%3Ccircle cx='125' cy='120' r='12' fill='%23333' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='50' fill='%238b4513'/%3E%3Crect x='50' y='50' width='412' height='412' rx='16' fill='%23d2691e'/%3E%3Cpath d='M100 100 L140 256 L100 412 M190 100 L150 256 L190 412 M280 100 L320 256 L280 412 M370 100 L330 256 L370 412 M460 100 L420 256 L460 412' stroke='%23654321' stroke-width='8' fill='none'/%3E%3Ccircle cx='165' cy='150' r='32' fill='white' stroke='%23999' stroke-width='4'/%3E%3Ccircle cx='345' cy='320' r='32' fill='%23333' stroke='%23000' stroke-width='4'/%3E%3Ccircle cx='220' cy='380' r='32' fill='white' stroke='%23999' stroke-width='4'/%3E%3Ccircle cx='290' cy='140' r='32' fill='%23333' stroke='%23000' stroke-width='4'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'%3E%3Crect width='540' height='720' fill='%232c1810'/%3E%3Ctext x='270' y='360' font-size='80' font-family='sans-serif' font-weight='bold' fill='%23ffd700' text-anchor='middle'%3EBackgammon%3C/text%3E%3C/svg%3E",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
+}

@@ -25,20 +25,20 @@ The `webbos-pi.img` file contains:
 ├── kernel8.img          (608KB) - WebbOS kernel with browser engine
 ├── config.txt           - Boot configuration
 ├── cmdline.txt          - Kernel command line
-├── Apps/
+├── Apps/                - Built-in applications
 │   ├── calc.html        - Calculator
 │   ├── judge.html       - Judge app
 │   ├── richtext.html    - Rich text editor
 │   ├── sheet.html       - Spreadsheet
-│   └── Games/
-│       ├── backgamon.html   - Backgammon
-│       ├── invaders.html    - Space Invaders
-│       ├── mahjong.html     - Mahjong
-│       ├── solitaire.html   - Solitaire
-│       ├── chickens.html    - Chicken Darts
-│       ├── decision.html    - Decision Game
-│       ├── platform.html    - Platform Game
-│       └── swans.html       - Swans
+│   └── Games/           - Games collection
+├── firmware/            - WiFi firmware (optional, see WiFi Setup section)
+│   └── brcm/
+│       ├── brcmfmac43430-sdio.bin     (Pi 3 WiFi firmware)
+│       ├── brcmfmac43430-sdio.txt     (Pi 3 NVRAM config)
+│       ├── brcmfmac43430-sdio.clm_blob (Pi 3 calibration)
+│       ├── brcmfmac43455-sdio.bin     (Pi 4 WiFi firmware)
+│       ├── brcmfmac43455-sdio.txt     (Pi 4 NVRAM config)
+│       └── brcmfmac43455-sdio.clm_blob (Pi 4 calibration)
 ```
 
 ## Option 1: Windows
@@ -238,7 +238,7 @@ sudo cmp -n 268435456 Pi/webbos-pi.img /dev/sdb
 | USB Mouse | ✅ Recommended | Any standard USB mouse |
 | SD Card | ✅ Required | 8GB minimum, Class 10 recommended |
 | Ethernet | ⚠️ Partial | Driver present, testing needed |
-| WiFi | ⚠️ Partial | Driver present, firmware needed |
+| WiFi | ⚠️ Partial | Driver ready, [firmware required](WIFI_SETUP.md) |
 | Audio | ❌ Not supported | Not implemented |
 | Bluetooth | ❌ Not supported | Not implemented |
 
@@ -246,6 +246,7 @@ sudo cmp -n 268435456 Pi/webbos-pi.img /dev/sdb
 
 To create a fresh SD card image with latest changes:
 
+### Basic Image (No WiFi)
 ```bash
 # Windows PowerShell
 cd Pi
@@ -253,6 +254,24 @@ python scripts/create-sdcard.py --size 256 --output webbos-pi.img target/aarch64
 python scripts/add-all-apps.py
 
 # The resulting webbos-pi.img can be written to SD card using methods above
+```
+
+### Image with WiFi Support (Recommended)
+```bash
+# Download WiFi firmware first
+python scripts/download-wifi-firmware.py
+
+# Create SD card image with WiFi firmware included
+python scripts/create-sdcard.py \
+    --wifi-firmware-dir pi-wifi-firmware \
+    --size 256 \
+    --output webbos-pi.img \
+    target/aarch64-unknown-none/release/kernel
+
+# Add applications
+python scripts/add-all-apps.py
+
+# The resulting webbos-pi.img includes WiFi firmware
 ```
 
 ## Verifying the SD Card
@@ -269,8 +288,36 @@ ls -la /tmp/webbos_boot/Apps/
 sudo umount /tmp/webbos_boot
 ```
 
+## WiFi Setup
+
+WiFi requires proprietary firmware files that are not included in the WebbOS repository.
+
+### Quick WiFi Setup
+
+1. **Download WiFi firmware:**
+   ```bash
+   cd Pi
+   python scripts/download-wifi-firmware.py
+   ```
+
+2. **Create SD card image with WiFi:**
+   ```bash
+   python scripts/create-sdcard.py --wifi-firmware-dir pi-wifi-firmware -o webbos-pi.img
+   ```
+
+3. **Write to SD card** (see methods above)
+
+4. **Boot and connect:**
+   ```
+   > wifi scan
+   > wifi connect "MyNetwork" "password"
+   ```
+
+See [WIFI_SETUP.md](WIFI_SETUP.md) for detailed WiFi configuration.
+
 ## Additional Resources
 
+- [WiFi Setup Guide](WIFI_SETUP.md) - Detailed WiFi configuration
 - [Hardware Documentation](HARDWARE.md) - Detailed hardware support info
 - [Browser Implementation](BROWSER_IMPLEMENTATION.md) - Browser engine roadmap
 - [STATUS.md](../STATUS.md) - Current project status

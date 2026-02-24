@@ -1,0 +1,33 @@
+{
+  "name": "Mahjong Solitaire",
+  "short_name": "Mahjong",
+  "description": "A classic Mahjong Solitaire game with turtle layout",
+  "start_url": "./mahjong.html",
+  "display": "standalone",
+  "background_color": "#9b8b4f",
+  "theme_color": "#7a8450",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='20' fill='%23f5f5dc'/%3E%3Crect x='16' y='16' width='160' height='160' rx='12' fill='%23e5e5d5' stroke='%23333' stroke-width='4'/%3E%3Ctext x='96' y='130' font-size='80' text-anchor='middle' fill='%232980b9'%3E🀄%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='50' fill='%23f5f5dc'/%3E%3Crect x='40' y='40' width='432' height='432' rx='30' fill='%23e5e5d5' stroke='%23333' stroke-width='8'/%3E%3Ctext x='256' y='350' font-size='220' text-anchor='middle' fill='%232980b9'%3E🀄%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'%3E%3Crect width='540' height='720' fill='%239b8b4f'/%3E%3Crect x='50' y='150' width='440' height='420' rx='10' fill='%237a8450'/%3E%3Ctext x='270' y='400' font-size='120' text-anchor='middle' fill='%23fff'%3EMahjong%3C/text%3E%3C/svg%3E",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "Spreadsheet App",
+  "short_name": "Spreadsheet",
+  "description": "Full-featured spreadsheet application with formulas and charts",
+  "start_url": "./sheet.html",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#2c3e50",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='20' fill='%232c3e50'/%3E%3Crect x='20' y='40' width='152' height='132' rx='8' fill='white'/%3E%3Cg stroke='%23bdc3c7' stroke-width='2'%3E%3Cline x1='20' y1='70' x2='172' y2='70'/%3E%3Cline x1='20' y1='100' x2='172' y2='100'/%3E%3Cline x1='20' y1='130' x2='172' y2='130'/%3E%3Cline x1='20' y1='160' x2='172' y2='160'/%3E%3Cline x1='70' y1='40' x2='70' y2='172'/%3E%3Cline x1='120' y1='40' x2='120' y2='172'/%3E%3C/g%3E%3Crect x='20' y='40' width='152' height='30' fill='%23ecf0f1'/%3E%3Ctext x='45' y='62' font-size='18' font-weight='bold' fill='%232c3e50'%3EA%3C/text%3E%3Ctext x='95' y='62' font-size='18' font-weight='bold' fill='%232c3e50'%3EB%3C/text%3E%3Ctext x='145' y='62' font-size='18' font-weight='bold' fill='%232c3e50'%3EC%3C/text%3E%3Ctext x='35' y='92' font-size='14' fill='%233498db'%3E100%3C/text%3E%3Ctext x='85' y='92' font-size='14' fill='%233498db'%3E200%3C/text%3E%3Ctext x='132' y='92' font-size='14' fill='%2327ae60'%3E=A1+B1%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='50' fill='%232c3e50'/%3E%3Crect x='50' y='100' width='412' height='362' rx='12' fill='white'/%3E%3Cg stroke='%23bdc3c7' stroke-width='4'%3E%3Cline x1='50' y1='180' x2='462' y2='180'/%3E%3Cline x1='50' y1='260' x2='462' y2='260'/%3E%3Cline x1='50' y1='340' x2='462' y2='340'/%3E%3Cline x1='50' y1='420' x2='462' y2='420'/%3E%3Cline x1='190' y1='100' x2='190' y2='462'/%3E%3Cline x1='325' y1='100' x2='325' y2='462'/%3E%3C/g%3E%3Crect x='50' y='100' width='412' height='80' fill='%23ecf0f1'/%3E%3Ctext x='120' y='155' font-size='42' font-weight='bold' fill='%232c3e50'%3EA%3C/text%3E%3Ctext x='257.5' y='155' font-size='42' font-weight='bold' fill='%232c3e50' text-anchor='middle'%3EB%3C/text%3E%3Ctext x='393.5' y='155' font-size='42' font-weight='bold' fill='%232c3e50' text-anchor='middle'%3EC%3C/text%3E%3Ctext x='85' y='230' font-size='32' fill='%233498db'%3E100%3C/text%3E%3Ctext x='225' y='230' font-size='32' fill='%233498db'%3E200%3C/text%3E%3Ctext x='345' y='230' font-size='26' fill='%2327ae60'%3E=A1+B1%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'%3E%3Crect width='540' height='720' fill='%23f5f5f5'/%3E%3Crect width='540' height='60' fill='%232c3e50'/%3E%3Ctext x='270' y='390' font-size='80' font-family='sans-serif' font-weight='bold' fill='%232c3e50' text-anchor='middle'%3ESpreadsheet%3C/text%3E%3C/svg%3E",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
+}

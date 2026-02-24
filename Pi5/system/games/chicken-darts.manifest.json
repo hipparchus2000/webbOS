@@ -1,0 +1,20 @@
+{
+  "name": "Rubber Chicken Darts",
+  "short_name": "Chicken Darts",
+  "description": "A fun rubber chicken dart throwing game",
+  "start_url": "./chicken-darts.html",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#2c3e50",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%23667eea' width='512' height='512'/%3E%3Ctext x='256' y='350' text-anchor='middle' font-size='300' fill='%23FFD700'%3E🐔%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": []
+}

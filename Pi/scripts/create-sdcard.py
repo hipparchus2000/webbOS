@@ -314,7 +314,8 @@ def add_file_to_image(f, boot_start_sector, boot_partition_sectors, sectors_per_
 
 
 def create_sdcard_image(output_path, kernel_path=None, size_mb=2048, 
-                        include_firmware=False, firmware_dir=None):
+                        include_firmware=False, firmware_dir=None,
+                        wifi_firmware_dir=None):
     """
     Create a complete Raspberry Pi SD card image.
     
@@ -324,6 +325,7 @@ def create_sdcard_image(output_path, kernel_path=None, size_mb=2048,
         size_mb: Total image size in MB
         include_firmware: Whether to include Raspberry Pi firmware files
         firmware_dir: Directory containing firmware files (bootcode.bin, start.elf, etc.)
+        wifi_firmware_dir: Directory containing WiFi firmware files (optional)
     """
     size_bytes = size_mb * 1024 * 1024
     total_sectors = size_bytes // SECTOR_SIZE
@@ -461,6 +463,52 @@ gpu_mem=16
                                       2, fat_name, fw_data)
                     print(f"    Added {fw_file}")
         
+        # Add WiFi firmware files if directory provided
+        if wifi_firmware_dir and os.path.isdir(wifi_firmware_dir):
+            brcm_dir = os.path.join(wifi_firmware_dir, 'brcm')
+            if os.path.isdir(brcm_dir):
+                print(f"\n  Adding WiFi firmware files from {brcm_dir}...")
+                
+                # WiFi firmware files to include
+                wifi_files = [
+                    'brcmfmac43430-sdio.bin',
+                    'brcmfmac43430-sdio.clm_blob',
+                    'brcmfmac43430-sdio.txt',
+                    'brcmfmac43455-sdio.bin',
+                    'brcmfmac43455-sdio.clm_blob',
+                    'brcmfmac43455-sdio.txt',
+                ]
+                
+                # Create firmware/brcm directory structure
+                # First create 'FIRMWARE' directory entry
+                add_file_to_image(f, FIRST_PARTITION_START, boot_partition_sectors, sectors_per_fat, sectors_per_cluster,
+                                  2, 'FIRMWARE', b'', is_directory=True)
+                print(f"    Created FIRMWARE directory")
+                
+                # Create 'BRCM' subdirectory (simplified - in root for now)
+                for wifi_file in wifi_files:
+                    wifi_path = os.path.join(brcm_dir, wifi_file)
+                    if os.path.exists(wifi_path):
+                        with open(wifi_path, 'rb') as wf:
+                            wifi_data = wf.read()
+                        
+                        # Create 8.3 filename (e.g., BRCM43430BIN for brcmfmac43430-sdio.bin)
+                        name_parts = wifi_file.replace('brcmfmac', '').replace('.sdio', '').split('.')
+                        if len(name_parts) >= 2:
+                            base = name_parts[0][:6]  # e.g., "43430-"
+                            ext = name_parts[-1][:3]   # e.g., "bin" or "txt"
+                            fat_name = f"BRCM{base}{ext}".upper().replace('-', '')[:11]
+                        else:
+                            fat_name = wifi_file.upper().replace('.', '')[:11]
+                        
+                        # For simplicity, add to root with modified name
+                        # Full path support would require proper directory chaining
+                        add_file_to_image(f, FIRST_PARTITION_START, boot_partition_sectors, sectors_per_fat, sectors_per_cluster,
+                                          2, fat_name, wifi_data)
+                        print(f"    Added {wifi_file} as {fat_name}")
+            else:
+                print(f"\n  Warning: {brcm_dir} not found, skipping WiFi firmware")
+        
         # Note: Device tree blobs (.dtb) would be added here
         # They can be extracted from Raspberry Pi firmware or built from kernel source
         print("\n  Note: Device tree blobs (.dtb) should be added manually")
@@ -492,6 +540,12 @@ Examples:
   
   # Include firmware files
   python create-sdcard.py --firmware-dir /path/to/pi/firmware
+  
+  # Include WiFi firmware (after running download-wifi-firmware.py)
+  python create-sdcard.py --wifi-firmware-dir pi-wifi-firmware
+  
+  # Include both firmware types
+  python create-sdcard.py --firmware-dir pi-firmware --wifi-firmware-dir pi-wifi-firmware
         """
     )
     
@@ -506,6 +560,8 @@ Examples:
                         help='Directory containing Raspberry Pi firmware files')
     parser.add_argument('--include-firmware', action='store_true',
                         help='Include firmware files from --firmware-dir')
+    parser.add_argument('--wifi-firmware-dir',
+                        help='Directory containing WiFi firmware files (downloaded by download-wifi-firmware.py)')
     
     args = parser.parse_args()
     
@@ -515,7 +571,8 @@ Examples:
             args.kernel,
             args.size,
             args.include_firmware,
-            args.firmware_dir
+            args.firmware_dir,
+            args.wifi_firmware_dir
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

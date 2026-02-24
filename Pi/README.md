@@ -2,7 +2,8 @@
 
 A web browser operating system that boots directly into a desktop environment with a full web browser, applications, and user management. This is the **ARM64/AArch64** port for Raspberry Pi.
 
-> **Status:** Bootloader & Kernel Working | Display on Real Hardware Only
+> **Status:** Bootloader & Kernel Working | Display on Real Hardware Only  
+> **WiFi:** Driver implemented, requires [firmware download](docs/WIFI_SETUP.md)
 
 ## ✨ Features
 
@@ -185,7 +186,7 @@ See [PI5_SUPPORT.md](docs/PI5_SUPPORT.md) for full details and contribution guid
 | USB DWC OTG | ✅ Complete |
 | USB HID | ✅ Complete |
 | SDIO Controller | ✅ Complete |
-| WiFi Driver | ⚠️ Firmware needed |
+| WiFi Driver | ⚠️ Firmware needed¹ |
 
 ## 🛠️ Development
 
@@ -213,8 +214,9 @@ python scripts/create-sdcard.py target/aarch64-unknown-none/release/bootloader -
 
 - [Build Instructions](docs/BUILD.md) - Detailed build process
 - [Running Guide](docs/RUNNING.md) - How to run (QEMU vs real hardware)
+- [WiFi Setup](docs/WIFI_SETUP.md) - Configure WiFi (requires firmware download)
 - [Hardware Details](HARDWARE.md) - Pi-specific hardware information
-- [Porting Notes](PORTING.md) - ARM64 porting details
+- [Porting Notes](PORTing.md) - ARM64 porting details
 
 ## 📊 Specifications
 
@@ -228,7 +230,7 @@ python scripts/create-sdcard.py target/aarch64-unknown-none/release/bootloader -
 | **Resolution** | 1024x768 (32-bit color) |
 | **Memory** | 1GB minimum |
 | **Storage** | SD card (FAT32) |
-| **Network** | WiFi (BCM43438/43455) |
+| **Network** | WiFi (BCM43438/43455) - [Setup Guide](docs/WIFI_SETUP.md) |
 
 ## 🤝 Contributing
 
