@@ -13,6 +13,7 @@ pub mod udp;
 pub mod ip;
 pub mod arp;
 pub mod dhcp;
+pub mod dhcp_client;
 pub mod dns;
 pub mod socket;
 pub mod http;
@@ -75,6 +76,15 @@ impl Ipv4Address {
     /// Create IPv4 address from bytes
     pub const fn new(bytes: [u8; 4]) -> Self {
         Self(bytes)
+    }
+    
+    /// Create IPv4 address from byte slice
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut addr = [0u8; 4];
+        if bytes.len() >= 4 {
+            addr.copy_from_slice(&bytes[..4]);
+        }
+        Self(addr)
     }
 
     /// Create from octets

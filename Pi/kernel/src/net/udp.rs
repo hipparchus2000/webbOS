@@ -190,9 +190,20 @@ pub fn receive_from(
     }
 }
 
+/// Alias for receive_from
+pub fn recv_from(local_port: Port, buf: &mut [u8]) -> Result<(Ipv4Address, Port, usize), ()> {
+    receive_from(local_port, buf).ok_or(())
+}
+
 /// Close UDP socket
 pub fn close(port: Port) {
     SOCKETS.lock().remove(&port);
+}
+
+/// Alias for close (unbind)
+pub fn unbind(port: Port) -> Result<(), ()> {
+    close(port);
+    Ok(())
 }
 
 /// Print UDP statistics

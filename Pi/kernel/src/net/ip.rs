@@ -128,7 +128,7 @@ impl Ipv4Header {
     }
 }
 
-/// Process incoming IPv4 packet
+/// Process incoming IPv4 packet (alias for process_ip_packet)
 pub fn process_ipv4_packet(data: &[u8]) {
     let header = match Ipv4Header::from_bytes(data) {
         Some(h) => h,
@@ -172,6 +172,11 @@ pub fn process_ipv4_packet(data: &[u8]) {
             // Unknown protocol - could send ICMP destination unreachable
         }
     }
+}
+
+/// Alias for process_ipv4_packet (for backwards compatibility)
+pub fn process_ip_packet(data: &[u8]) {
+    process_ipv4_packet(data);
 }
 
 /// Send IPv4 packet

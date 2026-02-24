@@ -1,438 +1,363 @@
-//! DHCP (Dynamic Host Configuration Protocol)
+//! DHCP Client Implementation
 //!
-//! Client for automatic IP configuration.
+//! Implements DHCP (Dynamic Host Configuration Protocol) for automatic
+//! IP address configuration on WiFi networks.
 
-use alloc::vec;
 use alloc::vec::Vec;
-
-use crate::net::{Ipv4Address, Port, IpProtocol, udp, NetworkConfig};
+use crate::net::Ipv4Address;
+use crate::net::MacAddress;
 use crate::println;
+use crate::drivers::timer::elapsed_ms;
 
-/// DHCP ports
-const DHCP_CLIENT_PORT: Port = Port::new(68);
-const DHCP_SERVER_PORT: Port = Port::new(67);
+// DHCP constants
+pub const DHCP_CLIENT_PORT: u16 = 68;
+pub const DHCP_SERVER_PORT: u16 = 67;
 
-/// DHCP message types
-const DHCP_DISCOVER: u8 = 1;
-const DHCP_OFFER: u8 = 2;
-const DHCP_REQUEST: u8 = 3;
-const DHCP_DECLINE: u8 = 4;
-const DHCP_ACK: u8 = 5;
-const DHCP_NAK: u8 = 6;
-const DHCP_RELEASE: u8 = 7;
+// DHCP message types
+pub const DHCP_DISCOVER: u8 = 1;
+pub const DHCP_OFFER: u8 = 2;
+pub const DHCP_REQUEST: u8 = 3;
+pub const DHCP_DECLINE: u8 = 4;
+pub const DHCP_ACK: u8 = 5;
+pub const DHCP_NAK: u8 = 6;
+pub const DHCP_RELEASE: u8 = 7;
+pub const DHCP_INFORM: u8 = 8;
 
-/// DHCP packet
-#[repr(C)]
-struct DhcpPacket {
-    op: u8,
-    htype: u8,
-    hlen: u8,
-    hops: u8,
-    xid: u32,
-    secs: u16,
-    flags: u16,
-    ciaddr: [u8; 4],
-    yiaddr: [u8; 4],
-    siaddr: [u8; 4],
-    giaddr: [u8; 4],
-    chaddr: [u8; 16],
-    sname: [u8; 64],
-    file: [u8; 128],
-    // Magic cookie: 0x63825363
-    // Options follow
+// DHCP options
+pub const DHCP_OPTION_MESSAGE_TYPE: u8 = 53;
+pub const DHCP_OPTION_END: u8 = 255;
+
+// DHCP magic cookie
+pub const DHCP_MAGIC_COOKIE: [u8; 4] = [0x63, 0x82, 0x53, 0x63];
+
+// DHCP timeouts (in milliseconds)
+pub const DHCP_TIMEOUT_INITIAL: u64 = 4000;  // 4 seconds
+pub const DHCP_TIMEOUT_MAX: u64 = 64000;      // 64 seconds
+pub const DHCP_RETRY_COUNT: u32 = 4;
+
+/// DHCP message structure (simplified)
+#[derive(Debug, Clone)]
+pub struct DhcpMessage {
+    pub op: u8,
+    pub htype: u8,
+    pub hlen: u8,
+    pub xid: u32,
+    pub ciaddr: Ipv4Address,
+    pub yiaddr: Ipv4Address,
+    pub siaddr: Ipv4Address,
+    pub chaddr: [u8; 16],
+    pub options: Vec<u8>,
 }
 
-/// DHCP options
-const OPT_MESSAGE_TYPE: u8 = 53;
-const OPT_SUBNET_MASK: u8 = 1;
-const OPT_ROUTER: u8 = 3;
-const OPT_DNS: u8 = 6;
-const OPT_REQUESTED_IP: u8 = 50;
-const OPT_SERVER_ID: u8 = 54;
-const OPT_END: u8 = 255;
+impl DhcpMessage {
+    /// Create a new DHCP message
+    pub fn new(xid: u32, mac: &MacAddress) -> Self {
+        let mut chaddr = [0u8; 16];
+        chaddr[..6].copy_from_slice(mac.as_bytes());
+        
+        Self {
+            op: 1,  // BOOTREQUEST
+            htype: 1,  // Ethernet
+            hlen: 6,
+            xid,
+            ciaddr: Ipv4Address::new([0, 0, 0, 0]),
+            yiaddr: Ipv4Address::new([0, 0, 0, 0]),
+            siaddr: Ipv4Address::new([0, 0, 0, 0]),
+            chaddr,
+            options: Vec::new(),
+        }
+    }
+    
+    /// Serialize DHCP message to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut result = Vec::with_capacity(300);
+        
+        result.push(self.op);
+        result.push(self.htype);
+        result.push(self.hlen);
+        result.push(0);  // hops
+        result.extend_from_slice(&self.xid.to_be_bytes());
+        result.extend_from_slice(&[0u8; 2]);  // secs
+        result.extend_from_slice(&[0x80, 0x00]);  // flags (broadcast)
+        result.extend_from_slice(self.ciaddr.as_bytes());
+        result.extend_from_slice(self.yiaddr.as_bytes());
+        result.extend_from_slice(self.siaddr.as_bytes());
+        result.extend_from_slice(&[0u8; 4]);  // giaddr
+        result.extend_from_slice(&self.chaddr);
+        result.extend_from_slice(&[0u8; 64]);  // sname
+        result.extend_from_slice(&[0u8; 128]); // file
+        
+        // Magic cookie
+        result.extend_from_slice(&DHCP_MAGIC_COOKIE);
+        
+        // Options
+        result.extend_from_slice(&self.options);
+        result.push(DHCP_OPTION_END);
+        
+        // Pad to minimum size
+        while result.len() < 300 {
+            result.push(0);
+        }
+        
+        result
+    }
+    
+    /// Set message type
+    pub fn set_message_type(&mut self, msg_type: u8) {
+        self.options.push(DHCP_OPTION_MESSAGE_TYPE);
+        self.options.push(1);
+        self.options.push(msg_type);
+    }
+    
+    /// Parse DHCP message from bytes
+    pub fn from_bytes(data: &[u8]) -> Option<Self> {
+        if data.len() < 240 {
+            return None;
+        }
+        
+        let op = data[0];
+        let htype = data[1];
+        let hlen = data[2];
+        
+        // Parse xid
+        let xid = ((data[4] as u32) << 24) |
+                  ((data[5] as u32) << 16) |
+                  ((data[6] as u32) << 8) |
+                  (data[7] as u32);
+        
+        // Parse addresses
+        let ciaddr = Ipv4Address::from_bytes(&data[12..16]);
+        let yiaddr = Ipv4Address::from_bytes(&data[16..20]);
+        let siaddr = Ipv4Address::from_bytes(&data[20..24]);
+        
+        // Parse chaddr
+        let mut chaddr = [0u8; 16];
+        chaddr.copy_from_slice(&data[28..44]);
+        
+        // Parse options (skip magic cookie)
+        let mut options = Vec::new();
+        if data.len() > 240 {
+            let opts_start = 240;
+            let mut i = opts_start;
+            
+            // Check for magic cookie
+            if data.len() >= opts_start + 4 && 
+               data[opts_start..opts_start+4] == [0x63, 0x82, 0x53, 0x63] {
+                i = opts_start + 4;
+                
+                while i < data.len() && data[i] != DHCP_OPTION_END {
+                    let opt_code = data[i];
+                    if opt_code == 0 {
+                        // Padding
+                        i += 1;
+                        continue;
+                    }
+                    
+                    if i + 1 >= data.len() {
+                        break;
+                    }
+                    
+                    let opt_len = data[i + 1] as usize;
+                    options.push(opt_code);
+                    options.push(opt_len as u8);
+                    
+                    if i + 2 + opt_len <= data.len() {
+                        options.extend_from_slice(&data[i + 2..i + 2 + opt_len]);
+                    }
+                    
+                    i += 2 + opt_len;
+                }
+            }
+        }
+        
+        Some(Self {
+            op,
+            htype,
+            hlen,
+            xid,
+            ciaddr,
+            yiaddr,
+            siaddr,
+            chaddr,
+            options,
+        })
+    }
+    
+    /// Get message type from options
+    pub fn message_type(&self) -> Option<u8> {
+        let mut i = 0;
+        while i < self.options.len() {
+            if i + 1 >= self.options.len() {
+                break;
+            }
+            let code = self.options[i];
+            let len = self.options[i + 1] as usize;
+            
+            if code == DHCP_OPTION_MESSAGE_TYPE && len == 1 && i + 2 < self.options.len() {
+                return Some(self.options[i + 2]);
+            }
+            
+            i += 2 + len;
+        }
+        None
+    }
+}
 
-/// Current DHCP state
-#[derive(Debug, Clone, Copy)]
-enum DhcpState {
+/// DHCP client state
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DhcpState {
     Idle,
     Selecting,
     Requesting,
     Bound,
+    Renewing,
+    Rebinding,
 }
 
-static mut DHCP_STATE: DhcpState = DhcpState::Idle;
-static mut DHCP_XID: u32 = 0x12345678;
-
-/// Start DHCP discovery
-pub fn start_dhcp() {
-    println!("[dhcp] Starting DHCP discovery...");
-
-    unsafe {
-        DHCP_STATE = DhcpState::Selecting;
-        DHCP_XID = 0x12345678;
-    }
-
-    // Bind DHCP client port
-    let _ = udp::bind(DHCP_CLIENT_PORT);
-
-    // Send DHCP discover
-    send_discover();
+/// DHCP client configuration
+pub struct DhcpClient {
+    pub state: DhcpState,
+    pub mac_address: MacAddress,
+    pub xid: u32,
+    pub assigned_ip: Option<Ipv4Address>,
+    pub subnet_mask: Option<Ipv4Address>,
+    pub gateway: Option<Ipv4Address>,
+    pub dns_servers: Vec<Ipv4Address>,
+    pub server_id: Option<Ipv4Address>,
+    pub lease_time: u32,
+    pub lease_start: u64,
+    pub last_activity: u64,
+    pub retry_count: u32,
+    pub timeout: u64,
 }
 
-/// Send DHCP discover
-fn send_discover() {
-    let mut packet = vec![0u8; 300];
-
-    // Fill DHCP header
-    packet[0] = 1; // BOOTREQUEST
-    packet[1] = 1; // Ethernet
-    packet[2] = 6; // MAC length
-    packet[3] = 0; // Hops
-    
-    // XID
-    unsafe {
-        packet[4..8].copy_from_slice(&DHCP_XID.to_be_bytes());
-    }
-    
-    // secs, flags
-    packet[8..10].copy_from_slice(&[0, 0]);
-    packet[10..12].copy_from_slice(&[0x80, 0x00]); // Broadcast flag
-
-    // Client IP (0.0.0.0)
-    packet[12..16].fill(0);
-    
-    // Your IP (0.0.0.0)
-    packet[16..20].fill(0);
-    
-    // Server IP (0.0.0.0)
-    packet[20..24].fill(0);
-    
-    // Gateway IP (0.0.0.0)
-    packet[24..28].fill(0);
-
-    // Client MAC (TODO: use actual MAC)
-    packet[28..34].copy_from_slice(&[0x52, 0x54, 0x00, 0x12, 0x34, 0x56]);
-    packet[34..44].fill(0); // Padding to 16 bytes
-
-    // Server name (empty)
-    packet[44..108].fill(0);
-    
-    // Boot file (empty)
-    packet[108..236].fill(0);
-
-    // Magic cookie
-    packet[236..240].copy_from_slice(&[0x63, 0x82, 0x53, 0x63]);
-
-    // Options
-    let mut opt_pos = 240;
-    
-    // Message type: Discover
-    packet[opt_pos] = OPT_MESSAGE_TYPE;
-    packet[opt_pos + 1] = 1;
-    packet[opt_pos + 2] = DHCP_DISCOVER;
-    opt_pos += 3;
-
-    // Client identifier (MAC)
-    packet[opt_pos] = 61;
-    packet[opt_pos + 1] = 7;
-    packet[opt_pos + 2] = 1; // Ethernet
-    packet[opt_pos + 3..opt_pos + 9].copy_from_slice(&[0x52, 0x54, 0x00, 0x12, 0x34, 0x56]);
-    opt_pos += 9;
-
-    // Parameter request list
-    packet[opt_pos] = 55;
-    packet[opt_pos + 1] = 4;
-    packet[opt_pos + 2] = OPT_SUBNET_MASK;
-    packet[opt_pos + 3] = OPT_ROUTER;
-    packet[opt_pos + 4] = OPT_DNS;
-    packet[opt_pos + 5] = 15; // Domain name
-    opt_pos += 6;
-
-    // End
-    packet[opt_pos] = OPT_END;
-
-    // Send broadcast
-    let _ = udp::send_to(
-        DHCP_CLIENT_PORT,
-        Ipv4Address::broadcast(),
-        DHCP_SERVER_PORT,
-        &packet[..opt_pos + 1]
-    );
-
-    println!("[dhcp] Sent DISCOVER");
-}
-
-/// Send DHCP request
-fn send_request(offer: &DhcpOffer) {
-    let mut packet = vec![0u8; 300];
-
-    // Fill DHCP header
-    packet[0] = 1; // BOOTREQUEST
-    packet[1] = 1; // Ethernet
-    packet[2] = 6; // MAC length
-    packet[3] = 0; // Hops
-    
-    unsafe {
-        packet[4..8].copy_from_slice(&DHCP_XID.to_be_bytes());
-    }
-    
-    packet[8..12].copy_from_slice(&[0, 0, 0x80, 0x00]); // Broadcast
-    packet[12..28].fill(0); // IPs
-    
-    // Client MAC
-    packet[28..34].copy_from_slice(&[0x52, 0x54, 0x00, 0x12, 0x34, 0x56]);
-    packet[34..44].fill(0);
-    packet[44..236].fill(0);
-
-    // Magic cookie
-    packet[236..240].copy_from_slice(&[0x63, 0x82, 0x53, 0x63]);
-
-    // Options
-    let mut opt_pos = 240;
-
-    // Message type: Request
-    packet[opt_pos] = OPT_MESSAGE_TYPE;
-    packet[opt_pos + 1] = 1;
-    packet[opt_pos + 2] = DHCP_REQUEST;
-    opt_pos += 3;
-
-    // Requested IP
-    packet[opt_pos] = OPT_REQUESTED_IP;
-    packet[opt_pos + 1] = 4;
-    packet[opt_pos + 2..opt_pos + 6].copy_from_slice(offer.ip.as_bytes());
-    opt_pos += 6;
-
-    // Server ID
-    packet[opt_pos] = OPT_SERVER_ID;
-    packet[opt_pos + 1] = 4;
-    packet[opt_pos + 2..opt_pos + 6].copy_from_slice(offer.server.as_bytes());
-    opt_pos += 6;
-
-    // End
-    packet[opt_pos] = OPT_END;
-
-    let _ = udp::send_to(
-        DHCP_CLIENT_PORT,
-        Ipv4Address::broadcast(),
-        DHCP_SERVER_PORT,
-        &packet[..opt_pos + 1]
-    );
-
-    println!("[dhcp] Sent REQUEST for {:?}", offer.ip);
-
-    unsafe {
-        DHCP_STATE = DhcpState::Requesting;
-    }
-}
-
-/// DHCP offer
-struct DhcpOffer {
-    ip: Ipv4Address,
-    server: Ipv4Address,
-    subnet_mask: Ipv4Address,
-    gateway: Ipv4Address,
-    dns: Ipv4Address,
-}
-
-/// Process DHCP packet
-pub fn process_dhcp_packet(data: &[u8]) {
-    if data.len() < 240 {
-        return;
-    }
-
-    let state = unsafe { DHCP_STATE };
-
-    match state {
-        DhcpState::Selecting => {
-            // Looking for DHCPOFFER
-            if let Some(offer) = parse_offer(data) {
-                println!("[dhcp] Received OFFER from {:?}", offer.server);
-                send_request(&offer);
-            }
+impl DhcpClient {
+    /// Create a new DHCP client
+    pub fn new(mac: MacAddress) -> Self {
+        let xid = ((mac.as_bytes()[2] as u32) << 24) |
+                  ((mac.as_bytes()[3] as u32) << 16) |
+                  ((mac.as_bytes()[4] as u32) << 8) |
+                  (mac.as_bytes()[5] as u32);
+        
+        Self {
+            state: DhcpState::Idle,
+            mac_address: mac,
+            xid,
+            assigned_ip: None,
+            subnet_mask: None,
+            gateway: None,
+            dns_servers: Vec::new(),
+            server_id: None,
+            lease_time: 0,
+            lease_start: 0,
+            last_activity: 0,
+            retry_count: 0,
+            timeout: DHCP_TIMEOUT_INITIAL,
         }
-        DhcpState::Requesting => {
-            // Looking for DHCPACK
-            if parse_ack(data) {
-                println!("[dhcp] Received ACK - configuration complete");
-                unsafe {
-                    DHCP_STATE = DhcpState::Bound;
-                }
-            }
-        }
-        _ => {}
     }
-}
-
-/// Parse DHCP offer
-fn parse_offer(data: &[u8]) -> Option<DhcpOffer> {
-    // Check XID
-    let xid = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
-    unsafe {
-        if xid != DHCP_XID {
+    
+    /// Start DHCP discovery process
+    pub fn start_discovery(&mut self) -> Vec<u8> {
+        println!("[dhcp] Starting DHCP discovery...");
+        
+        self.state = DhcpState::Selecting;
+        self.retry_count = 0;
+        self.timeout = DHCP_TIMEOUT_INITIAL;
+        self.last_activity = elapsed_ms();
+        
+        self.create_discover()
+    }
+    
+    /// Create DHCP DISCOVER message
+    pub fn create_discover(&self) -> Vec<u8> {
+        let mut msg = DhcpMessage::new(self.xid, &self.mac_address);
+        msg.set_message_type(DHCP_DISCOVER);
+        msg.to_bytes()
+    }
+    
+    /// Create DHCP REQUEST message
+    pub fn create_request(&self, server_id: Ipv4Address, requested_ip: Ipv4Address) -> Vec<u8> {
+        let mut msg = DhcpMessage::new(self.xid, &self.mac_address);
+        msg.set_message_type(DHCP_REQUEST);
+        msg.siaddr = server_id;
+        msg.to_bytes()
+    }
+    
+    /// Check if timeout occurred and retry needed
+    pub fn check_timeout(&mut self) -> Option<Vec<u8>> {
+        let elapsed = elapsed_ms() - self.last_activity;
+        
+        if elapsed < self.timeout {
             return None;
         }
-    }
-
-    // Get offered IP (yiaddr)
-    let ip = Ipv4Address::new([data[16], data[17], data[18], data[19]]);
-
-    // Parse options
-    let mut pos = 240;
-    let mut message_type = 0u8;
-    let mut server_ip = Ipv4Address::unspecified();
-    let mut subnet_mask = Ipv4Address::from_octets(255, 255, 255, 0);
-    let mut gateway = Ipv4Address::unspecified();
-    let mut dns = Ipv4Address::unspecified();
-
-    while pos < data.len() && data[pos] != OPT_END {
-        let opt = data[pos];
-        if opt == 0 {
-            pos += 1;
-            continue;
+        
+        self.retry_count += 1;
+        
+        if self.retry_count >= DHCP_RETRY_COUNT {
+            println!("[dhcp] Max retries reached, giving up");
+            self.state = DhcpState::Idle;
+            return None;
         }
-
-        if pos + 1 >= data.len() {
-            break;
-        }
-        let len = data[pos + 1] as usize;
-
-        if pos + 2 + len > data.len() {
-            break;
-        }
-
-        match opt {
-            OPT_MESSAGE_TYPE => {
-                message_type = data[pos + 2];
-            }
-            OPT_SUBNET_MASK => {
-                if len == 4 {
-                    subnet_mask = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
+        
+        // Exponential backoff
+        self.timeout = (self.timeout * 2).min(DHCP_TIMEOUT_MAX);
+        self.last_activity = elapsed_ms();
+        
+        println!("[dhcp] Timeout, retry {}/{}...", self.retry_count, DHCP_RETRY_COUNT);
+        
+        match self.state {
+            DhcpState::Selecting => Some(self.create_discover()),
+            DhcpState::Requesting => {
+                if let (Some(server), Some(ip)) = (self.server_id, self.assigned_ip) {
+                    Some(self.create_request(server, ip))
+                } else {
+                    None
                 }
             }
-            OPT_ROUTER => {
-                if len >= 4 {
-                    gateway = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
-                }
-            }
-            OPT_DNS => {
-                if len >= 4 {
-                    dns = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
-                }
-            }
-            OPT_SERVER_ID => {
-                if len == 4 {
-                    server_ip = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
-                }
-            }
-            _ => {}
-        }
-
-        pos += 2 + len;
-    }
-
-    if message_type != DHCP_OFFER {
-        return None;
-    }
-
-    Some(DhcpOffer {
-        ip,
-        server: server_ip,
-        subnet_mask,
-        gateway,
-        dns,
-    })
-}
-
-/// Parse DHCP ACK
-fn parse_ack(data: &[u8]) -> bool {
-    // Check XID
-    let xid = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
-    unsafe {
-        if xid != DHCP_XID {
-            return false;
+            _ => None,
         }
     }
-
-    // Get assigned IP
-    let ip = Ipv4Address::new([data[16], data[17], data[18], data[19]]);
-
-    // Parse options
-    let mut pos = 240;
-    let mut message_type = 0u8;
-    let mut subnet_mask = Ipv4Address::from_octets(255, 255, 255, 0);
-    let mut gateway = Ipv4Address::unspecified();
-    let mut dns = Ipv4Address::unspecified();
-
-    while pos < data.len() && data[pos] != OPT_END {
-        let opt = data[pos];
-        if opt == 0 {
-            pos += 1;
-            continue;
+    
+    /// Check if lease needs renewal
+    pub fn check_renewal(&mut self) -> Option<Vec<u8>> {
+        if self.state != DhcpState::Bound {
+            return None;
         }
-
-        if pos + 1 >= data.len() {
-            break;
+        
+        let elapsed = (elapsed_ms() - self.lease_start) / 1000;
+        
+        if elapsed >= self.lease_time as u64 {
+            // Lease expired
+            println!("[dhcp] Lease expired, restarting discovery...");
+            self.state = DhcpState::Idle;
+            return Some(self.start_discovery());
         }
-        let len = data[pos + 1] as usize;
-
-        match opt {
-            OPT_MESSAGE_TYPE => {
-                message_type = data[pos + 2];
-            }
-            OPT_SUBNET_MASK => {
-                if len == 4 {
-                    subnet_mask = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
-                }
-            }
-            OPT_ROUTER => {
-                if len >= 4 {
-                    gateway = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
-                }
-            }
-            OPT_DNS => {
-                if len >= 4 {
-                    dns = Ipv4Address::new([
-                        data[pos + 2], data[pos + 3], data[pos + 4], data[pos + 5]
-                    ]);
-                }
-            }
-            _ => {}
-        }
-
-        pos += 2 + len;
+        
+        None
     }
-
-    if message_type != DHCP_ACK {
-        return false;
+    
+    /// Get configured IP address
+    pub fn ip_address(&self) -> Option<Ipv4Address> {
+        self.assigned_ip
     }
-
-    // Apply configuration
-    let config = NetworkConfig {
-        ip,
-        netmask: subnet_mask,
-        gateway,
-        dns,
-    };
-    super::set_config(config);
-
-    true
-}
-
-/// Check if DHCP is bound
-pub fn is_bound() -> bool {
-    unsafe {
-        matches!(DHCP_STATE, DhcpState::Bound)
+    
+    /// Check if we have a valid lease
+    pub fn is_bound(&self) -> bool {
+        self.state == DhcpState::Bound
+    }
+    
+    /// Print configuration
+    pub fn print_config(&self) {
+        println!("[dhcp] Current configuration:");
+        println!("  State: {:?}", self.state);
+        if let Some(ip) = self.assigned_ip {
+            println!("  IP Address: {:?}", ip);
+        }
+        if let Some(mask) = self.subnet_mask {
+            println!("  Subnet Mask: {:?}", mask);
+        }
+        if let Some(gw) = self.gateway {
+            println!("  Gateway: {:?}", gw);
+        }
     }
 }

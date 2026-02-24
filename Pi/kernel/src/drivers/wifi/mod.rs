@@ -9,6 +9,12 @@
 
 pub mod bcm43438;
 pub mod sdio_spi;
+pub mod firmware_loader;
+pub mod firmware_download;
+pub mod sdpcm;
+pub mod ioctl;
+pub mod wpa2;
+pub mod eapol;
 
 use crate::println;
 
