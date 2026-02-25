@@ -153,6 +153,13 @@ pub fn register_dom_bindings(env: &mut Environment) {
         js_local_storage_length as crate::browser::js::NativeFn
     )));
     env.define("localStorage", Value::Object(local_storage));
+    
+    // Create AudioContext constructor
+    env.define("AudioContext", Value::Function(create_native_fn(
+        "AudioContext",
+        0,
+        js_audio_context_new as crate::browser::js::NativeFn
+    )));
 }
 
 /// Native function implementations
@@ -355,6 +362,229 @@ fn create_native_fn(name: &'static str, arity: usize, func: fn(&mut Environment,
         arrow_expr: None,
         this_binding: None,
     }
+}
+
+/// Web Audio API Implementation
+
+fn js_audio_context_new(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    use crate::browser::js::Object;
+    
+    let mut audio_ctx = Object::new();
+    
+    // AudioContext properties
+    audio_ctx.set("sampleRate", Value::Number(44100.0));
+    audio_ctx.set("state", Value::String(String::from("running")));
+    audio_ctx.set("currentTime", Value::Number(0.0));
+    
+    // Methods
+    audio_ctx.set("createOscillator", Value::Function(create_native_fn(
+        "createOscillator",
+        0,
+        js_create_oscillator as crate::browser::js::NativeFn
+    )));
+    
+    audio_ctx.set("createGain", Value::Function(create_native_fn(
+        "createGain",
+        0,
+        js_create_gain as crate::browser::js::NativeFn
+    )));
+    
+    audio_ctx.set("createBiquadFilter", Value::Function(create_native_fn(
+        "createBiquadFilter",
+        0,
+        js_create_biquad_filter as crate::browser::js::NativeFn
+    )));
+    
+    audio_ctx.set("resume", Value::Function(create_native_fn(
+        "resume",
+        0,
+        js_audio_resume as crate::browser::js::NativeFn
+    )));
+    
+    audio_ctx.set("suspend", Value::Function(create_native_fn(
+        "suspend",
+        0,
+        js_audio_suspend as crate::browser::js::NativeFn
+    )));
+    
+    audio_ctx.set("close", Value::Function(create_native_fn(
+        "close",
+        0,
+        js_audio_close as crate::browser::js::NativeFn
+    )));
+    
+    println!("[WebAudio] AudioContext created");
+    Value::Object(audio_ctx)
+}
+
+fn js_create_oscillator(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    use crate::browser::js::Object;
+    
+    let mut osc = Object::new();
+    osc.set("type", Value::String(String::from("sine")));
+    osc.set("frequency", create_audio_param(440.0));
+    osc.set("detune", create_audio_param(0.0));
+    
+    // Methods
+    osc.set("start", Value::Function(create_native_fn(
+        "start",
+        1,
+        js_oscillator_start as crate::browser::js::NativeFn
+    )));
+    
+    osc.set("stop", Value::Function(create_native_fn(
+        "stop",
+        1,
+        js_oscillator_stop as crate::browser::js::NativeFn
+    )));
+    
+    osc.set("connect", Value::Function(create_native_fn(
+        "connect",
+        1,
+        js_node_connect as crate::browser::js::NativeFn
+    )));
+    
+    println!("[WebAudio] OscillatorNode created");
+    Value::Object(osc)
+}
+
+fn js_create_gain(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    use crate::browser::js::Object;
+    
+    let mut gain = Object::new();
+    gain.set("gain", create_audio_param(1.0));
+    
+    gain.set("connect", Value::Function(create_native_fn(
+        "connect",
+        1,
+        js_node_connect as crate::browser::js::NativeFn
+    )));
+    
+    println!("[WebAudio] GainNode created");
+    Value::Object(gain)
+}
+
+fn js_create_biquad_filter(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    use crate::browser::js::Object;
+    
+    let mut filter = Object::new();
+    filter.set("type", Value::String(String::from("lowpass")));
+    filter.set("frequency", create_audio_param(350.0));
+    filter.set("Q", create_audio_param(1.0));
+    filter.set("gain", create_audio_param(0.0));
+    
+    filter.set("connect", Value::Function(create_native_fn(
+        "connect",
+        1,
+        js_node_connect as crate::browser::js::NativeFn
+    )));
+    
+    println!("[WebAudio] BiquadFilterNode created");
+    Value::Object(filter)
+}
+
+fn js_oscillator_start(_env: &mut Environment, args: Vec<Value>) -> Value {
+    let _when = match args.get(0) {
+        Some(Value::Number(n)) => *n,
+        _ => 0.0,
+    };
+    
+    // Try to play a beep sound
+    if let Err(e) = crate::drivers::audio::beep() {
+        println!("[WebAudio] Could not play beep: {:?}", e);
+    }
+    
+    Value::Undefined
+}
+
+fn js_oscillator_stop(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    crate::drivers::audio::stop();
+    Value::Undefined
+}
+
+fn js_node_connect(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    // Return the destination for chaining
+    _args.get(0).cloned().unwrap_or(Value::Undefined)
+}
+
+fn js_audio_resume(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    // Create a promise-like object (simplified)
+    use crate::browser::js::Object;
+    let mut promise = Object::new();
+    promise.set("then", Value::Function(create_native_fn(
+        "then",
+        1,
+        js_promise_then as crate::browser::js::NativeFn
+    )));
+    Value::Object(promise)
+}
+
+fn js_audio_suspend(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    crate::drivers::audio::stop();
+    use crate::browser::js::Object;
+    let mut promise = Object::new();
+    promise.set("then", Value::Function(create_native_fn(
+        "then",
+        1,
+        js_promise_then as crate::browser::js::NativeFn
+    )));
+    Value::Object(promise)
+}
+
+fn js_audio_close(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    crate::drivers::audio::stop();
+    use crate::browser::js::Object;
+    let mut promise = Object::new();
+    promise.set("then", Value::Function(create_native_fn(
+        "then",
+        1,
+        js_promise_then as crate::browser::js::NativeFn
+    )));
+    Value::Object(promise)
+}
+
+fn js_promise_then(_env: &mut Environment, args: Vec<Value>) -> Value {
+    // Call the callback immediately
+    if let Some(Value::Function(func)) = args.get(0) {
+        if let Some(native) = func.native {
+            return native(_env, Vec::new());
+        }
+    }
+    Value::Undefined
+}
+
+fn js_audio_param_set_value_at_time(_env: &mut Environment, args: Vec<Value>) -> Value {
+    // AudioParam automation - simplified
+    args.get(0).cloned().unwrap_or(Value::Undefined)
+}
+
+fn js_audio_param_exponential_ramp(_env: &mut Environment, args: Vec<Value>) -> Value {
+    // AudioParam automation - simplified
+    args.get(0).cloned().unwrap_or(Value::Undefined)
+}
+
+/// Create an AudioParam object
+fn create_audio_param(default_value: f64) -> Value {
+    use crate::browser::js::Object;
+    let mut param = Object::new();
+    param.set("value", Value::Number(default_value));
+    param.set("defaultValue", Value::Number(default_value));
+    param.set("minValue", Value::Number(-3.4028235e38));
+    param.set("maxValue", Value::Number(3.4028235e38));
+    
+    param.set("setValueAtTime", Value::Function(create_native_fn(
+        "setValueAtTime",
+        2,
+        js_audio_param_set_value_at_time as crate::browser::js::NativeFn
+    )));
+    
+    param.set("exponentialRampToValueAtTime", Value::Function(create_native_fn(
+        "exponentialRampToValueAtTime",
+        2,
+        js_audio_param_exponential_ramp as crate::browser::js::NativeFn
+    )));
+    
+    Value::Object(param)
 }
 
 pub fn init() {

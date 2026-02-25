@@ -741,6 +741,20 @@ impl DesktopUI {
         // Apple logo (W for Webb)
         driver.draw_text("W", 10, 6, palette::MENU_BAR_TEXT, 1);
 
+        // Volume control (right side, before clock)
+        let volume = crate::drivers::audio::get_volume();
+        let volume_icon = if volume == 0 {
+            "M"  // Mute
+        } else if volume < 30 {
+            "-"  // Low
+        } else if volume < 70 {
+            "="  // Medium
+        } else {
+            "+"  // High
+        };
+        let volume_text = format!("{} {}%", volume_icon, volume);
+        driver.draw_text(&volume_text, (screen_w - 130) as i32, 6, palette::MENU_BAR_TEXT, 1);
+
         // System info (right side)
         let time_str = "12:00";
         driver.draw_text(time_str, (screen_w - 60) as i32, 6, palette::MENU_BAR_TEXT, 1);
@@ -894,6 +908,38 @@ impl DesktopUI {
 
     /// Handle mouse click (now launches apps on single click)
     pub fn handle_click(&mut self, x: i32, y: i32) -> bool {
+        // Check menu bar volume control area (right side)
+        let screen_w = self.screen_width;
+        if y >= 0 && y < self.menu_bar_height as i32 {
+            // Volume area: from (screen_w - 130) to (screen_w - 65)
+            let vol_x_start = (screen_w - 130) as i32;
+            let vol_x_end = (screen_w - 65) as i32;
+            if x >= vol_x_start && x < vol_x_end {
+                // Toggle volume or cycle through levels
+                let current_vol = crate::drivers::audio::get_volume();
+                let new_vol = if current_vol == 0 {
+                    50  // Unmute to 50%
+                } else if current_vol < 50 {
+                    80  // Medium-high
+                } else if current_vol < 100 {
+                    100 // Max
+                } else {
+                    0   // Mute
+                };
+                crate::drivers::audio::set_volume(new_vol);
+                
+                // Play test beep
+                if new_vol > 0 {
+                    let _ = crate::drivers::audio::play_tone(880, 50);
+                }
+                
+                println!("[desktop] Volume changed to {}%", new_vol);
+                // Mark menu bar as dirty for redraw
+                self.mark_dirty(0, 0, screen_w, self.menu_bar_height);
+                return true;
+            }
+        }
+        
         // Check if clicking browser close button (when browser is open)
         if self.browser_open {
             let close_x = BROWSER_X + 12;

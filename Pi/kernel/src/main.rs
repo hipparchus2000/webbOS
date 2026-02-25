@@ -249,6 +249,12 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     browser::init();
     println!("[browser] Browser engine initialized");
 
+    // Initialize audio subsystem
+    println!("\n[audio] Initializing audio subsystem...");
+    if let Err(e) = drivers::audio::init() {
+        println!("[audio] Audio initialization failed: {:?}", e);
+    }
+
     // Initialize cryptographic subsystem
     println!("\n[crypto] Initializing cryptographic subsystem...");
     crypto::init();

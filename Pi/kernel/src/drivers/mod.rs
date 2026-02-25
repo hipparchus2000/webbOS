@@ -8,6 +8,7 @@ pub mod pci;
 pub mod storage;
 pub mod input;
 pub mod usb;
+pub mod audio;
 
 // Raspberry Pi specific drivers
 pub mod mailbox;
