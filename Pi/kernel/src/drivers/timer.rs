@@ -6,6 +6,8 @@
 //! - CNTVCT_EL0: Virtual Count register (read-only)
 //! - CNTFRQ_EL0: Counter Frequency register
 //! - CNTP_TVAL_EL0: Physical Timer Value
+#![allow(dead_code)]
+
 //! - CNTP_CTL_EL0: Physical Timer Control
 
 use crate::println;
@@ -197,17 +199,15 @@ fn format_num(num: u16, width: usize) -> [u8; 4] {
 
 /// Print timer statistics
 pub fn print_stats() {
-    unsafe {
-        println!("Timer Statistics:");
-        println!("  Ticks: {}", ticks());
-        println!("  Elapsed: {}s", elapsed_sec());
-        println!("  Frequency: {}Hz", TIMER_FREQUENCY);
-        println!("  Counter Freq: {} Hz", COUNTER_FREQ.load(Ordering::Relaxed));
-        
-        let rtc = read_rtc();
-        let formatted = rtc.format();
-        if let Ok(time_str) = core::str::from_utf8(&formatted) {
-            println!("  RTC: {}", time_str);
-        }
+    println!("Timer Statistics:");
+    println!("  Ticks: {}", ticks());
+    println!("  Elapsed: {}s", elapsed_sec());
+    println!("  Frequency: {}Hz", TIMER_FREQUENCY);
+    println!("  Counter Freq: {} Hz", COUNTER_FREQ.load(Ordering::Relaxed));
+    
+    let rtc = read_rtc();
+    let formatted = rtc.format();
+    if let Ok(time_str) = core::str::from_utf8(&formatted) {
+        println!("  RTC: {}", time_str);
     }
 }

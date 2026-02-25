@@ -18,6 +18,8 @@
 //! - 7: Property interface (ARM -> VC)
 //! - 8: Property interface (VC -> ARM)
 //! - 9: Property interface (ARM -> VC, no response)
+
+#![allow(dead_code)]
 //!
 //! We use channel 8 (Property interface) to communicate with the GPU
 //! for framebuffer allocation and other configuration.
@@ -323,7 +325,7 @@ impl Mailbox {
 }
 
 /// Trait for mailbox message types
-trait MailboxMessage {
+pub trait MailboxMessage {
     fn as_mut_ptr(&mut self) -> *mut u32;
 }
 
@@ -429,7 +431,7 @@ impl MailboxMessage for PropertyMessage {
     }
 }
 
-/// Default mailbox instance (Pi 3 base address by default)
+// Default mailbox instance (Pi 3 base address by default)
 lazy_static! {
     static ref MAILBOX: Mutex<Mailbox> = Mutex::new(Mailbox::new(MAILBOX_BASE_PI3));
 }

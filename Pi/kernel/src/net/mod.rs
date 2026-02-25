@@ -1,5 +1,7 @@
 //! Network stack
 //!
+#![allow(dead_code)]
+
 //! TCP/IP network implementation for WebbOS.
 
 use alloc::vec::Vec;
@@ -296,7 +298,7 @@ pub enum NetError {
     Unknown = 255,
 }
 
-/// Global network interfaces
+// Global network interfaces
 lazy_static! {
     static ref INTERFACES: Mutex<Vec<Box<dyn NetworkInterface>>> = Mutex::new(Vec::new());
     static ref DEFAULT_INTERFACE: Mutex<Option<usize>> = Mutex::new(None);
@@ -389,7 +391,7 @@ pub fn process_packet(data: &[u8]) {
     }
 
     // Parse Ethernet header
-    let dst_mac = MacAddress::new([data[0], data[1], data[2], data[3], data[4], data[5]]);
+    let _dst_mac = MacAddress::new([data[0], data[1], data[2], data[3], data[4], data[5]]);
     let src_mac = MacAddress::new([data[6], data[7], data[8], data[9], data[10], data[11]]);
     let ether_type = u16::from_be_bytes([data[12], data[13]]);
 
@@ -441,7 +443,7 @@ impl NetworkConfig {
     }
 }
 
-/// Global network configuration
+// Global network configuration
 lazy_static! {
     static ref NET_CONFIG: Mutex<NetworkConfig> = Mutex::new(NetworkConfig::empty());
 }

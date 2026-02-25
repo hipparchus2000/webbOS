@@ -1,6 +1,8 @@
 //! DHCP Client Implementation
 //!
 //! Implements DHCP (Dynamic Host Configuration Protocol) for automatic
+#![allow(dead_code)]
+
 //! IP address configuration on WiFi networks.
 
 use alloc::vec::Vec;
@@ -138,12 +140,10 @@ impl DhcpMessage {
         let mut options = Vec::new();
         if data.len() > 240 {
             let opts_start = 240;
-            let mut i = opts_start;
-            
             // Check for magic cookie
             if data.len() >= opts_start + 4 && 
                data[opts_start..opts_start+4] == [0x63, 0x82, 0x53, 0x63] {
-                i = opts_start + 4;
+                let mut i = opts_start + 4;
                 
                 while i < data.len() && data[i] != DHCP_OPTION_END {
                     let opt_code = data[i];
@@ -276,7 +276,7 @@ impl DhcpClient {
     }
     
     /// Create DHCP REQUEST message
-    pub fn create_request(&self, server_id: Ipv4Address, requested_ip: Ipv4Address) -> Vec<u8> {
+    pub fn create_request(&self, server_id: Ipv4Address, _requested_ip: Ipv4Address) -> Vec<u8> {
         let mut msg = DhcpMessage::new(self.xid, &self.mac_address);
         msg.set_message_type(DHCP_REQUEST);
         msg.siaddr = server_id;

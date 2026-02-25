@@ -3,8 +3,9 @@
 //! A lightweight web browser engine for WebbOS.
 //! Supports HTML, CSS, JavaScript, and WebAssembly.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -81,7 +82,6 @@ impl Browser {
         }
     }
 
-    /// Navigate to URL
     pub fn navigate(&mut self, url: &str) -> Result<(), BrowserError> {
         println!("[browser] Navigating to: {}", url);
         
@@ -146,7 +146,7 @@ impl Browser {
     }
 
     /// Fetch via HTTP/HTTPS
-    fn fetch_http(&self, url: &Url, _tls: bool) -> Result<Vec<u8>, BrowserError> {
+    fn fetch_http(&self, _url: &Url, _tls: bool) -> Result<Vec<u8>, BrowserError> {
         // Simple HTTP GET implementation
         // For now, just return a basic HTML page
         Ok(Vec::new()) // Placeholder
@@ -318,7 +318,6 @@ pub enum BrowserError {
     Unknown = 255,
 }
 
-/// Global browser instance
 lazy_static! {
     static ref BROWSER: Mutex<Option<Browser>> = Mutex::new(None);
 }
@@ -358,7 +357,6 @@ pub fn init() {
     println!("[browser] Browser engine initialized");
 }
 
-/// Navigate to URL
 pub fn navigate(url: &str) -> Result<(), BrowserError> {
     if let Some(ref mut browser) = *BROWSER.lock() {
         browser.navigate(url)
@@ -367,7 +365,6 @@ pub fn navigate(url: &str) -> Result<(), BrowserError> {
     }
 }
 
-/// Get current page title
 pub fn get_title() -> String {
     if let Some(ref browser) = *BROWSER.lock() {
         browser.title.clone()
@@ -376,7 +373,6 @@ pub fn get_title() -> String {
     }
 }
 
-/// Print browser statistics
 pub fn print_stats() {
     println!("Browser Engine:");
     

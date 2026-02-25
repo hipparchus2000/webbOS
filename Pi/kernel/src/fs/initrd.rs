@@ -2,6 +2,8 @@
 //!
 //! Simple RAM-based filesystem for early boot.
 
+#![allow(dead_code)]
+
 use alloc::vec::Vec;
 use alloc::string::String;
 use alloc::collections::BTreeMap;

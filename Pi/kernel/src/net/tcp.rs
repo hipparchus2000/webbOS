@@ -1,5 +1,7 @@
 //! TCP (Transmission Control Protocol)
 //!
+#![allow(dead_code)]
+
 //! Full TCP implementation with connection state management.
 
 use alloc::collections::BTreeMap;
@@ -35,9 +37,31 @@ pub const TCP_FLAG_PSH: u8 = 0x08;
 pub const TCP_FLAG_ACK: u8 = 0x10;
 pub const TCP_FLAG_URG: u8 = 0x20;
 
+/// Minimum TCP header size (20 bytes for header without options)
+pub const TCP_HEADER_MIN_SIZE: usize = 20;
+/// Maximum TCP header size (60 bytes with options)
+pub const TCP_HEADER_MAX_SIZE: usize = 60;
+/// Maximum TCP payload size (to prevent excessive allocations)
+pub const TCP_MAX_PAYLOAD_SIZE: usize = 65535;
+
 impl TcpHeader {
     pub fn from_bytes(data: &[u8]) -> Option<Self> {
-        if data.len() < 20 {
+        // Check minimum header size
+        if data.len() < TCP_HEADER_MIN_SIZE {
+            return None;
+        }
+
+        // Parse data_offset to validate header length
+        let data_offset = data[12];
+        let header_len = (((data_offset >> 4) & 0x0F) as usize) * 4;
+        
+        // Validate header length is within bounds
+        if header_len < TCP_HEADER_MIN_SIZE || header_len > TCP_HEADER_MAX_SIZE {
+            return None;
+        }
+        
+        // Ensure we have enough data for the full header
+        if data.len() < header_len {
             return None;
         }
 
@@ -46,7 +70,7 @@ impl TcpHeader {
             dst_port: u16::from_be_bytes([data[2], data[3]]),
             seq: u32::from_be_bytes([data[4], data[5], data[6], data[7]]),
             ack: u32::from_be_bytes([data[8], data[9], data[10], data[11]]),
-            data_offset: data[12],
+            data_offset,
             flags: data[13],
             window: u16::from_be_bytes([data[14], data[15]]),
             checksum: u16::from_be_bytes([data[16], data[17]]),
@@ -172,7 +196,7 @@ impl TcpConnection {
     }
 }
 
-/// TCP socket table
+// TCP socket table
 lazy_static! {
     static ref CONNECTIONS: Mutex<BTreeMap<ConnectionId, TcpConnection>> = Mutex::new(BTreeMap::new());
     static ref LISTENING_SOCKETS: Mutex<BTreeMap<Port, ConnectionId>> = Mutex::new(BTreeMap::new());
@@ -189,17 +213,40 @@ fn get_ephemeral_port() -> Port {
 
 /// Process incoming TCP packet
 pub fn process_tcp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    // Validate minimum packet size
+    if data.len() < TCP_HEADER_MIN_SIZE {
+        return;
+    }
+    
     let header = match TcpHeader::from_bytes(data) {
         Some(h) => h,
         None => return,
     };
 
     let header_len = header.header_len();
+    
+    // Validate header length is reasonable
+    if header_len < TCP_HEADER_MIN_SIZE || header_len > TCP_HEADER_MAX_SIZE {
+        return;
+    }
+    
+    // Ensure header doesn't exceed packet length
     if header_len > data.len() {
+        return;
+    }
+    
+    // Calculate and validate payload length
+    let payload_len = data.len() - header_len;
+    if payload_len > TCP_MAX_PAYLOAD_SIZE {
         return;
     }
 
     let payload = &data[header_len..];
+    
+    // Verify payload length matches actual data available
+    if payload.len() != payload_len {
+        return;
+    }
 
     // Build connection ID
     let id = ConnectionId {

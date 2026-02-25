@@ -2,6 +2,8 @@
 //!
 //! Implements system calls for user space programs.
 
+#![allow(dead_code)]
+
 use crate::println;
 use crate::print;
 
@@ -160,8 +162,8 @@ extern "C" fn syscall_handler(
     arg1: u64,
     arg2: u64,
     arg3: u64,
-    arg4: u64,
-    arg5: u64,
+    _arg4: u64,
+    _arg5: u64,
 ) -> i64 {
     let syscall = Syscall::from_number(num);
 

@@ -1,11 +1,12 @@
 //! IOCTL Interface for BCM43438/BCM43455
 //!
 //! IOCTL (Input/Output Control) commands are used to configure the WiFi chip
+#![allow(dead_code)]
+
 //! and retrieve information like scan results, connection status, etc.
 
 use alloc::vec::Vec;
 use alloc::string::String;
-use crate::drivers::DriverError;
 use crate::println;
 
 // IOCTL command codes (Broadcom definitions)

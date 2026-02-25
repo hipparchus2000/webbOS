@@ -2,6 +2,8 @@
 //!
 //! Kernel testing framework for unit and integration tests.
 
+#![allow(dead_code)]
+
 use crate::println;
 
 /// Test result
@@ -68,12 +70,6 @@ impl TestSuite {
                 TestResult::Passed => "✓",
                 TestResult::Failed => "✗",
                 TestResult::Skipped => "⊘",
-            };
-            
-            let color_code = match test.result {
-                TestResult::Passed => "[32m", // Green
-                TestResult::Failed => "[31m", // Red
-                TestResult::Skipped => "[33m", // Yellow
             };
             
             println!("  {} {} {}", 

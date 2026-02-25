@@ -5,6 +5,8 @@
 #![feature(fn_align)]
 #![feature(alloc_error_handler)]
 #![feature(generic_const_exprs)]
+#![allow(incomplete_features)]
+#![allow(unused_assignments)]
 
 //! WebbOS Kernel for ARM64 (Raspberry Pi)
 //!
@@ -39,11 +41,12 @@ use arch::cpu;
 use arch::exceptions;
 
 /// Test FAT32 root directory reading
+#[allow(dead_code)]
 fn test_fat32_root() {
     println!("[fs] Testing FAT32 root directory...");
     
     // Try to read root directory entries
-    use crate::fs::{FileSystem, INode};
+    
     
     // Get the root filesystem (should be FAT32 mounted at /)
     // For now just print a success message
@@ -111,6 +114,7 @@ impl crate::storage::BlockDevice for SdCardBlockDevice {
 }
 
 /// Wrapper to use Arc<BootDisk> as Box<dyn BlockDevice>
+#[allow(dead_code)]
 struct BootDiskWrapper(alloc::sync::Arc<crate::storage::boot_disk::BootDisk>);
 
 impl crate::storage::BlockDevice for BootDiskWrapper {
@@ -310,8 +314,6 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
 
 /// Main kernel loop
 fn kernel_main() -> ! {
-    let mut buffer = [0u8; 256];
-    let mut pos = 0;
     let mut first_boot = true;
 
     loop {
@@ -330,12 +332,7 @@ fn kernel_main() -> ! {
             println!("[boot] login_screen::show() returned");
         }
         
-        // Only show prompt if login screen is not visible
-        if !login_screen::is_visible() {
-            print!("$ ");
-        }
-        
-        // Simple command loop
+        // Input loop - handles login screen and desktop
         loop {
             // Check for input
             let key_opt = console::getchar();
@@ -354,9 +351,9 @@ fn kernel_main() -> ! {
                             println!("[desktop] Desktop shown, entering desktop mode...");
                             // Enter desktop event loop
                             desktop_event_loop();
-                            // If we exit desktop loop, go back to command prompt
-                            println!("\nExited desktop mode");
-                            break;
+                            // If we exit desktop loop, go back to login screen
+                            println!("\n[desktop] Exited desktop mode, returning to login...");
+                            login_screen::show();
                         }
                         login_screen::LoginAction::LoginFailed => {
                             // Login failed, stay on login screen
@@ -365,28 +362,6 @@ fn kernel_main() -> ! {
                         login_screen::LoginAction::None => {}
                     }
                     continue;
-                }
-                
-                match c {
-                    b'\n' | b'\r' => {
-                        println!();
-                        buffer[pos] = 0;
-                        process_command(&buffer[..pos]);
-                        pos = 0;
-                        break;
-                    }
-                    8 | 127 => { // Backspace
-                        if pos > 0 {
-                            pos -= 1;
-                            print!("\x08 \x08");
-                        }
-                    }
-                    c if pos < buffer.len() - 1 => {
-                        buffer[pos] = c;
-                        pos += 1;
-                        print!("{}", c as char);
-                    }
-                    _ => {}
                 }
             }
             
@@ -479,7 +454,7 @@ fn desktop_event_loop() {
         let last_print = LAST_PRINT.load(Ordering::Relaxed);
         if current_tick >= last_print + 50 {
             let events = EVENT_COUNT.load(Ordering::Relaxed);
-            let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
+            let (_, mouse_irq) = drivers::input::get_irq_counts();
             let (mx, my) = drivers::input::mouse_position();
             println!("[hb] loops={} evt={} irq(m)={} mouse=({},{})", 
                 loop_num, events, mouse_irq, mx, my);
@@ -488,113 +463,6 @@ fn desktop_event_loop() {
 
         // Halt CPU to save power
         cpu::halt();
-    }
-}
-
-/// Process a user command
-fn process_command(cmd: &[u8]) {
-    let cmd_str = core::str::from_utf8(cmd).unwrap_or("").trim();
-    
-    match cmd_str {
-        "" => {}
-        "help" => {
-            println!("Available commands:");
-            println!("  help       - Show this help message");
-            println!("  info       - Show system information");
-            println!("  memory     - Show memory statistics");
-            println!("  processes  - Show process list");
-            println!("  vfs        - Show VFS statistics");
-            println!("  network    - Show network status");
-            println!("  storage    - Show storage devices");
-            println!("  graphics   - Show graphics info");
-            println!("  input      - Show input status");
-            println!("  test       - Run test suite");
-            println!("  users      - List user accounts");
-            println!("  login      - Login to desktop");
-            println!("  desktop    - Show desktop info");
-            println!("  launch     - Launch application");
-            println!("  browser    - Show browser engine status");
-            println!("  reboot     - Reboot the system");
-            println!("  shutdown   - Shutdown the system");
-        }
-        "info" => {
-            println!("System Information:");
-            println!("  OS: WebbOS v0.1.0");
-            println!("  Architecture: ARM64 (AArch64)");
-            cpu::print_info();
-        }
-        "memory" => {
-            mm::print_stats();
-        }
-        "processes" | "ps" => {
-            process::print_process_list();
-        }
-        "scheduler" => {
-            process::scheduler::print_stats();
-        }
-        "vfs" => {
-            fs::print_stats();
-        }
-        "network" | "net" => {
-            net::print_interfaces();
-            println!();
-            net::print_stats();
-        }
-        "dhcp" => {
-            println!("DHCP is now integrated with WiFi. Connect to WiFi to use DHCP.");
-        }
-        "storage" => {
-            storage::print_devices();
-        }
-        "graphics" => {
-            graphics::print_info();
-        }
-        "input" => {
-            drivers::input::print_info();
-        }
-        "test" => {
-            testing::run_tests();
-        }
-        "users" => {
-            users::print_users();
-        }
-        "sessions" => {
-            users::print_sessions();
-        }
-        "login" => {
-            println!("Usage: login <username> <password>");
-        }
-        "desktop" => {
-            desktop::print_info();
-        }
-        "launch" => {
-            let args = &cmd_str[cmd_str.len().min(6)..];
-            let app_name = args.trim();
-            if !app_name.is_empty() {
-                if let Some(window_id) = desktop::launch_app(app_name) {
-                    println!("Launched {} (window {})", app_name, window_id);
-                } else {
-                    println!("Failed to launch {}", app_name);
-                }
-            } else {
-                println!("Usage: launch <app_name>");
-            }
-        }
-        "browser" => {
-            browser::print_stats();
-        }
-        "reboot" => {
-            println!("Rebooting...");
-            cpu::reboot();
-        }
-        "shutdown" => {
-            println!("Shutting down...");
-            cpu::shutdown();
-        }
-        _ => {
-            println!("Unknown command: {}", cmd_str);
-            println!("Type 'help' for available commands.");
-        }
     }
 }
 

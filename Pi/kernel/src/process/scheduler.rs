@@ -2,6 +2,8 @@
 //!
 //! Implements a simple preemptive round-robin scheduler.
 
+#![allow(dead_code)]
+
 use alloc::collections::VecDeque;
 use spin::Mutex;
 use lazy_static::lazy_static;

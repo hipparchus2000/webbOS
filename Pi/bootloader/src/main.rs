@@ -4,6 +4,7 @@
 #![feature(naked_functions)]
 #![feature(fn_align)]
 #![feature(core_intrinsics)]
+#![allow(internal_features)]
 
 //! WebbOS Raspberry Pi Bootloader (No Serial Version)
 //!
@@ -93,7 +94,7 @@ pub unsafe fn alloc_pages(count: usize) -> Option<PhysAddr> {
 #[no_mangle]
 pub extern "C" fn rust_main(dtb_addr: u64) -> ! {
     // Parse device tree to get memory info and framebuffer
-    let dtb_info = match dtb::parse_dtb(dtb_addr) {
+    let dtb_info = match unsafe { dtb::parse_dtb(dtb_addr) } {
         Some(info) => info,
         None => {
             // Default values for Raspberry Pi 3 with 1GB RAM

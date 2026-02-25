@@ -10,11 +10,12 @@
 //! - MOSI (GPIO10 on Pi) - Data to card
 //! - MISO (GPIO9 on Pi) - Data from card
 //! - SCLK (GPIO11 on Pi) - Clock
+#![allow(dead_code)]
+
 //! - CS (GPIO8 on Pi) - Chip select
 
 use crate::drivers::DriverError;
 use crate::println;
-use core::sync::atomic::{fence, Ordering};
 
 // BCM2835/2836/2837/2711 GPIO registers
 const GPIO_BASE_PI3: usize = 0x3F200000;
@@ -386,7 +387,7 @@ impl SdioSpiController {
 
     /// Wait for and read response R3/R7 (OCR/Interface condition)
     fn read_r3_r7(&self, timeout_ms: u32) -> Result<u32, DriverError> {
-        let r1 = self.read_r1(timeout_ms)?;
+        let _r1 = self.read_r1(timeout_ms)?;
         
         // Read 4 bytes of response
         let mut resp = [0u8; 4];

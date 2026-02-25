@@ -4,6 +4,8 @@
 //! - PSK derivation from passphrase and SSID
 //! - PMK (Pairwise Master Key) generation
 //! - PTK (Pairwise Transient Key) generation
+#![allow(dead_code)]
+
 //! - 4-way handshake
 //! - MIC (Message Integrity Check) calculation
 

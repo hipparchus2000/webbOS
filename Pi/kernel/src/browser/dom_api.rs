@@ -3,6 +3,8 @@
 //! Provides DOM operations that can be called from JavaScript.
 //! This bridges the JavaScript engine with the HTML document tree.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
@@ -11,13 +13,10 @@ use spin::Mutex;
 use lazy_static::lazy_static;
 
 use crate::browser::html::{Document, Element, Node};
-use crate::browser::BrowserError;
 use crate::println;
 
-/// Unique ID for DOM elements
 pub type ElementId = u32;
 
-/// Global element registry
 lazy_static! {
     static ref ELEMENT_REGISTRY: Mutex<BTreeMap<ElementId, ElementHandle>> = Mutex::new(BTreeMap::new());
     static ref NEXT_ELEMENT_ID: Mutex<ElementId> = Mutex::new(1);

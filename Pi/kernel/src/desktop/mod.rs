@@ -1,4 +1,5 @@
 //! WebbOS Desktop Environment
+#![allow(dead_code)]
 //!
 //! HTML-based desktop with window manager, taskbar, and applications.
 
@@ -265,7 +266,7 @@ impl DesktopManager {
             if app.singleton {
                 if let Some((id, _)) = self.windows.iter().find(|(_, w)| w.app_id == app_id) {
                     let existing_id = *id;
-                    drop(id);
+                    let _ = id;
                     self.focus_window(existing_id);
                     return Some(existing_id);
                 }
@@ -382,7 +383,7 @@ impl DesktopManager {
     
     /// Login
     pub fn login(&mut self, username: &str, password: &str) -> bool {
-        if let Some(session_id) = users::login(username, password) {
+        if let Some(_session_id) = users::login(username, password) {
             self.current_user = users::current_user();
             self.show_login = false;
             self.show_desktop = true;
@@ -428,8 +429,8 @@ impl DesktopManager {
     }
 }
 
-/// Global desktop manager
 lazy_static! {
+    /// Global desktop manager
     static ref DESKTOP_MANAGER: Mutex<DesktopManager> = Mutex::new(DesktopManager::new());
 }
 
@@ -575,8 +576,8 @@ pub struct FileInfo {
     pub is_dir: bool,
 }
 
-/// Message queue for HTML frontend to backend communication
 lazy_static! {
+    /// Message queue for HTML frontend to backend communication
     static ref MESSAGE_QUEUE: Mutex<Vec<DesktopMessage>> = Mutex::new(Vec::new());
 }
 
@@ -683,8 +684,8 @@ pub struct FsListResponse {
     pub files: Vec<FileInfo>,
 }
 
-/// Pending filesystem response (for frontend to pick up)
 lazy_static! {
+    /// Pending filesystem response (for frontend to pick up)
     static ref PENDING_FS_RESPONSE: Mutex<Option<FsListResponse>> = Mutex::new(None);
 }
 

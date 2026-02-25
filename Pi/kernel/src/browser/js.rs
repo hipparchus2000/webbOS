@@ -2,6 +2,8 @@
 //!
 //! A simple JavaScript interpreter for WebbOS.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;

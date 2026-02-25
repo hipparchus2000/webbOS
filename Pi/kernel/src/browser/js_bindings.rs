@@ -2,17 +2,15 @@
 //!
 //! Exposes DOM API and browser functionality to JavaScript.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::format;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use spin::Mutex;
-use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicUsize, AtomicU32, Ordering};
 
 use crate::browser::dom_api::{ElementId, api as dom_api};
-use crate::browser::event::{Event, EventType, self};
+use crate::browser::event::{EventType};
 use crate::browser::js::{Value, Object, Environment};
 use crate::println;
 
@@ -260,7 +258,6 @@ fn create_native_fn(name: &'static str, arity: usize, func: fn(&mut Environment,
     }
 }
 
-/// Initialize bindings module
 pub fn init() {
     println!("[js_bindings] DOM bindings initialized");
 }

@@ -2,23 +2,13 @@
 //!
 //! This module provides display drivers for the Raspberry Pi platform.
 //! It wraps the Pi framebuffer driver to provide a compatible API
+#![allow(dead_code)]
+
 //! similar to the VESA driver used on x86_64.
 
 pub mod pi_framebuffer;
 
 // Re-export the Pi framebuffer types for compatibility
-pub use pi_framebuffer::{
-    PiFramebuffer as DisplayDriver,
-    FramebufferInfo,
-    driver,
-    init,
-    clear,
-    set_pixel,
-    fill_rect,
-    draw_text,
-    print_info,
-    colors,
-};
 
 /// Initialize the display subsystem
 /// 
@@ -44,5 +34,5 @@ pub type VesaDriver = pi_framebuffer::PiFramebuffer;
 
 /// Re-export colors from pi_framebuffer for VESA compatibility
 pub mod vesa_colors {
-    pub use super::colors::*;
+    
 }

@@ -1,5 +1,7 @@
 //! ARP (Address Resolution Protocol)
 //!
+#![allow(dead_code)]
+
 //! Maps IP addresses to MAC addresses.
 
 use alloc::collections::BTreeMap;
@@ -81,7 +83,7 @@ struct ArpEntry {
     pending: bool,
 }
 
-/// ARP cache
+// ARP cache
 lazy_static! {
     static ref ARP_CACHE: Mutex<BTreeMap<Ipv4Address, ArpEntry>> = Mutex::new(BTreeMap::new());
 }

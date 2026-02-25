@@ -6,6 +6,8 @@
 //! - SDIO for WiFi/SD card
 //! - Dedicated MMIO for on-chip peripherals
 //!
+#![allow(dead_code)]
+
 //! This module provides a stub implementation for compatibility.
 
 use alloc::vec::Vec;

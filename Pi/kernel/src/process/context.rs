@@ -2,6 +2,8 @@
 //!
 //! Handles saving and restoring CPU registers during context switches.
 
+#![allow(dead_code)]
+
 use crate::println;
 
 /// CPU context for x86_64

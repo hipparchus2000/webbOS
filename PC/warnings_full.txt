@@ -1,0 +1,6173 @@
+﻿cargo : warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+At line:1 char:34
++ ... \webbOs\PC; cargo +nightly-2025-01-15 check --target x86_64-unknown-n ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: profil...workspace root::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+package:   C:\Users\hippa\src\webbOs\PC\bootloader\Cargo.toml
+workspace: C:\Users\hippa\src\webbOs\PC\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\hippa\src\webbOs\PC\kernel\Cargo.toml
+workspace: C:\Users\hippa\src\webbOs\PC\Cargo.toml
+warning: unused import: `uefi::CString16`
+  --> bootloader\src\main.rs:18:5
+   |
+18 | use uefi::CString16;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: function `zero_memory` is never used
+  --> bootloader\src\memory.rs:20:15
+   |
+20 | pub unsafe fn zero_memory(addr: PhysAddr, size: usize) {
+   |               ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `copy_memory` is never used
+  --> bootloader\src\memory.rs:25:15
+   |
+25 | pub unsafe fn copy_memory(src: *const u8, dst: *mut u8, size: usize) {
+   |               ^^^^^^^^^^^
+
+warning: enum `PageTableLevel` is never used
+  --> bootloader\src\paging.rs:26:10
+   |
+26 | pub enum PageTableLevel {
+   |          ^^^^^^^^^^^^^^
+   |
+   = note: `PageTableLevel` has derived impls for the traits `Debug` and `Clone`, but these are 
+intentionally ignored during dead code analysis
+
+warning: associated items `new`, `is_writable`, and `is_huge_page` are never used
+  --> bootloader\src\paging.rs:40:18
+   |
+38 | impl PageTableEntry {
+   | ------------------- associated items in this implementation
+39 |     /// Create a new page table entry
+40 |     pub const fn new() -> Self {
+   |                  ^^^
+...
+60 |     pub fn is_writable(&self) -> bool {
+   |            ^^^^^^^^^^^
+...
+65 |     pub fn is_huge_page(&self) -> bool {
+   |            ^^^^^^^^^^^^
+
+warning: associated items `new` and `as_phys_addr` are never used
+  --> bootloader\src\paging.rs:78:18
+   |
+76 | impl PageTable {
+   | -------------- associated items in this implementation
+77 |     /// Create a new empty page table
+78 |     pub const fn new() -> Self {
+   |                  ^^^
+...
+95 |     pub fn as_phys_addr(&self) -> PhysAddr {
+   |            ^^^^^^^^^^^^
+
+warning: constant `USER` is never used
+  --> bootloader\src\paging.rs:13:15
+   |
+13 |     pub const USER: u64 = 1 << 2;
+   |               ^^^^
+
+warning: constant `WRITE_THROUGH` is never used
+  --> bootloader\src\paging.rs:14:15
+   |
+14 |     pub const WRITE_THROUGH: u64 = 1 << 3;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `CACHE_DISABLE` is never used
+  --> bootloader\src\paging.rs:15:15
+   |
+15 |     pub const CACHE_DISABLE: u64 = 1 << 4;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `ACCESSED` is never used
+  --> bootloader\src\paging.rs:16:15
+   |
+16 |     pub const ACCESSED: u64 = 1 << 5;
+   |               ^^^^^^^^
+
+warning: constant `DIRTY` is never used
+  --> bootloader\src\paging.rs:17:15
+   |
+17 |     pub const DIRTY: u64 = 1 << 6;
+   |               ^^^^^
+
+warning: constant `GLOBAL` is never used
+  --> bootloader\src\paging.rs:19:15
+   |
+19 |     pub const GLOBAL: u64 = 1 << 8;
+   |               ^^^^^^
+
+warning: constant `NX` is never used
+  --> bootloader\src\paging.rs:20:15
+   |
+20 |     pub const NX: u64 = 1 << 63;
+   |               ^^
+
+warning: `bootloader` (bin "bootloader") generated 13 warnings (run `cargo fix --bin "bootloader"` to apply 
+1 suggestion)
+warning: unused import: `alloc::boxed::Box`
+  --> kernel\src\main.rs:15:5
+   |
+15 | use alloc::boxed::Box;
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\fs\ext2\mod.rs:9:5
+  |
+9 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> kernel\src\fs\ext2\mod.rs:12:35
+   |
+12 | use crate::storage::{BlockDevice, StorageError};
+   |                                   ^^^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\drivers\vesa\mod.rs:625:1
+    |
+625 | /// Global VESA driver
+    | ^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+    = note: `#[warn(unused_doc_comments)]` on by default
+
+warning: unused doc comment
+   --> kernel\src\net\mod.rs:289:1
+    |
+289 | /// Global network interfaces
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused doc comment
+   --> kernel\src\net\mod.rs:434:1
+    |
+434 | /// Global network configuration
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused imports: `read_config16` and `read_config8`
+  --> kernel\src\net\drivers\virtio_net.rs:14:27
+   |
+14 | use crate::drivers::pci::{read_config8, read_config16, read_config32};
+   |                           ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `phys_to_virt`
+  --> kernel\src\net\drivers\virtio_net.rs:15:17
+   |
+15 | use crate::mm::{phys_to_virt, virt_to_phys_u64};
+   |                 ^^^^^^^^^^^^
+
+warning: unnecessary parentheses around method argument
+   --> kernel\src\net\drivers\virtio_net.rs:148:55
+    |
+148 |                 let desc = &mut *self.descriptors.add(((start_idx as usize + i) % self.queue_size as 
+usize));
+    |                                                       ^                                                
+   ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+148 -                 let desc = &mut *self.descriptors.add(((start_idx as usize + i) % self.queue_size as 
+usize));
+148 +                 let desc = &mut *self.descriptors.add((start_idx as usize + i) % self.queue_size as 
+usize);
+    |
+
+warning: unnecessary parentheses around block return value
+   --> kernel\src\net\drivers\virtio_net.rs:153:21
+    |
+153 |                     ((start_idx + i as u16 + 1) % self.queue_size)
+    |                     ^                                            ^
+    |
+help: remove these parentheses
+    |
+153 -                     ((start_idx + i as u16 + 1) % self.queue_size)
+153 +                     (start_idx + i as u16 + 1) % self.queue_size
+    |
+
+warning: unused doc comment
+   --> kernel\src\net\tcp.rs:175:1
+    |
+175 | /// TCP socket table
+    | ^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused doc comment
+  --> kernel\src\net\udp.rs:94:1
+   |
+94 | /// UDP socket table
+   | ^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\net\ip.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::println`
+ --> kernel\src\net\ip.rs:8:5
+  |
+8 | use crate::println;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused doc comment
+  --> kernel\src\net\arp.rs:84:1
+   |
+84 | /// ARP cache
+   | ^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\net\dhcp.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `IpProtocol`
+ --> kernel\src\net\dhcp.rs:8:37
+  |
+8 | use crate::net::{Ipv4Address, Port, IpProtocol, udp, NetworkConfig};
+  |                                     ^^^^^^^^^^
+
+warning: unused doc comment
+  --> kernel\src\net\socket.rs:95:1
+   |
+95 | /// Socket table
+   | ^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::string::String`
+ --> kernel\src\net\socket.rs:7:5
+  |
+7 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::net`
+  --> kernel\src\net\socket.rs:12:5
+   |
+12 | use crate::net;
+   |     ^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\net\http\mod.rs:540:1
+    |
+540 | /// Global HTTP client
+    | ^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::vec`
+ --> kernel\src\net\http\mod.rs:7:5
+  |
+7 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\net\http\mod.rs:9:5
+  |
+9 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `tcp`
+  --> kernel\src\net\http\mod.rs:12:37
+   |
+12 | use crate::net::{Ipv4Address, Port, tcp, socket};
+   |                                     ^^^
+
+warning: unused import: `Socket`
+  --> kernel\src\net\http\mod.rs:13:26
+   |
+13 | use crate::net::socket::{Socket, SocketDomain, SocketType, SocketProtocol};
+   |                          ^^^^^^
+
+warning: unused import: `TlsError`
+  --> kernel\src\net\http\mod.rs:14:33
+   |
+14 | use crate::tls::{TlsConnection, TlsError};
+   |                                 ^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\browser\mod.rs:294:1
+    |
+294 | /// Global browser instance
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::vec`
+ --> kernel\src\browser\mod.rs:7:5
+  |
+7 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\browser\html.rs:7:5
+  |
+7 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\browser\wasm.rs:9:5
+  |
+9 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> kernel\src\browser\layout.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused imports: `Color`, `FontWeight`, and `TextAlign`
+ --> kernel\src\browser\render.rs:9:62
+  |
+9 | use crate::browser::layout::{LayoutBox, LayoutTree, BoxType, Color, TextAlign, FontWeight};
+  |                                                              ^^^^^  ^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused doc comment
+  --> kernel\src\storage\mod.rs:77:1
+   |
+77 | /// Global block device list
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::vec`
+ --> kernel\src\storage\mod.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\storage\ata.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> kernel\src\storage\ata.rs:8:5
+  |
+8 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\storage\ata.rs:9:5
+  |
+9 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `core::mem::size_of`
+ --> kernel\src\storage\ahci.rs:7:5
+  |
+7 | use core::mem::size_of;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `PciDevice`
+  --> kernel\src\storage\ahci.rs:10:33
+   |
+10 | use crate::drivers::pci::{self, PciDevice};
+   |                                 ^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> kernel\src\storage\nvme.rs:5:5
+  |
+5 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\storage\nvme.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> kernel\src\storage\nvme.rs:8:5
+  |
+8 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `PciDevice`
+  --> kernel\src\storage\nvme.rs:11:33
+   |
+11 | use crate::drivers::pci::{self, PciDevice};
+   |                                 ^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\storage\boot_disk.rs:6:5
+  |
+6 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\storage\simple_disk.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\storage\simple_disk.rs:7:5
+  |
+7 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `crate::println`
+  --> kernel\src\storage\simple_disk.rs:10:5
+   |
+10 | use crate::println;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::drivers::pci::PciDevice`
+  --> kernel\src\storage\mod.rs:18:5
+   |
+18 | use crate::drivers::pci::PciDevice;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Sha256`
+ --> kernel\src\crypto\hkdf\mod.rs:6:35
+  |
+6 | use crate::crypto::sha256::{self, Sha256, DIGEST_SIZE};
+  |                                   ^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\tls\mod.rs:6:5
+  |
+6 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Sha256` and `self`
+ --> kernel\src\tls\mod.rs:8:29
+  |
+8 | use crate::crypto::sha256::{self, Sha256};
+  |                             ^^^^  ^^^^^^
+
+warning: unused imports: `PrivateKey` and `PublicKey`
+  --> kernel\src\tls\mod.rs:11:35
+   |
+11 | use crate::crypto::x25519::{self, PrivateKey, PublicKey, SharedSecret};
+   |                                   ^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\graphics\mod.rs:326:1
+    |
+326 | /// Global graphics context
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\graphics\mod.rs:7:5
+  |
+7 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\users\mod.rs:298:1
+    |
+298 | /// Global user manager
+    | ^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused doc comment
+   --> kernel\src\desktop\mod.rs:431:1
+    |
+431 | /// Global desktop manager
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused doc comment
+   --> kernel\src\desktop\ui.rs:708:1
+    |
+708 | /// Global desktop UI instance
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused import: `colors`
+  --> kernel\src\desktop\ui.rs:15:46
+   |
+15 | use crate::drivers::vesa::{self, VesaDriver, colors};
+   |                                              ^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\login_screen.rs:459:1
+    |
+459 | /// Global login screen instance
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its 
+expansion
+
+warning: unused imports: `FileSystem` and `INode`
+  --> kernel\src\main.rs:46:21
+   |
+46 |     use crate::fs::{FileSystem, INode};
+   |                     ^^^^^^^^^^  ^^^^^
+
+warning: unnecessary `unsafe` block
+   --> kernel\src\arch\interrupts.rs:274:5
+    |
+274 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` on by default
+
+warning: unnecessary `unsafe` block
+   --> kernel\src\arch\interrupts.rs:285:5
+    |
+285 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: unused variable: `arg4`
+   --> kernel\src\syscall\mod.rs:281:5
+    |
+281 |     arg4: u64,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_arg4`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `arg5`
+   --> kernel\src\syscall\mod.rs:282:5
+    |
+282 |     arg5: u64,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_arg5`
+
+warning: variable does not need to be mutable
+   --> kernel\src\fs\fat32\mod.rs:227:13
+    |
+227 |         let mut cluster_offset = (offset / self.bytes_per_cluster as u64) as u32;
+    |             ----^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> kernel\src\fs\fat32\mod.rs:228:13
+    |
+228 |         let mut byte_offset = (offset % self.bytes_per_cluster as u64) as usize;
+    |             ----^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `avail`
+   --> kernel\src\net\drivers\virtio_net.rs:322:24
+    |
+322 |             let (desc, avail, used) = rx_queue.get_phys();
+    |                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_avail`
+
+warning: unused variable: `used`
+   --> kernel\src\net\drivers\virtio_net.rs:322:31
+    |
+322 |             let (desc, avail, used) = rx_queue.get_phys();
+    |                               ^^^^ help: if this is intentional, prefix it with an underscore: `_used`
+
+warning: unused variable: `avail`
+   --> kernel\src\net\drivers\virtio_net.rs:331:24
+    |
+331 |             let (desc, avail, used) = tx_queue.get_phys();
+    |                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_avail`
+
+warning: unused variable: `used`
+   --> kernel\src\net\drivers\virtio_net.rs:331:31
+    |
+331 |             let (desc, avail, used) = tx_queue.get_phys();
+    |                               ^^^^ help: if this is intentional, prefix it with an underscore: `_used`
+
+warning: variable does not need to be mutable
+   --> kernel\src\net\drivers\virtio_net.rs:353:13
+    |
+353 |         let mut device = Self {
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `dst`
+   --> kernel\src\net\udp.rs:109:45
+    |
+109 | pub fn process_udp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    |                                             ^^^ help: if this is intentional, prefix it with an 
+underscore: `_dst`
+
+warning: unused variable: `code`
+   --> kernel\src\net\ip.rs:291:9
+    |
+291 |     let code = data[1];
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
+
+warning: unused variable: `dst`
+   --> kernel\src\net\ip.rs:285:42
+    |
+285 | fn process_icmp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    |                                          ^^^ help: if this is intentional, prefix it with an 
+underscore: `_dst`
+
+warning: unused variable: `addr`
+   --> kernel\src\net\http\mod.rs:384:13
+    |
+384 |         let addr = crate::net::SocketAddr::new_v4(ip, Port::new(req.url.port));
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_addr`
+
+warning: unused variable: `dst_mac`
+   --> kernel\src\net\mod.rs:382:9
+    |
+382 |     let dst_mac = MacAddress::new([data[0], data[1], data[2], data[3], data[4], data[5]]);
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dst_mac`
+
+warning: variable does not need to be mutable
+   --> kernel\src\browser\html.rs:362:33
+    |
+362 |                     if let Some(mut elem) = self.stack.pop() {
+    |                                 ----^^^^
+    |                                 |
+    |                                 help: remove this `mut`
+
+warning: unused variable: `types`
+   --> kernel\src\browser\wasm.rs:435:42
+    |
+435 |     fn parse_function_section(&mut self, types: &[FuncType]) -> Result<Vec<Function>, BrowserError> {
+    |                                          ^^^^^ help: if this is intentional, prefix it with an 
+underscore: `_types`
+
+warning: unused variable: `insts`
+   --> kernel\src\browser\wasm.rs:512:13
+    |
+512 |         let insts = self.parse_instruction_sequence()?;
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_insts`
+
+warning: unused variable: `opcode`
+   --> kernel\src\browser\wasm.rs:526:22
+    |
+526 |                 Some(opcode) => {
+    |                      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_opcode`
+
+warning: unused variable: `containing_block`
+   --> kernel\src\browser\layout.rs:379:56
+    |
+379 | fn calculate_inline_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+    |                                                        ^^^^^^^^^^^^^^^^ help: if this is intentional, 
+prefix it with an underscore: `_containing_block`
+
+warning: unused variable: `containing_block`
+   --> kernel\src\browser\layout.rs:398:62
+    |
+398 | fn calculate_inline_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+    |                                                              ^^^^^^^^^^^^^^^^ help: if this is 
+intentional, prefix it with an underscore: `_containing_block`
+
+warning: unused variable: `url`
+   --> kernel\src\browser\mod.rs:145:26
+    |
+145 |     fn fetch_http(&self, url: &Url, _tls: bool) -> Result<Vec<u8>, BrowserError> {
+    |                          ^^^ help: if this is intentional, prefix it with an underscore: `_url`
+
+warning: unused variable: `doorbell_stride`
+   --> kernel\src\storage\nvme.rs:165:13
+    |
+165 |         let doorbell_stride = 4 << ((cap >> 32) & 0xF); // DSTRD field
+    |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: 
+`_doorbell_stride`
+
+warning: unused variable: `d`
+   --> kernel\src\storage\mod.rs:123:40
+    |
+123 |     BLOCK_DEVICES.lock().get(idx).map(|d| {
+    |                                        ^ help: if this is intentional, prefix it with an underscore: 
+`_d`
+
+warning: unused variable: `nonce`
+  --> kernel\src\crypto\aes\mod.rs:50:9
+   |
+50 |         nonce: &[u8],
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_nonce`
+
+warning: unused variable: `aad`
+  --> kernel\src\crypto\aes\mod.rs:51:9
+   |
+51 |         aad: &[u8],
+   |         ^^^ help: if this is intentional, prefix it with an underscore: `_aad`
+
+warning: unused variable: `tag`
+   --> kernel\src\crypto\chacha20\mod.rs:369:9
+    |
+369 |     let tag = ChaCha20Poly1305::encrypt_in_place(&key, &nonce, aad, &mut encrypted);
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_tag`
+
+warning: variable does not need to be mutable
+   --> kernel\src\crypto\x25519\mod.rs:119:9
+    |
+119 |     let mut base = *a;
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> kernel\src\crypto\x25519\mod.rs:249:9
+    |
+249 |     let mut x1 = fe_from_bytes(point);
+    |         ----^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `private_key`
+   --> kernel\src\tls\mod.rs:202:14
+    |
+202 |         let (private_key, public_key) = x25519::generate_keypair();
+    |              ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_private_key`
+
+warning: value assigned to `pos` is never read
+   --> kernel\src\tls\mod.rs:274:9
+    |
+274 |         pos += 2;
+    |         ^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `color_code`
+  --> kernel\src\testing\mod.rs:73:17
+   |
+73 |             let color_code = match test.result {
+   |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_color_code`
+
+warning: unused variable: `session_id`
+   --> kernel\src\desktop\mod.rs:385:21
+    |
+385 |         if let Some(session_id) = users::login(username, password) {
+    |                     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: 
+`_session_id`
+
+warning: unused variable: `kb_irq`
+   --> kernel\src\main.rs:462:18
+    |
+462 |             let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
+    |                  ^^^^^^ help: if this is intentional, prefix it with an underscore: `_kb_irq`
+
+warning: type `Statement` is more private than the item `js::Function::body`
+   --> kernel\src\browser\js.rs:127:5
+    |
+127 |     pub body: Vec<Statement>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^ field `js::Function::body` is reachable at visibility `pub(crate)`
+    |
+note: but type `Statement` is only usable at visibility `pub(self)`
+   --> kernel\src\browser\js.rs:403:1
+    |
+403 | enum Statement {
+    | ^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: function `test_fat32_root` is never used
+  --> kernel\src\main.rs:42:4
+   |
+42 | fn test_fat32_root() {
+   |    ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: struct `BootDiskWrapper` is never constructed
+  --> kernel\src\main.rs:54:8
+   |
+54 | struct BootDiskWrapper(alloc::sync::Arc<crate::storage::boot_disk::BootDisk>);
+   |        ^^^^^^^^^^^^^^^
+
+warning: function `draw_boot_triangle` is never used
+   --> kernel\src\main.rs:310:4
+    |
+310 | fn draw_boot_triangle() {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `disable_interrupts` is never used
+  --> kernel\src\arch\cpu.rs:99:8
+   |
+99 | pub fn disable_interrupts() {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `interrupts_enabled` is never used
+   --> kernel\src\arch\cpu.rs:113:8
+    |
+113 | pub fn interrupts_enabled() -> bool {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `features` is never used
+   --> kernel\src\arch\cpu.rs:157:8
+    |
+157 | pub fn features() -> u64 {
+    |        ^^^^^^^^
+
+warning: function `rdtsc` is never used
+   --> kernel\src\arch\cpu.rs:205:8
+    |
+205 | pub fn rdtsc() -> u64 {
+    |        ^^^^^
+
+warning: constant `IDT_ENTRIES` is never used
+  --> kernel\src\arch\interrupts.rs:41:11
+   |
+41 | pub const IDT_ENTRIES: usize = 256;
+   |           ^^^^^^^^^^^
+
+warning: function `disable` is never used
+   --> kernel\src\arch\interrupts.rs:188:8
+    |
+188 | pub fn disable() {
+    |        ^^^^^^^
+
+warning: function `are_enabled` is never used
+   --> kernel\src\arch\interrupts.rs:198:8
+    |
+198 | pub fn are_enabled() -> bool {
+    |        ^^^^^^^^^^^
+
+warning: function `set_irq_handler` is never used
+   --> kernel\src\arch\interrupts.rs:206:15
+    |
+206 | pub unsafe fn set_irq_handler(irq: u8, handler: extern "x86-interrupt" fn(InterruptStackFrame)) {
+    |               ^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `is_writable` are never used
+  --> kernel\src\arch\paging.rs:12:18
+   |
+10 | impl PageTableEntry {
+   | ------------------- associated items in this implementation
+11 |     /// Create a new page table entry
+12 |     pub const fn new() -> Self {
+   |                  ^^^
+...
+32 |     pub fn is_writable(&self) -> bool {
+   |            ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+  --> kernel\src\arch\paging.rs:52:15
+   |
+46 | impl PageTableFlags {
+   | ------------------- associated items in this implementation
+...
+52 |     pub const USER: Self = Self(1 << 2);
+   |               ^^^^
+...
+58 |     pub const ACCESSED: Self = Self(1 << 5);
+   |               ^^^^^^^^
+59 |     /// Dirty flag
+60 |     pub const DIRTY: Self = Self(1 << 6);
+   |               ^^^^^
+61 |     /// Huge page flag
+62 |     pub const HUGE_PAGE: Self = Self(1 << 7);
+   |               ^^^^^^^^^
+63 |     /// Global flag
+64 |     pub const GLOBAL: Self = Self(1 << 8);
+   |               ^^^^^^
+65 |     /// No execute flag (bit 63)
+66 |     pub const NO_EXECUTE: Self = Self(1 << 63);
+   |               ^^^^^^^^^^
+...
+69 |     pub const fn empty() -> Self {
+   |                  ^^^^^
+
+warning: associated function `new` is never used
+   --> kernel\src\arch\paging.rs:100:18
+    |
+98  | impl PageTable {
+    | -------------- associated function in this implementation
+99  |     /// Create a new empty page table
+100 |     pub const fn new() -> Self {
+    |                  ^^^
+
+warning: function `translate_addr` is never used
+   --> kernel\src\arch\paging.rs:348:8
+    |
+348 | pub fn translate_addr(addr: u64, physical_memory_offset: u64) -> Option<PhysAddr> {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `translate_addr_inner` is never used
+   --> kernel\src\arch\paging.rs:352:4
+    |
+352 | fn translate_addr_inner(addr: u64, physical_memory_offset: u64) -> Option<PhysAddr> {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `GdtEntry` is never constructed
+ --> kernel\src\arch\gdt.rs:8:8
+  |
+8 | struct GdtEntry {
+  |        ^^^^^^^^
+
+warning: associated items `new` and `set` are never used
+  --> kernel\src\arch\gdt.rs:18:14
+   |
+17 | impl GdtEntry {
+   | ------------- associated items in this implementation
+18 |     const fn new() -> Self {
+   |              ^^^
+...
+29 |     fn set(&mut self, base: u32, limit: u32, access: u8, granularity: u8) {
+   |        ^^^
+
+warning: struct `TssEntry` is never constructed
+  --> kernel\src\arch\gdt.rs:42:8
+   |
+42 | struct TssEntry {
+   |        ^^^^^^^^
+
+warning: associated items `new` and `set` are never used
+  --> kernel\src\arch\gdt.rs:54:14
+   |
+53 | impl TssEntry {
+   | ------------- associated items in this implementation
+54 |     const fn new() -> Self {
+   |              ^^^
+...
+67 |     fn set(&mut self, base: u64, limit: u32) {
+   |        ^^^
+
+warning: constant `USER_CODE32_SELECTOR` is never used
+   --> kernel\src\arch\gdt.rs:166:11
+    |
+166 | pub const USER_CODE32_SELECTOR: u16 = 0x18;
+    |           ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `USER_DATA_SELECTOR` is never used
+   --> kernel\src\arch\gdt.rs:168:11
+    |
+168 | pub const USER_DATA_SELECTOR: u16 = 0x20;
+    |           ^^^^^^^^^^^^^^^^^^
+
+warning: constant `USER_CODE64_SELECTOR` is never used
+   --> kernel\src\arch\gdt.rs:170:11
+    |
+170 | pub const USER_CODE64_SELECTOR: u16 = 0x28;
+    |           ^^^^^^^^^^^^^^^^^^^^
+
+warning: static `BUMP_ALLOCATOR` is never used
+  --> kernel\src\mm\mod.rs:25:12
+   |
+25 | static mut BUMP_ALLOCATOR: Option<bump::BumpAllocator> = None;
+   |            ^^^^^^^^^^^^^^
+
+warning: function `virt_to_phys` is never used
+   --> kernel\src\mm\mod.rs:154:8
+    |
+154 | pub fn virt_to_phys(addr: VirtAddr) -> Option<PhysAddr> {
+    |        ^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+  --> kernel\src\mm\bump.rs:17:18
+   |
+15 | impl BumpAllocator {
+   | ------------------ associated items in this implementation
+16 |     /// Create a new empty bump allocator
+17 |     pub const fn new() -> Self {
+   |                  ^^^
+...
+30 |     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
+   |                   ^^^^
+...
+37 |     pub fn alloc(&mut self, layout: core::alloc::Layout) -> Option<*mut u8> {
+   |            ^^^^^
+...
+51 |     pub fn dealloc(&mut self, _ptr: *mut u8, _layout: core::alloc::Layout) {
+   |            ^^^^^^^
+...
+60 |     pub fn allocations(&self) -> usize {
+   |            ^^^^^^^^^^^
+...
+65 |     pub fn used(&self) -> usize {
+   |            ^^^^
+...
+70 |     pub fn free(&self) -> usize {
+   |            ^^^^
+
+warning: function `align_up` is never used
+  --> kernel\src\mm\bump.rs:76:4
+   |
+76 | fn align_up(addr: usize, align: usize) -> usize {
+   |    ^^^^^^^^
+
+warning: constant `COM2` is never used
+ --> kernel\src\console\serial.rs:8:11
+  |
+8 | pub const COM2: u16 = 0x2F8;
+  |           ^^^^
+
+warning: constant `COM3` is never used
+  --> kernel\src\console\serial.rs:10:11
+   |
+10 | pub const COM3: u16 = 0x3E8;
+   |           ^^^^
+
+warning: constant `COM4` is never used
+  --> kernel\src\console\serial.rs:12:11
+   |
+12 | pub const COM4: u16 = 0x2E8;
+   |           ^^^^
+
+warning: methods `data_available` and `read_byte` are never used
+  --> kernel\src\console\serial.rs:77:8
+   |
+19 | impl SerialPort {
+   | --------------- methods in this implementation
+...
+77 |     fn data_available(&self) -> bool {
+   |        ^^^^^^^^^^^^^^
+...
+91 |     pub fn read_byte(&mut self) -> Option<u8> {
+   |            ^^^^^^^^^
+
+warning: constant `MAX_PROCESSES` is never used
+  --> kernel\src\process\mod.rs:18:11
+   |
+18 | pub const MAX_PROCESSES: usize = 1024;
+   |           ^^^^^^^^^^^^^
+
+warning: constant `MAX_THREADS_PER_PROCESS` is never used
+  --> kernel\src\process\mod.rs:20:11
+   |
+20 | pub const MAX_THREADS_PER_PROCESS: usize = 256;
+   |           ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `KERNEL_STACK_SIZE` is never used
+  --> kernel\src\process\mod.rs:22:11
+   |
+22 | pub const KERNEL_STACK_SIZE: usize = 128 * 1024; // 128KB
+   |           ^^^^^^^^^^^^^^^^^
+
+warning: constant `USER_STACK_SIZE` is never used
+  --> kernel\src\process\mod.rs:24:11
+   |
+24 | pub const USER_STACK_SIZE: usize = 8 * 1024 * 1024; // 8MB
+   |           ^^^^^^^^^^^^^^^
+
+warning: variants `Running`, `Ready`, `Blocked`, and `Zombie` are never constructed
+  --> kernel\src\process\mod.rs:30:5
+   |
+28 | pub enum ProcessState {
+   |          ------------ variants in this enum
+29 |     /// Process is running
+30 |     Running,
+   |     ^^^^^^^
+31 |     /// Process is ready to run
+32 |     Ready,
+   |     ^^^^^
+33 |     /// Process is blocked waiting for something
+34 |     Blocked,
+   |     ^^^^^^^
+35 |     /// Process is zombie (terminated but not reaped)
+36 |     Zombie,
+   |     ^^^^^^
+   |
+   = note: `ProcessState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Running`, `Blocked`, and `Terminated` are never constructed
+  --> kernel\src\process\mod.rs:45:5
+   |
+43 | pub enum ThreadState {
+   |          ----------- variants in this enum
+44 |     /// Thread is running
+45 |     Running,
+   |     ^^^^^^^
+...
+49 |     Blocked,
+   |     ^^^^^^^
+...
+53 |     Terminated,
+   |     ^^^^^^^^^^
+   |
+   = note: `ThreadState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated items `LOW`, `NORMAL`, `HIGH`, `REALTIME`, and `new` are never used
+  --> kernel\src\process\mod.rs:62:15
+   |
+60 | impl Priority {
+   | ------------- associated items in this implementation
+61 |     pub const IDLE: Self = Self(0);
+62 |     pub const LOW: Self = Self(8);
+   |               ^^^
+63 |     pub const NORMAL: Self = Self(16);
+   |               ^^^^^^
+64 |     pub const HIGH: Self = Self(24);
+   |               ^^^^
+65 |     pub const REALTIME: Self = Self(31);
+   |               ^^^^^^^^
+66 |
+67 |     pub fn new(value: u8) -> Self {
+   |            ^^^
+
+warning: fields `tid`, `context`, `kernel_stack`, `cpu_affinity`, and `time_slice` are never read
+  --> kernel\src\process\mod.rs:79:9
+   |
+77 | pub struct Thread {
+   |            ------ fields in this struct
+78 |     /// Thread ID
+79 |     pub tid: Tid,
+   |         ^^^
+...
+85 |     pub context: Context,
+   |         ^^^^^^^
+86 |     /// Kernel stack pointer
+87 |     pub kernel_stack: u64,
+   |         ^^^^^^^^^^^^
+...
+91 |     pub cpu_affinity: u8,
+   |         ^^^^^^^^^^^^
+92 |     /// Time slice remaining (in ticks)
+93 |     pub time_slice: u64,
+   |         ^^^^^^^^^^
+
+warning: fields `pid`, `parent`, `children`, `main_thread`, `exit_code`, and `cwd` are never read
+   --> kernel\src\process\mod.rs:120:9
+    |
+118 | pub struct Process {
+    |            ------- fields in this struct
+119 |     /// Process ID
+120 |     pub pid: Pid,
+    |         ^^^
+...
+124 |     pub parent: Option<Pid>,
+    |         ^^^^^^
+125 |     /// Child process IDs
+126 |     pub children: Vec<Pid>,
+    |         ^^^^^^^^
+...
+130 |     pub main_thread: Tid,
+    |         ^^^^^^^^^^^
+...
+134 |     pub exit_code: i32,
+    |         ^^^^^^^^^
+135 |     /// Working directory
+136 |     pub cwd: [u8; 256],
+    |         ^^^
+
+warning: function `alloc_pid` is never used
+   --> kernel\src\process\mod.rs:198:4
+    |
+198 | fn alloc_pid() -> Pid {
+    |    ^^^^^^^^^
+
+warning: function `alloc_tid` is never used
+   --> kernel\src\process\mod.rs:206:4
+    |
+206 | fn alloc_tid() -> Tid {
+    |    ^^^^^^^^^
+
+warning: function `create_process` is never used
+   --> kernel\src\process\mod.rs:214:8
+    |
+214 | pub fn create_process(name: &str, parent: Option<Pid>) -> Result<Pid, ProcessError> {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `get_process` is never used
+   --> kernel\src\process\mod.rs:248:8
+    |
+248 | pub fn get_process(pid: Pid) -> Option<spin::MutexGuard<'static, BTreeMap<u64, Process>>> {
+    |        ^^^^^^^^^^^
+
+warning: function `get_thread` is never used
+   --> kernel\src\process\mod.rs:258:8
+    |
+258 | pub fn get_thread(tid: Tid) -> Option<spin::MutexGuard<'static, BTreeMap<u64, Thread>>> {
+    |        ^^^^^^^^^^
+
+warning: function `exit_process` is never used
+   --> kernel\src\process\mod.rs:268:8
+    |
+268 | pub fn exit_process(pid: Pid, exit_code: i32) {
+    |        ^^^^^^^^^^^^
+
+warning: variants `ProcessTableFull`, `ThreadTableFull`, `ProcessNotFound`, `ThreadNotFound`, and 
+`InvalidOperation` are never constructed
+   --> kernel\src\process\mod.rs:332:5
+    |
+330 | pub enum ProcessError {
+    |          ------------ variants in this enum
+331 |     /// Process table full
+332 |     ProcessTableFull,
+    |     ^^^^^^^^^^^^^^^^
+333 |     /// Thread table full
+334 |     ThreadTableFull,
+    |     ^^^^^^^^^^^^^^^
+335 |     /// Process not found
+336 |     ProcessNotFound,
+    |     ^^^^^^^^^^^^^^^
+337 |     /// Thread not found
+338 |     ThreadNotFound,
+    |     ^^^^^^^^^^^^^^
+339 |     /// Invalid operation
+340 |     InvalidOperation,
+    |     ^^^^^^^^^^^^^^^^
+    |
+    = note: `ProcessError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated functions `new_kernel_thread` and `new_user_thread` are never used
+  --> kernel\src\process\context.rs:69:12
+   |
+41 | impl Context {
+   | ------------ associated functions in this implementation
+...
+69 |     pub fn new_kernel_thread(entry: fn() -> !, stack_top: u64) -> Self {
+   |            ^^^^^^^^^^^^^^^^^
+...
+77 |     pub fn new_user_thread(entry: u64, stack_top: u64, user_code_seg: u64, user_data_seg: u64) -> Self {
+   |            ^^^^^^^^^^^^^^^
+
+warning: function `save_context` is never used
+  --> kernel\src\process\context.rs:93:26
+   |
+93 | pub unsafe extern "C" fn save_context(ctx: *mut Context) {
+   |                          ^^^^^^^^^^^^
+
+warning: function `restore_context` is never used
+   --> kernel\src\process\context.rs:124:26
+    |
+124 | pub unsafe extern "C" fn restore_context(ctx: *const Context) -> ! {
+    |                          ^^^^^^^^^^^^^^^
+
+warning: function `switch_context` is never used
+   --> kernel\src\process\context.rs:155:15
+    |
+155 | pub unsafe fn switch_context(old: *mut Context, new: *const Context) {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `init_kernel_stack` is never used
+   --> kernel\src\process\context.rs:165:15
+    |
+165 | pub unsafe fn init_kernel_stack(stack_top: u64, entry: fn() -> !, arg: u64) -> u64 {
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `print_context` is never used
+   --> kernel\src\process\context.rs:186:8
+    |
+186 | pub fn print_context(ctx: &Context) {
+    |        ^^^^^^^^^^^^^
+
+warning: method `has_runnable` is never used
+  --> kernel\src\process\scheduler.rs:59:8
+   |
+30 | impl Scheduler {
+   | -------------- method in this implementation
+...
+59 |     fn has_runnable(&self) -> bool {
+   |        ^^^^^^^^^^^^
+
+warning: function `add_thread` is never used
+  --> kernel\src\process\scheduler.rs:84:8
+   |
+84 | pub fn add_thread(tid: Tid) {
+   |        ^^^^^^^^^^
+
+warning: function `remove_thread` is never used
+  --> kernel\src\process\scheduler.rs:98:8
+   |
+98 | pub fn remove_thread(tid: Tid) {
+   |        ^^^^^^^^^^^^^
+
+warning: function `timer_tick` is never used
+   --> kernel\src\process\scheduler.rs:166:15
+    |
+166 | pub unsafe fn timer_tick() {
+    |               ^^^^^^^^^^
+
+warning: function `block_current` is never used
+   --> kernel\src\process\scheduler.rs:226:15
+    |
+226 | pub unsafe fn block_current() {
+    |               ^^^^^^^^^^^^^
+
+warning: function `unblock_thread` is never used
+   --> kernel\src\process\scheduler.rs:240:8
+    |
+240 | pub fn unblock_thread(tid: Tid) {
+    |        ^^^^^^^^^^^^^^
+
+warning: struct `SyscallArgs` is never constructed
+   --> kernel\src\syscall\mod.rs:130:12
+    |
+130 | pub struct SyscallArgs {
+    |            ^^^^^^^^^^^
+    |
+    = note: `SyscallArgs` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: type alias `SyscallResult` is never used
+   --> kernel\src\syscall\mod.rs:141:10
+    |
+141 | pub type SyscallResult = i64;
+    |          ^^^^^^^^^^^^^
+
+warning: function `print_stats` is never used
+   --> kernel\src\syscall\mod.rs:381:8
+    |
+381 | pub fn print_stats() {
+    |        ^^^^^^^^^^^
+
+warning: associated items `default` and `to_mode` are never used
+  --> kernel\src\fs\mod.rs:28:18
+   |
+26 | impl Permissions {
+   | ---------------- associated items in this implementation
+27 |     /// Default permissions (rw-r--r--)
+28 |     pub const fn default() -> Self {
+   |                  ^^^^^^^
+...
+43 |     pub fn to_mode(&self) -> u16 {
+   |            ^^^^^^^
+
+warning: variants `CharDevice`, `BlockDevice`, `Fifo`, `Socket`, and `Unknown` are never constructed
+  --> kernel\src\fs\mod.rs:66:5
+   |
+60 | pub enum FileType {
+   |          -------- variants in this enum
+...
+66 |     CharDevice,
+   |     ^^^^^^^^^^
+67 |     /// Block device
+68 |     BlockDevice,
+   |     ^^^^^^^^^^^
+69 |     /// FIFO/Named pipe
+70 |     Fifo,
+   |     ^^^^
+...
+74 |     Socket,
+   |     ^^^^^^
+75 |     /// Unknown
+76 |     Unknown,
+   |     ^^^^^^^
+   |
+   = note: `FileType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple fields are never read
+   --> kernel\src\fs\mod.rs:83:9
+    |
+81  | pub struct Metadata {
+    |            -------- fields in this struct
+82  |     /// File type
+83  |     pub file_type: FileType,
+    |         ^^^^^^^^^
+84  |     /// File size in bytes
+85  |     pub size: u64,
+    |         ^^^^
+86  |     /// Permissions
+87  |     pub permissions: Permissions,
+    |         ^^^^^^^^^^^
+88  |     /// Creation time (timestamp)
+89  |     pub created: u64,
+    |         ^^^^^^^
+90  |     /// Modification time (timestamp)
+91  |     pub modified: u64,
+    |         ^^^^^^^^
+92  |     /// Access time (timestamp)
+93  |     pub accessed: u64,
+    |         ^^^^^^^^
+94  |     /// Owner user ID
+95  |     pub uid: u32,
+    |         ^^^
+96  |     /// Owner group ID
+97  |     pub gid: u32,
+    |         ^^^
+98  |     /// Number of hard links
+99  |     pub nlink: u32,
+    |         ^^^^^
+100 |     /// Block size
+101 |     pub block_size: u32,
+    |         ^^^^^^^^^^
+102 |     /// Number of blocks
+103 |     pub blocks: u64,
+    |         ^^^^^^
+    |
+    = note: `Metadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated functions `directory` and `file` are never used
+   --> kernel\src\fs\mod.rs:108:12
+    |
+106 | impl Metadata {
+    | ------------- associated functions in this implementation
+107 |     /// Create metadata for a directory
+108 |     pub fn directory() -> Self {
+    |            ^^^^^^^^^
+...
+125 |     pub fn file(size: u64) -> Self {
+    |            ^^^^
+
+warning: struct `DirEntry` is never constructed
+   --> kernel\src\fs\mod.rs:144:12
+    |
+144 | pub struct DirEntry {
+    |            ^^^^^^^^
+    |
+    = note: `DirEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple variants are never constructed
+   --> kernel\src\fs\mod.rs:157:5
+    |
+155 | pub enum FsError {
+    |          ------- variants in this enum
+156 |     /// Success
+157 |     Success = 0,
+    |     ^^^^^^^
+158 |     /// Permission denied
+159 |     PermissionDenied = 1,
+    |     ^^^^^^^^^^^^^^^^
+...
+163 |     AlreadyExists = 3,
+    |     ^^^^^^^^^^^^^
+...
+167 |     IsDirectory = 5,
+    |     ^^^^^^^^^^^
+...
+171 |     TooManyOpenFiles = 7,
+    |     ^^^^^^^^^^^^^^^^
+172 |     /// Out of memory
+173 |     OutOfMemory = 8,
+    |     ^^^^^^^^^^^
+...
+179 |     InvalidFilesystem = 11,
+    |     ^^^^^^^^^^^^^^^^^
+...
+183 |     Unknown = 255,
+    |     ^^^^^^^
+    |
+    = note: `FsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: methods `is_ok` and `is_err` are never used
+   --> kernel\src\fs\mod.rs:188:12
+    |
+186 | impl FsError {
+    | ------------ methods in this implementation
+187 |     /// Check if error is success
+188 |     pub fn is_ok(self) -> bool {
+    |            ^^^^^
+...
+193 |     pub fn is_err(self) -> bool {
+    |            ^^^^^^
+
+warning: trait `File` is never used
+   --> kernel\src\fs\mod.rs:202:11
+    |
+202 | pub trait File: Send + Sync {
+    |           ^^^^
+
+warning: trait `Directory` is never used
+   --> kernel\src\fs\mod.rs:218:11
+    |
+218 | pub trait Directory: Send + Sync {
+    |           ^^^^^^^^^
+
+warning: enum `SeekFrom` is never used
+   --> kernel\src\fs\mod.rs:233:10
+    |
+233 | pub enum SeekFrom {
+    |          ^^^^^^^^
+    |
+    = note: `SeekFrom` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple methods are never used
+   --> kernel\src\fs\mod.rs:265:8
+    |
+259 | pub trait FileSystem: Send + Sync {
+    |           ---------- methods in this trait
+...
+265 |     fn read_metadata(&self, inode: INode) -> FsResult<Metadata>;
+    |        ^^^^^^^^^^^^^
+266 |     /// Write inode metadata
+267 |     fn write_metadata(&self, inode: INode, metadata: &Metadata) -> FsResult<()>;
+    |        ^^^^^^^^^^^^^^
+268 |     /// Read from file
+269 |     fn read(&self, inode: INode, offset: u64, buf: &mut [u8]) -> FsResult<usize>;
+    |        ^^^^
+270 |     /// Write to file
+271 |     fn write(&self, inode: INode, offset: u64, buf: &[u8]) -> FsResult<usize>;
+    |        ^^^^^
+272 |     /// Lookup directory entry
+273 |     fn lookup(&self, parent: INode, name: &str) -> FsResult<INode>;
+    |        ^^^^^^
+274 |     /// Create directory entry
+275 |     fn create(&self, parent: INode, name: &str, file_type: FileType) -> FsResult<INode>;
+    |        ^^^^^^
+276 |     /// Remove directory entry
+277 |     fn remove(&self, parent: INode, name: &str) -> FsResult<()>;
+    |        ^^^^^^
+278 |     /// Read directory
+279 |     fn read_dir(&self, inode: INode) -> FsResult<Vec<(String, INode)>>;
+    |        ^^^^^^^^
+
+warning: function `mount` is never used
+   --> kernel\src\fs\mod.rs:313:8
+    |
+313 | pub fn mount(path: &str, fs: Arc<dyn FileSystem>) -> FsResult<()> {
+    |        ^^^^^
+
+warning: function `unmount` is never used
+   --> kernel\src\fs\mod.rs:334:8
+    |
+334 | pub fn unmount(path: &str) -> FsResult<()> {
+    |        ^^^^^^^
+
+warning: function `open` is never used
+   --> kernel\src\fs\mod.rs:347:8
+    |
+347 | pub fn open(path: &str, _flags: OpenFlags) -> FsResult<FileHandle> {
+    |        ^^^^
+
+warning: struct `FileHandle` is never constructed
+   --> kernel\src\fs\mod.rs:371:12
+    |
+371 | pub struct FileHandle {
+    |            ^^^^^^^^^^
+    |
+    = note: `FileHandle` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: method `fd` is never used
+   --> kernel\src\fs\mod.rs:378:12
+    |
+376 | impl FileHandle {
+    | --------------- method in this implementation
+377 |     /// Get file descriptor number
+378 |     pub fn fd(&self) -> u32 {
+    |            ^^
+
+warning: struct `OpenFlags` is never constructed
+   --> kernel\src\fs\mod.rs:385:12
+    |
+385 | pub struct OpenFlags {
+    |            ^^^^^^^^^
+    |
+    = note: `OpenFlags` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated constants `RDONLY`, `WRONLY`, and `RDWR` are never used
+   --> kernel\src\fs\mod.rs:400:15
+    |
+398 | impl OpenFlags {
+    | -------------- associated constants in this implementation
+399 |     /// Read-only mode
+400 |     pub const RDONLY: Self = Self {
+    |               ^^^^^^
+...
+409 |     pub const WRONLY: Self = Self {
+    |               ^^^^^^
+...
+418 |     pub const RDWR: Self = Self {
+    |               ^^^^
+
+warning: constant `EXT2_MAGIC` is never used
+  --> kernel\src\fs\ext2\mod.rs:58:7
+   |
+58 | const EXT2_MAGIC: u16 = 0xEF53;
+   |       ^^^^^^^^^^
+
+warning: constant `EXT2_FT_UNKNOWN` is never used
+   --> kernel\src\fs\ext2\mod.rs:110:7
+    |
+110 | const EXT2_FT_UNKNOWN: u8 = 0;
+    |       ^^^^^^^^^^^^^^^
+
+warning: constant `EXT2_FT_CHRDEV` is never used
+   --> kernel\src\fs\ext2\mod.rs:113:7
+    |
+113 | const EXT2_FT_CHRDEV: u8 = 3;
+    |       ^^^^^^^^^^^^^^
+
+warning: constant `EXT2_FT_BLKDEV` is never used
+   --> kernel\src\fs\ext2\mod.rs:114:7
+    |
+114 | const EXT2_FT_BLKDEV: u8 = 4;
+    |       ^^^^^^^^^^^^^^
+
+warning: constant `EXT2_FT_FIFO` is never used
+   --> kernel\src\fs\ext2\mod.rs:115:7
+    |
+115 | const EXT2_FT_FIFO: u8 = 5;
+    |       ^^^^^^^^^^^^
+
+warning: constant `EXT2_FT_SOCK` is never used
+   --> kernel\src\fs\ext2\mod.rs:116:7
+    |
+116 | const EXT2_FT_SOCK: u8 = 6;
+    |       ^^^^^^^^^^^^
+
+warning: constant `S_IFCHR` is never used
+   --> kernel\src\fs\ext2\mod.rs:122:7
+    |
+122 | const S_IFCHR: u16 = 0x2000;  // Character device
+    |       ^^^^^^^
+
+warning: constant `S_IFBLK` is never used
+   --> kernel\src\fs\ext2\mod.rs:123:7
+    |
+123 | const S_IFBLK: u16 = 0x6000;  // Block device
+    |       ^^^^^^^
+
+warning: constant `S_IFIFO` is never used
+   --> kernel\src\fs\ext2\mod.rs:124:7
+    |
+124 | const S_IFIFO: u16 = 0x1000;  // FIFO
+    |       ^^^^^^^
+
+warning: constant `S_IFSOCK` is never used
+   --> kernel\src\fs\ext2\mod.rs:126:7
+    |
+126 | const S_IFSOCK: u16 = 0xC000; // Socket
+    |       ^^^^^^^^
+
+warning: field `groups_count` is never read
+   --> kernel\src\fs\ext2\mod.rs:143:5
+    |
+139 | pub struct Ext2Fs {
+    |            ------ field in this struct
+...
+143 |     groups_count: u32,
+    |     ^^^^^^^^^^^^
+
+warning: associated items `new`, `write_block`, and `lookup` are never used
+   --> kernel\src\fs\ext2\mod.rs:149:12
+    |
+147 | impl Ext2Fs {
+    | ----------- associated items in this implementation
+148 |     /// Create new EXT2 filesystem from block device
+149 |     pub fn new(device: Box<dyn BlockDevice>) -> FsResult<Self> {
+    |            ^^^
+...
+213 |     fn write_block(&self, block_num: u32, buf: &[u8]) -> FsResult<()> {
+    |        ^^^^^^^^^^^
+...
+413 |     fn lookup(&self, path: &str) -> FsResult<(u32, Inode)> {
+    |        ^^^^^^
+
+warning: function `mount` is never used
+   --> kernel\src\fs\ext2\mod.rs:568:8
+    |
+568 | pub fn mount(device: Box<dyn BlockDevice>) -> FsResult<Box<dyn FileSystem>> {
+    |        ^^^^^
+
+warning: constant `ATTR_READ_ONLY` is never used
+  --> kernel\src\fs\fat32\mod.rs:81:7
+   |
+81 | const ATTR_READ_ONLY: u8 = 0x01;
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `ATTR_HIDDEN` is never used
+  --> kernel\src\fs\fat32\mod.rs:82:7
+   |
+82 | const ATTR_HIDDEN: u8 = 0x02;
+   |       ^^^^^^^^^^^
+
+warning: constant `ATTR_SYSTEM` is never used
+  --> kernel\src\fs\fat32\mod.rs:83:7
+   |
+83 | const ATTR_SYSTEM: u8 = 0x04;
+   |       ^^^^^^^^^^^
+
+warning: constant `ATTR_DIRECTORY` is never used
+  --> kernel\src\fs\fat32\mod.rs:85:7
+   |
+85 | const ATTR_DIRECTORY: u8 = 0x10;
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `ATTR_ARCHIVE` is never used
+  --> kernel\src\fs\fat32\mod.rs:86:7
+   |
+86 | const ATTR_ARCHIVE: u8 = 0x20;
+   |       ^^^^^^^^^^^^
+
+warning: constant `FAT_ENTRY_FREE` is never used
+  --> kernel\src\fs\fat32\mod.rs:90:7
+   |
+90 | const FAT_ENTRY_FREE: u32 = 0x00000000;
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `FAT_ENTRY_RESERVED` is never used
+  --> kernel\src\fs\fat32\mod.rs:91:7
+   |
+91 | const FAT_ENTRY_RESERVED: u32 = 0x00000001;
+   |       ^^^^^^^^^^^^^^^^^^
+
+warning: constant `FAT_ENTRY_BAD` is never used
+  --> kernel\src\fs\fat32\mod.rs:94:7
+   |
+94 | const FAT_ENTRY_BAD: u32 = 0x0FFFFFF7;
+   |       ^^^^^^^^^^^^^
+
+warning: constant `FAT_ENTRY_EOF` is never used
+  --> kernel\src\fs\fat32\mod.rs:95:7
+   |
+95 | const FAT_ENTRY_EOF: u32 = 0x0FFFFFFF;
+   |       ^^^^^^^^^^^^^
+
+warning: fields `boot_sector`, `bytes_per_sector`, `reserved_sectors`, `fat_count`, and `sectors_per_fat` 
+are never read
+   --> kernel\src\fs\fat32\mod.rs:100:5
+    |
+98  | pub struct Fat32Fs {
+    |            ------- fields in this struct
+99  |     device: Box<dyn BlockDevice>,
+100 |     boot_sector: BootSector,
+    |     ^^^^^^^^^^^
+101 |     bytes_per_sector: u16,
+    |     ^^^^^^^^^^^^^^^^
+...
+104 |     reserved_sectors: u16,
+    |     ^^^^^^^^^^^^^^^^
+105 |     fat_count: u8,
+    |     ^^^^^^^^^
+106 |     sectors_per_fat: u32,
+    |     ^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `lookup`, and `attrs_to_file_type` are never used
+   --> kernel\src\fs\fat32\mod.rs:114:12
+    |
+112 | impl Fat32Fs {
+    | ------------ associated items in this implementation
+113 |     /// Create new FAT32 filesystem from block device
+114 |     pub fn new(device: Box<dyn BlockDevice>) -> FsResult<Self> {
+    |            ^^^
+...
+430 |     fn lookup(&self, path: &str) -> FsResult<DirEntry> {
+    |        ^^^^^^
+...
+473 |     fn attrs_to_file_type(attrs: u8) -> FileType {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `mount` is never used
+   --> kernel\src\fs\fat32\mod.rs:566:8
+    |
+566 | pub fn mount(device: Box<dyn BlockDevice>) -> FsResult<Box<dyn FileSystem>> {
+    |        ^^^^^
+
+warning: function `read_file` is never used
+ --> kernel\src\fs\boot_disk.rs:9:8
+  |
+9 | pub fn read_file(path: &str) -> Option<Vec<u8>> {
+  |        ^^^^^^^^^
+
+warning: multiple variants are never constructed
+  --> kernel\src\drivers\mod.rs:28:5
+   |
+26 | pub enum DriverError {
+   |          ----------- variants in this enum
+27 |     /// Success
+28 |     Success = 0,
+   |     ^^^^^^^
+29 |     /// Device not found
+30 |     NotFound = 1,
+   |     ^^^^^^^^
+31 |     /// Initialization failed
+32 |     InitFailed = 2,
+   |     ^^^^^^^^^^
+33 |     /// IO error
+34 |     IoError = 3,
+   |     ^^^^^^^
+35 |     /// Unsupported operation
+36 |     Unsupported = 4,
+   |     ^^^^^^^^^^^
+37 |     /// Timeout
+38 |     Timeout = 5,
+   |     ^^^^^^^
+39 |     /// Unknown error
+40 |     Unknown = 255,
+   |     ^^^^^^^
+   |
+   = note: `DriverError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: type alias `DriverResult` is never used
+  --> kernel\src\drivers\mod.rs:44:10
+   |
+44 | pub type DriverResult<T> = Result<T, DriverError>;
+   |          ^^^^^^^^^^^^
+
+warning: function `sleep_ms` is never used
+  --> kernel\src\drivers\timer.rs:70:8
+   |
+70 | pub fn sleep_ms(ms: u64) {
+   |        ^^^^^^^^
+
+warning: function `sleep_sec` is never used
+  --> kernel\src\drivers\timer.rs:78:8
+   |
+78 | pub fn sleep_sec(sec: u64) {
+   |        ^^^^^^^^^
+
+warning: function `timer_interrupt` is never used
+  --> kernel\src\drivers\timer.rs:86:15
+   |
+86 | pub unsafe fn timer_interrupt() {
+   |               ^^^^^^^^^^^^^^^
+
+warning: fields `header_type` and `bars` are never read
+  --> kernel\src\drivers\pci.rs:34:9
+   |
+16 | pub struct PciDevice {
+   |            --------- fields in this struct
+...
+34 |     pub header_type: u8,
+   |         ^^^^^^^^^^^
+35 |     /// Base address registers
+36 |     pub bars: [u32; 6],
+   |         ^^^^
+   |
+   = note: `PciDevice` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: methods `write_config` and `is_valid` are never used
+   --> kernel\src\drivers\pci.rs:66:12
+    |
+39  | impl PciDevice {
+    | -------------- methods in this implementation
+...
+66  |     pub fn write_config(&self, offset: u8, value: u32) {
+    |            ^^^^^^^^^^^^
+...
+102 |     pub fn is_valid(&self) -> bool {
+    |            ^^^^^^^^
+
+warning: function `find_device_by_id` is never used
+   --> kernel\src\drivers\pci.rs:270:8
+    |
+270 | pub fn find_device_by_id(vendor_id: u16, device_id: u16) -> Option<PciDevice> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: function `get_devices` is never used
+   --> kernel\src\drivers\pci.rs:283:8
+    |
+283 | pub fn get_devices() -> Vec<PciDevice> {
+    |        ^^^^^^^^^^^
+
+warning: constant `MASS_STORAGE` is never used
+   --> kernel\src\drivers\pci.rs:305:15
+    |
+305 |     pub const MASS_STORAGE: u8 = 0x01;
+    |               ^^^^^^^^^^^^
+
+warning: constant `NETWORK` is never used
+   --> kernel\src\drivers\pci.rs:306:15
+    |
+306 |     pub const NETWORK: u8 = 0x02;
+    |               ^^^^^^^
+
+warning: constant `DISPLAY` is never used
+   --> kernel\src\drivers\pci.rs:307:15
+    |
+307 |     pub const DISPLAY: u8 = 0x03;
+    |               ^^^^^^^
+
+warning: constant `MULTIMEDIA` is never used
+   --> kernel\src\drivers\pci.rs:308:15
+    |
+308 |     pub const MULTIMEDIA: u8 = 0x04;
+    |               ^^^^^^^^^^
+
+warning: constant `MEMORY` is never used
+   --> kernel\src\drivers\pci.rs:309:15
+    |
+309 |     pub const MEMORY: u8 = 0x05;
+    |               ^^^^^^
+
+warning: constant `BRIDGE` is never used
+   --> kernel\src\drivers\pci.rs:310:15
+    |
+310 |     pub const BRIDGE: u8 = 0x06;
+    |               ^^^^^^
+
+warning: constant `SERIAL` is never used
+   --> kernel\src\drivers\pci.rs:311:15
+    |
+311 |     pub const SERIAL: u8 = 0x0C;
+    |               ^^^^^^
+
+warning: constant `IDE` is never used
+   --> kernel\src\drivers\pci.rs:316:15
+    |
+316 |     pub const IDE: u8 = 0x01;
+    |               ^^^
+
+warning: constant `SATA` is never used
+   --> kernel\src\drivers\pci.rs:317:15
+    |
+317 |     pub const SATA: u8 = 0x06;
+    |               ^^^^
+
+warning: constant `NVME` is never used
+   --> kernel\src\drivers\pci.rs:318:15
+    |
+318 |     pub const NVME: u8 = 0x08;
+    |               ^^^^
+
+warning: constant `ETHERNET` is never used
+   --> kernel\src\drivers\pci.rs:319:15
+    |
+319 |     pub const ETHERNET: u8 = 0x00;
+    |               ^^^^^^^^
+
+warning: constant `VGA` is never used
+   --> kernel\src\drivers\pci.rs:320:15
+    |
+320 |     pub const VGA: u8 = 0x00;
+    |               ^^^
+
+warning: constant `INTEL` is never used
+   --> kernel\src\drivers\pci.rs:325:15
+    |
+325 |     pub const INTEL: u16 = 0x8086;
+    |               ^^^^^
+
+warning: constant `AMD` is never used
+   --> kernel\src\drivers\pci.rs:326:15
+    |
+326 |     pub const AMD: u16 = 0x1022;
+    |               ^^^
+
+warning: constant `NVIDIA` is never used
+   --> kernel\src\drivers\pci.rs:327:15
+    |
+327 |     pub const NVIDIA: u16 = 0x10DE;
+    |               ^^^^^^
+
+warning: constant `REALTEK` is never used
+   --> kernel\src\drivers\pci.rs:328:15
+    |
+328 |     pub const REALTEK: u16 = 0x10EC;
+    |               ^^^^^^^
+
+warning: constant `QEMU` is never used
+   --> kernel\src\drivers\pci.rs:329:15
+    |
+329 |     pub const QEMU: u16 = 0x1234;
+    |               ^^^^
+
+warning: constant `RED_HAT` is never used
+   --> kernel\src\drivers\pci.rs:330:15
+    |
+330 |     pub const RED_HAT: u16 = 0x1AF4; // VirtIO
+    |               ^^^^^^^
+
+warning: constant `VMWARE` is never used
+   --> kernel\src\drivers\pci.rs:331:15
+    |
+331 |     pub const VMWARE: u16 = 0x15AD;
+    |               ^^^^^^
+
+warning: constant `VIA` is never used
+   --> kernel\src\drivers\pci.rs:332:15
+    |
+332 |     pub const VIA: u16 = 0x1106;
+    |               ^^^
+
+warning: methods `name`, `size`, `block_size`, `read`, `write`, and `flush` are never used
+  --> kernel\src\drivers\storage\mod.rs:16:8
+   |
+14 | pub trait StorageDevice: Send + Sync {
+   |           ------------- methods in this trait
+15 |     /// Get device name
+16 |     fn name(&self) -> &str;
+   |        ^^^^
+17 |     /// Get device size in bytes
+18 |     fn size(&self) -> u64;
+   |        ^^^^
+19 |     /// Get block size
+20 |     fn block_size(&self) -> usize;
+   |        ^^^^^^^^^^
+21 |     /// Read blocks
+22 |     fn read(&self, lba: u64, count: usize, buf: &mut [u8]) -> Result<usize, StorageError>;
+   |        ^^^^
+23 |     /// Write blocks
+24 |     fn write(&self, lba: u64, count: usize, buf: &[u8]) -> Result<usize, StorageError>;
+   |        ^^^^^
+25 |     /// Flush cache
+26 |     fn flush(&self) -> Result<(), StorageError>;
+   |        ^^^^^
+
+warning: multiple variants are never constructed
+  --> kernel\src\drivers\storage\mod.rs:33:5
+   |
+31 | pub enum StorageError {
+   |          ------------ variants in this enum
+32 |     /// Success
+33 |     Success = 0,
+   |     ^^^^^^^
+34 |     /// Device not found
+35 |     NotFound = 1,
+   |     ^^^^^^^^
+36 |     /// Invalid parameter
+37 |     InvalidParameter = 2,
+   |     ^^^^^^^^^^^^^^^^
+38 |     /// Out of memory
+39 |     OutOfMemory = 3,
+   |     ^^^^^^^^^^^
+40 |     /// IO error
+41 |     IoError = 4,
+   |     ^^^^^^^
+42 |     /// Device error
+43 |     DeviceError = 5,
+   |     ^^^^^^^^^^^
+44 |     /// Not implemented
+45 |     NotImplemented = 6,
+   |     ^^^^^^^^^^^^^^
+46 |     /// Timeout
+47 |     Timeout = 7,
+   |     ^^^^^^^
+48 |     /// Unknown error
+49 |     Unknown = 255,
+   |     ^^^^^^^
+   |
+   = note: `StorageError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `init` is never used
+  --> kernel\src\drivers\storage\mod.rs:58:8
+   |
+58 | pub fn init() {
+   |        ^^^^
+
+warning: function `register_device` is never used
+  --> kernel\src\drivers\storage\mod.rs:68:8
+   |
+68 | pub fn register_device(device: Box<dyn StorageDevice>) {
+   |        ^^^^^^^^^^^^^^^
+
+warning: function `device_count` is never used
+  --> kernel\src\drivers\storage\mod.rs:76:8
+   |
+76 | pub fn device_count() -> usize {
+   |        ^^^^^^^^^^^^
+
+warning: function `print_devices` is never used
+  --> kernel\src\drivers\storage\mod.rs:81:8
+   |
+81 | pub fn print_devices() {
+   |        ^^^^^^^^^^^^^
+
+warning: constant `AHCI_BAR5_SIZE` is never used
+  --> kernel\src\drivers\storage\ahci.rs:11:7
+   |
+11 | const AHCI_BAR5_SIZE: usize = 0x1100;
+   |       ^^^^^^^^^^^^^^
+
+warning: struct `HbaMemory` is never constructed
+  --> kernel\src\drivers\storage\ahci.rs:15:8
+   |
+15 | struct HbaMemory {
+   |        ^^^^^^^^^
+
+warning: struct `HbaPort` is never constructed
+  --> kernel\src\drivers\storage\ahci.rs:48:8
+   |
+48 | struct HbaPort {
+   |        ^^^^^^^
+
+warning: struct `AhciController` is never constructed
+  --> kernel\src\drivers\storage\ahci.rs:92:8
+   |
+92 | struct AhciController {
+   |        ^^^^^^^^^^^^^^
+
+warning: function `init` is never used
+   --> kernel\src\drivers\storage\ahci.rs:102:8
+    |
+102 | pub fn init() {
+    |        ^^^^
+
+warning: function `init_controller` is never used
+   --> kernel\src\drivers\storage\ahci.rs:125:4
+    |
+125 | fn init_controller(dev: &PciDevice) -> Result<(), AhciError> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `check_port` is never used
+   --> kernel\src\drivers\storage\ahci.rs:145:4
+    |
+145 | fn check_port(_port: &HbaPort) -> bool {
+    |    ^^^^^^^^^^
+
+warning: enum `AhciError` is never used
+   --> kernel\src\drivers\storage\ahci.rs:152:6
+    |
+152 | enum AhciError {
+    |      ^^^^^^^^^
+
+warning: constant `SATA` is never used
+   --> kernel\src\drivers\storage\ahci.rs:165:15
+    |
+165 |     pub const SATA: u32 = 0x00000101;
+    |               ^^^^
+
+warning: constant `SATAPI` is never used
+   --> kernel\src\drivers\storage\ahci.rs:166:15
+    |
+166 |     pub const SATAPI: u32 = 0xEB140101;
+    |               ^^^^^^
+
+warning: constant `SEMB` is never used
+   --> kernel\src\drivers\storage\ahci.rs:167:15
+    |
+167 |     pub const SEMB: u32 = 0xC33C0101;
+    |               ^^^^
+
+warning: constant `PM` is never used
+   --> kernel\src\drivers\storage\ahci.rs:168:15
+    |
+168 |     pub const PM: u32 = 0x96690101;
+    |               ^^
+
+warning: constant `START` is never used
+   --> kernel\src\drivers\storage\ahci.rs:173:15
+    |
+173 |     pub const START: u32 = 1 << 0;
+    |               ^^^^^
+
+warning: constant `SPIN_UP` is never used
+   --> kernel\src\drivers\storage\ahci.rs:174:15
+    |
+174 |     pub const SPIN_UP: u32 = 1 << 1;
+    |               ^^^^^^^
+
+warning: constant `POWER_ON` is never used
+   --> kernel\src\drivers\storage\ahci.rs:175:15
+    |
+175 |     pub const POWER_ON: u32 = 1 << 2;
+    |               ^^^^^^^^
+
+warning: constant `CLO` is never used
+   --> kernel\src\drivers\storage\ahci.rs:176:15
+    |
+176 |     pub const CLO: u32 = 1 << 3;
+    |               ^^^
+
+warning: constant `FRE` is never used
+   --> kernel\src\drivers\storage\ahci.rs:177:15
+    |
+177 |     pub const FRE: u32 = 1 << 4;
+    |               ^^^
+
+warning: constant `FR` is never used
+   --> kernel\src\drivers\storage\ahci.rs:178:15
+    |
+178 |     pub const FR: u32 = 1 << 14;
+    |               ^^
+
+warning: constant `CR` is never used
+   --> kernel\src\drivers\storage\ahci.rs:179:15
+    |
+179 |     pub const CR: u32 = 1 << 15;
+    |               ^^
+
+warning: constant `ERR` is never used
+   --> kernel\src\drivers\storage\ahci.rs:184:15
+    |
+184 |     pub const ERR: u32 = 1 << 0;
+    |               ^^^
+
+warning: constant `DRQ` is never used
+   --> kernel\src\drivers\storage\ahci.rs:185:15
+    |
+185 |     pub const DRQ: u32 = 1 << 3;
+    |               ^^^
+
+warning: constant `BSY` is never used
+   --> kernel\src\drivers\storage\ahci.rs:186:15
+    |
+186 |     pub const BSY: u32 = 1 << 7;
+    |               ^^^
+
+warning: struct `VbeInfoBlock` is never constructed
+  --> kernel\src\drivers\vesa\mod.rs:17:12
+   |
+17 | pub struct VbeInfoBlock {
+   |            ^^^^^^^^^^^^
+   |
+   = note: `VbeInfoBlock` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `VbeModeInfo` is never constructed
+  --> kernel\src\drivers\vesa\mod.rs:36:12
+   |
+36 | pub struct VbeModeInfo {
+   |            ^^^^^^^^^^^
+   |
+   = note: `VbeModeInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `red_mask`, `green_mask`, and `blue_mask` are never read
+   --> kernel\src\drivers\vesa\mod.rs:102:9
+    |
+96  | pub struct FramebufferInfo {
+    |            --------------- fields in this struct
+...
+102 |     pub red_mask: u32,
+    |         ^^^^^^^^
+103 |     pub green_mask: u32,
+    |         ^^^^^^^^^^
+104 |     pub blue_mask: u32,
+    |         ^^^^^^^^^
+    |
+    = note: `FramebufferInfo` has derived impls for the traits `Clone` and `Debug`, but these are 
+intentionally ignored during dead code analysis
+
+warning: methods `init`, `init_with_virt_addr`, `draw_circle`, `fill_triangle`, `draw_triangle`, and `blit` 
+are never used
+   --> kernel\src\drivers\vesa\mod.rs:141:12
+    |
+119 | impl VesaDriver {
+    | --------------- methods in this implementation
+...
+141 |     pub fn init(&mut self, width: u32, height: u32, bpp: u8, phys_addr: u64) {
+    |            ^^^^
+...
+146 |     pub fn init_with_virt_addr(&mut self, width: u32, height: u32, bpp: u8, phys_addr: u64, virt_addr: 
+u64) {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+399 |     pub fn draw_circle(&mut self, cx: i32, cy: i32, r: i32, color: u32) {
+    |            ^^^^^^^^^^^
+...
+432 |     pub fn fill_triangle(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: u32) {
+    |            ^^^^^^^^^^^^^
+...
+461 |     pub fn draw_triangle(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: u32) {
+    |            ^^^^^^^^^^^^^
+...
+497 |     pub fn blit(&mut self, buffer: &[u32], x: u32, y: u32, w: u32, h: u32) {
+    |            ^^^^
+
+warning: function `init` is never used
+   --> kernel\src\drivers\vesa\mod.rs:631:8
+    |
+631 | pub fn init(width: u32, height: u32, bpp: u8, phys_addr: u64) {
+    |        ^^^^
+
+warning: function `init_with_virt_addr` is never used
+   --> kernel\src\drivers\vesa\mod.rs:636:8
+    |
+636 | pub fn init_with_virt_addr(width: u32, height: u32, bpp: u8, phys_addr: u64, virt_addr: u64) {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `clear` is never used
+   --> kernel\src\drivers\vesa\mod.rs:646:8
+    |
+646 | pub fn clear(color: u32) {
+    |        ^^^^^
+
+warning: function `set_pixel` is never used
+   --> kernel\src\drivers\vesa\mod.rs:651:8
+    |
+651 | pub fn set_pixel(x: u32, y: u32, color: u32) {
+    |        ^^^^^^^^^
+
+warning: function `fill_rect` is never used
+   --> kernel\src\drivers\vesa\mod.rs:656:8
+    |
+656 | pub fn fill_rect(x: i32, y: i32, w: u32, h: u32, color: u32) {
+    |        ^^^^^^^^^
+
+warning: function `draw_text` is never used
+   --> kernel\src\drivers\vesa\mod.rs:661:8
+    |
+661 | pub fn draw_text(text: &str, x: i32, y: i32, color: u32, scale: u32) {
+    |        ^^^^^^^^^
+
+warning: function `rgb` is never used
+   --> kernel\src\drivers\vesa\mod.rs:684:18
+    |
+684 |     pub const fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    |                  ^^^
+
+warning: constant `BLACK` is never used
+   --> kernel\src\drivers\vesa\mod.rs:688:15
+    |
+688 |     pub const BLACK: u32 = 0xFF000000;
+    |               ^^^^^
+
+warning: constant `RED` is never used
+   --> kernel\src\drivers\vesa\mod.rs:690:15
+    |
+690 |     pub const RED: u32 = 0xFFFF0000;
+    |               ^^^
+
+warning: constant `GREEN` is never used
+   --> kernel\src\drivers\vesa\mod.rs:691:15
+    |
+691 |     pub const GREEN: u32 = 0xFF00FF00;
+    |               ^^^^^
+
+warning: constant `BLUE` is never used
+   --> kernel\src\drivers\vesa\mod.rs:692:15
+    |
+692 |     pub const BLUE: u32 = 0xFF0000FF;
+    |               ^^^^
+
+warning: constant `YELLOW` is never used
+   --> kernel\src\drivers\vesa\mod.rs:693:15
+    |
+693 |     pub const YELLOW: u32 = 0xFFFFFF00;
+    |               ^^^^^^
+
+warning: constant `CYAN` is never used
+   --> kernel\src\drivers\vesa\mod.rs:694:15
+    |
+694 |     pub const CYAN: u32 = 0xFF00FFFF;
+    |               ^^^^
+
+warning: constant `MAGENTA` is never used
+   --> kernel\src\drivers\vesa\mod.rs:695:15
+    |
+695 |     pub const MAGENTA: u32 = 0xFFFF00FF;
+    |               ^^^^^^^
+
+warning: constant `GRAY` is never used
+   --> kernel\src\drivers\vesa\mod.rs:696:15
+    |
+696 |     pub const GRAY: u32 = 0xFF808080;
+    |               ^^^^
+
+warning: constant `DARK_GRAY` is never used
+   --> kernel\src\drivers\vesa\mod.rs:697:15
+    |
+697 |     pub const DARK_GRAY: u32 = 0xFF404040;
+    |               ^^^^^^^^^
+
+warning: constant `LIGHT_GRAY` is never used
+   --> kernel\src\drivers\vesa\mod.rs:698:15
+    |
+698 |     pub const LIGHT_GRAY: u32 = 0xFFC0C0C0;
+    |               ^^^^^^^^^^
+
+warning: function `inw` is never used
+  --> kernel\src\drivers\input\mod.rs:40:15
+   |
+40 | pub unsafe fn inw(port: u16) -> u16 {
+   |               ^^^
+
+warning: function `outw` is never used
+  --> kernel\src\drivers\input\mod.rs:52:15
+   |
+52 | pub unsafe fn outw(port: u16, value: u16) {
+   |               ^^^^
+
+warning: constant `MAX_EVENTS` is never used
+  --> kernel\src\drivers\input\mod.rs:62:7
+   |
+62 | const MAX_EVENTS: usize = 64;
+   |       ^^^^^^^^^^
+
+warning: variants `MouseButtonPress`, `MouseButtonRelease`, and `MouseScroll` are never constructed
+  --> kernel\src\drivers\input\mod.rs:92:5
+   |
+88 | pub enum EventType {
+   |          --------- variants in this enum
+...
+92 |     MouseButtonPress,
+   |     ^^^^^^^^^^^^^^^^
+93 |     MouseButtonRelease,
+   |     ^^^^^^^^^^^^^^^^^^
+94 |     MouseScroll,
+   |     ^^^^^^^^^^^
+   |
+   = note: `EventType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Left`, `Right`, and `Middle` are never constructed
+   --> kernel\src\drivers\input\mod.rs:100:5
+    |
+99  | pub enum MouseButton {
+    |          ----------- variants in this enum
+100 |     Left = 0,
+    |     ^^^^
+101 |     Right = 1,
+    |     ^^^^^
+102 |     Middle = 2,
+    |     ^^^^^^
+    |
+    = note: `MouseButton` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `keycode`, `button`, `scroll`, and `modifiers` are never read
+   --> kernel\src\drivers\input\mod.rs:109:9
+    |
+107 | pub struct InputEvent {
+    |            ---------- fields in this struct
+108 |     pub event_type: EventType,
+109 |     pub keycode: u16,
+    |         ^^^^^^^
+...
+113 |     pub button: u8,
+    |         ^^^^^^
+114 |     pub scroll: i8,
+    |         ^^^^^^
+115 |     pub modifiers: u8,
+    |         ^^^^^^^^^
+    |
+    = note: `InputEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: field `error_count` is never read
+   --> kernel\src\drivers\input\mod.rs:262:5
+    |
+257 | pub struct MouseDriver {
+    |            ----------- field in this struct
+...
+262 |     error_count: u32,
+    |     ^^^^^^^^^^^
+
+warning: methods `set_position` and `error_count` are never used
+   --> kernel\src\drivers\input\mod.rs:547:12
+    |
+272 | impl MouseDriver {
+    | ---------------- methods in this implementation
+...
+547 |     pub fn set_position(&mut self, x: i32, y: i32) { self.x = x; self.y = y; }
+    |            ^^^^^^^^^^^^
+548 |     pub fn buttons(&self) -> u8 { self.buttons }
+549 |     pub fn error_count(&self) -> u32 { self.error_count }
+    |            ^^^^^^^^^^^
+
+warning: methods `handle_keyboard`, `handle_mouse`, `has_events`, `event_queue_len`, `set_mouse_position`, 
+and `set_mouse_dimensions` are never used
+   --> kernel\src\drivers\input\mod.rs:588:12
+    |
+578 | impl InputManager {
+    | ----------------- methods in this implementation
+...
+588 |     pub fn handle_keyboard(&mut self) {
+    |            ^^^^^^^^^^^^^^^
+...
+597 |     pub fn handle_mouse(&mut self) {
+    |            ^^^^^^^^^^^^
+...
+604 |     pub fn has_events(&self) -> bool { !self.events.is_empty() }
+    |            ^^^^^^^^^^
+605 |     pub fn event_queue_len(&self) -> usize { self.events.len() }
+    |            ^^^^^^^^^^^^^^^
+606 |     pub fn mouse_position(&self) -> (i32, i32) { self.mouse.position() }
+607 |     pub fn set_mouse_position(&mut self, x: i32, y: i32) { self.mouse.set_position(x, y); }
+    |            ^^^^^^^^^^^^^^^^^^
+608 |     pub fn mouse_buttons(&self) -> u8 { self.mouse.buttons() }
+609 |     pub fn set_mouse_dimensions(&mut self, width: i32, height: i32) { 
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `poll_keyboard` is never used
+   --> kernel\src\drivers\input\mod.rs:744:8
+    |
+744 | pub fn poll_keyboard() -> Option<InputEvent> {
+    |        ^^^^^^^^^^^^^
+
+warning: function `wait_key` is never used
+   --> kernel\src\drivers\input\mod.rs:748:8
+    |
+748 | pub fn wait_key() -> InputEvent {
+    |        ^^^^^^^^
+
+warning: function `get_key` is never used
+   --> kernel\src\drivers\input\mod.rs:759:8
+    |
+759 | pub fn get_key() -> Option<InputEvent> {
+    |        ^^^^^^^
+
+warning: method `is_broadcast` is never used
+  --> kernel\src\net\mod.rs:38:12
+   |
+26 | impl MacAddress {
+   | --------------- method in this implementation
+...
+38 |     pub fn is_broadcast(&self) -> bool {
+   |            ^^^^^^^^^^^^
+
+warning: associated function `loopback` is never used
+  --> kernel\src\net\mod.rs:91:18
+   |
+74 | impl Ipv4Address {
+   | ---------------- associated function in this implementation
+...
+91 |     pub const fn loopback() -> Self {
+   |                  ^^^^^^^^
+
+warning: associated functions `new`, `loopback`, and `unspecified` are never used
+   --> kernel\src\net\mod.rs:148:18
+    |
+146 | impl Ipv6Address {
+    | ---------------- associated functions in this implementation
+147 |     /// Create IPv6 address from bytes
+148 |     pub const fn new(bytes: [u8; 16]) -> Self {
+    |                  ^^^
+...
+153 |     pub const fn loopback() -> Self {
+    |                  ^^^^^^^^
+...
+160 |     pub const fn unspecified() -> Self {
+    |                  ^^^^^^^^^^^
+
+warning: variant `V6` is never constructed
+   --> kernel\src\net\mod.rs:169:5
+    |
+167 | pub enum IpAddress {
+    |          --------- variant in this enum
+168 |     V4(Ipv4Address),
+169 |     V6(Ipv6Address),
+    |     ^^
+    |
+    = note: `IpAddress` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated function `new` is never used
+   --> kernel\src\net\mod.rs:194:12
+    |
+193 | impl SocketAddr {
+    | --------------- associated function in this implementation
+194 |     pub fn new(ip: IpAddress, port: Port) -> Self {
+    |            ^^^
+
+warning: variant `Ipv6` is never constructed
+   --> kernel\src\net\mod.rs:212:5
+    |
+209 | pub enum EtherType {
+    |          --------- variant in this enum
+...
+212 |     Ipv6 = 0x86DD,
+    |     ^^^^
+    |
+    = note: `EtherType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated function `from_u16` is never used
+   --> kernel\src\net\mod.rs:216:12
+    |
+215 | impl EtherType {
+    | -------------- associated function in this implementation
+216 |     pub fn from_u16(val: u16) -> Option<Self> {
+    |            ^^^^^^^^
+
+warning: variant `Icmp` is never constructed
+   --> kernel\src\net\mod.rs:230:5
+    |
+229 | pub enum IpProtocol {
+    |          ---------- variant in this enum
+230 |     Icmp = 1,
+    |     ^^^^
+    |
+    = note: `IpProtocol` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated function `from_u8` is never used
+   --> kernel\src\net\mod.rs:236:12
+    |
+235 | impl IpProtocol {
+    | --------------- associated function in this implementation
+236 |     pub fn from_u8(val: u8) -> Option<Self> {
+    |            ^^^^^^^
+
+warning: method `receive` is never used
+   --> kernel\src\net\mod.rs:257:8
+    |
+247 | pub trait NetworkInterface: Send + Sync {
+    |           ---------------- method in this trait
+...
+257 |     fn receive(&self, buf: &mut [u8]) -> Result<usize, NetError>;
+    |        ^^^^^^^
+
+warning: multiple variants are never constructed
+   --> kernel\src\net\mod.rs:266:5
+    |
+264 | pub enum NetError {
+    |          -------- variants in this enum
+265 |     /// Success
+266 |     Success = 0,
+    |     ^^^^^^^
+...
+270 |     Busy = 2,
+    |     ^^^^
+...
+276 |     Checksum = 5,
+    |     ^^^^^^^^
+277 |     /// Timeout
+278 |     Timeout = 6,
+    |     ^^^^^^^
+279 |     /// Not connected
+280 |     NotConnected = 7,
+    |     ^^^^^^^^^^^^
+281 |     /// Connection refused
+282 |     ConnectionRefused = 8,
+    |     ^^^^^^^^^^^^^^^^^
+283 |     /// Connection reset
+284 |     ConnectionReset = 9,
+    |     ^^^^^^^^^^^^^^^
+285 |     /// Unknown error
+286 |     Unknown = 255,
+    |     ^^^^^^^
+    |
+    = note: `NetError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `receive_packet` is never used
+   --> kernel\src\net\mod.rs:366:8
+    |
+366 | pub fn receive_packet(iface_idx: usize, buf: &mut [u8]) -> Result<usize, NetError> {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `process_packet` is never used
+   --> kernel\src\net\mod.rs:376:8
+    |
+376 | pub fn process_packet(data: &[u8]) {
+    |        ^^^^^^^^^^^^^^
+
+warning: constant `VIRTIO_PCI_ISR` is never used
+  --> kernel\src\net\drivers\virtio_net.rs:30:7
+   |
+30 | const VIRTIO_PCI_ISR: usize = 0x13;
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `VIRTIO_STATUS_FAILED` is never used
+  --> kernel\src\net\drivers\virtio_net.rs:37:7
+   |
+37 | const VIRTIO_STATUS_FAILED: u8 = 128;
+   |       ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VIRTIO_NET_F_MRG_RXBUF` is never used
+  --> kernel\src\net\drivers\virtio_net.rs:42:7
+   |
+42 | const VIRTIO_NET_F_MRG_RXBUF: u32 = 1 << 15;
+   |       ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `pci_read16` is never used
+   --> kernel\src\net\drivers\virtio_net.rs:238:11
+    |
+238 | unsafe fn pci_read16(base: u32, offset: usize) -> u16 {
+    |           ^^^^^^^^^^
+
+warning: fields `bus`, `slot`, `func`, `vendor`, and `device` are never read
+   --> kernel\src\net\drivers\virtio_net.rs:504:5
+    |
+503 | struct PciDevice {
+    |        --------- fields in this struct
+504 |     bus: u8,
+    |     ^^^
+505 |     slot: u8,
+    |     ^^^^
+506 |     func: u8,
+    |     ^^^^
+507 |     vendor: u16,
+    |     ^^^^^^
+508 |     device: u16,
+    |     ^^^^^^
+
+warning: constant `TCP_FLAG_RST` is never used
+  --> kernel\src\net\tcp.rs:33:11
+   |
+33 | pub const TCP_FLAG_RST: u8 = 0x04;
+   |           ^^^^^^^^^^^^
+
+warning: constant `TCP_FLAG_URG` is never used
+  --> kernel\src\net\tcp.rs:36:11
+   |
+36 | pub const TCP_FLAG_URG: u8 = 0x20;
+   |           ^^^^^^^^^^^^
+
+warning: associated items `from_bytes`, `header_len`, and `has_flag` are never used
+  --> kernel\src\net\tcp.rs:39:12
+   |
+38 | impl TcpHeader {
+   | -------------- associated items in this implementation
+39 |     pub fn from_bytes(data: &[u8]) -> Option<Self> {
+   |            ^^^^^^^^^^
+...
+71 |     pub fn header_len(&self) -> usize {
+   |            ^^^^^^^^^^
+...
+75 |     pub fn has_flag(&self, flag: u8) -> bool {
+   |            ^^^^^^^^
+
+warning: variants `Listen`, `SynReceived`, `FinWait2`, `CloseWait`, `Closing`, and `TimeWait` are never 
+constructed
+   --> kernel\src\net\tcp.rs:120:5
+    |
+118 | pub enum TcpState {
+    |          -------- variants in this enum
+119 |     Closed,
+120 |     Listen,
+    |     ^^^^^^
+121 |     SynSent,
+122 |     SynReceived,
+    |     ^^^^^^^^^^^
+...
+125 |     FinWait2,
+    |     ^^^^^^^^
+126 |     CloseWait,
+    |     ^^^^^^^^^
+127 |     Closing,
+    |     ^^^^^^^
+128 |     LastAck,
+129 |     TimeWait,
+    |     ^^^^^^^^
+    |
+    = note: `TcpState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `send_window`, `tx_buffer`, and `waiting` are never read
+   --> kernel\src\net\tcp.rs:148:9
+    |
+142 | pub struct TcpConnection {
+    |            ------------- fields in this struct
+...
+148 |     pub send_window: u16,
+    |         ^^^^^^^^^^^
+...
+152 |     pub tx_buffer: Vec<u8>,
+    |         ^^^^^^^^^
+153 |     /// User waiting on this connection
+154 |     pub waiting: bool,
+    |         ^^^^^^^
+
+warning: function `process_tcp_packet` is never used
+   --> kernel\src\net\tcp.rs:191:8
+    |
+191 | pub fn process_tcp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `handle_packet` is never used
+   --> kernel\src\net\tcp.rs:237:4
+    |
+237 | fn handle_packet(conn: &mut TcpConnection, header: &TcpHeader, payload: &[u8]) {
+    |    ^^^^^^^^^^^^^
+
+warning: function `handle_syn` is never used
+   --> kernel\src\net\tcp.rs:310:4
+    |
+310 | fn handle_syn(dst: Ipv4Address, src: Ipv4Address, header: TcpHeader, _payload: &[u8]) {
+    |    ^^^^^^^^^^
+
+warning: function `send_ack` is never used
+   --> kernel\src\net\tcp.rs:352:4
+    |
+352 | fn send_ack(conn: &mut TcpConnection) {
+    |    ^^^^^^^^
+
+warning: function `send_rst` is never used
+   --> kernel\src\net\tcp.rs:404:4
+    |
+404 | fn send_rst(src: Ipv4Address, dst: Ipv4Address, src_port: u16, dst_port: u16, ack: u32) {
+    |    ^^^^^^^^
+
+warning: function `listen` is never used
+   --> kernel\src\net\tcp.rs:472:8
+    |
+472 | pub fn listen(port: Port) -> Result<(), ()> {
+    |        ^^^^^^
+
+warning: function `accept` is never used
+   --> kernel\src\net\tcp.rs:483:8
+    |
+483 | pub fn accept(port: Port) -> Option<ConnectionId> {
+    |        ^^^^^^
+
+warning: associated items `from_bytes` and `calculate_checksum` are never used
+  --> kernel\src\net\udp.rs:25:12
+   |
+24 | impl UdpHeader {
+   | -------------- associated items in this implementation
+25 |     pub fn from_bytes(data: &[u8]) -> Option<Self> {
+   |            ^^^^^^^^^^
+...
+47 |     pub fn calculate_checksum(&self, src: Ipv4Address, dst: Ipv4Address, data: &[u8]) -> u16 {
+   |            ^^^^^^^^^^^^^^^^^^
+
+warning: field `local_port` is never read
+  --> kernel\src\net\udp.rs:90:9
+   |
+89 | pub struct UdpSocket {
+   |            --------- field in this struct
+90 |     pub local_port: Port,
+   |         ^^^^^^^^^^
+
+warning: function `get_ephemeral_port` is never used
+   --> kernel\src\net\udp.rs:101:4
+    |
+101 | fn get_ephemeral_port() -> Port {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `process_udp_packet` is never used
+   --> kernel\src\net\udp.rs:109:8
+    |
+109 | pub fn process_udp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `from_bytes`, `header_len`, `payload_len`, `verify_checksum`, `src_ip`, and 
+`dst_ip` are never used
+   --> kernel\src\net\ip.rs:54:12
+    |
+36  | impl Ipv4Header {
+    | --------------- associated items in this implementation
+...
+54  |     pub fn from_bytes(data: &[u8]) -> Option<Self> {
+    |            ^^^^^^^^^^
+...
+89  |     pub fn header_len(&self) -> usize {
+    |            ^^^^^^^^^^
+...
+94  |     pub fn payload_len(&self) -> usize {
+    |            ^^^^^^^^^^^
+...
+118 |     pub fn verify_checksum(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^
+...
+122 |     pub fn src_ip(&self) -> Ipv4Address {
+    |            ^^^^^^
+...
+126 |     pub fn dst_ip(&self) -> Ipv4Address {
+    |            ^^^^^^
+
+warning: function `process_ipv4_packet` is never used
+   --> kernel\src\net\ip.rs:132:8
+    |
+132 | pub fn process_ipv4_packet(data: &[u8]) {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: enum `IcmpType` is never used
+   --> kernel\src\net\ip.rs:231:10
+    |
+231 | pub enum IcmpType {
+    |          ^^^^^^^^
+    |
+    = note: `IcmpType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `IcmpHeader` is never constructed
+   --> kernel\src\net\ip.rs:241:8
+    |
+241 | struct IcmpHeader {
+    |        ^^^^^^^^^^
+
+warning: methods `to_bytes` and `calculate_checksum` are never used
+   --> kernel\src\net\ip.rs:250:8
+    |
+249 | impl IcmpHeader {
+    | --------------- methods in this implementation
+250 |     fn to_bytes(&self) -> [u8; 8] {
+    |        ^^^^^^^^
+...
+260 |     fn calculate_checksum(&self, data: &[u8]) -> u16 {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `process_icmp_packet` is never used
+   --> kernel\src\net\ip.rs:285:4
+    |
+285 | fn process_icmp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `send_icmp_echo_reply` is never used
+   --> kernel\src\net\ip.rs:308:4
+    |
+308 | fn send_icmp_echo_reply(dst: Ipv4Address, id: u16, seq: u16, data: &[u8]) {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ping` is never used
+   --> kernel\src\net\ip.rs:327:8
+    |
+327 | pub fn ping(dst: Ipv4Address) -> Result<(), ()> {
+    |        ^^^^
+
+warning: static `PACKET_ID` is never used
+   --> kernel\src\net\ip.rs:349:12
+    |
+349 | static mut PACKET_ID: u16 = 0;
+    |            ^^^^^^^^^
+
+warning: function `next_packet_id` is never used
+   --> kernel\src\net\ip.rs:352:8
+    |
+352 | pub fn next_packet_id() -> u16 {
+    |        ^^^^^^^^^^^^^^
+
+warning: constant `ARP_OP_REPLY` is never used
+  --> kernel\src\net\arp.rs:18:7
+   |
+18 | const ARP_OP_REPLY: u16 = 2;
+   |       ^^^^^^^^^^^^
+
+warning: associated function `from_bytes` is never used
+  --> kernel\src\net\arp.rs:44:8
+   |
+43 | impl ArpPacket {
+   | -------------- associated function in this implementation
+44 |     fn from_bytes(data: &[u8]) -> Option<Self> {
+   |        ^^^^^^^^^^
+
+warning: field `timestamp` is never read
+  --> kernel\src\net\arp.rs:80:5
+   |
+78 | struct ArpEntry {
+   |        -------- field in this struct
+79 |     mac: MacAddress,
+80 |     timestamp: u64,
+   |     ^^^^^^^^^
+
+warning: constant `ARP_TIMEOUT_MS` is never used
+  --> kernel\src\net\arp.rs:90:7
+   |
+90 | const ARP_TIMEOUT_MS: u64 = 300_000;
+   |       ^^^^^^^^^^^^^^
+
+warning: function `process_arp_packet` is never used
+  --> kernel\src\net\arp.rs:93:8
+   |
+93 | pub fn process_arp_packet(src_mac: MacAddress, data: &[u8]) {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `send_arp_reply` is never used
+   --> kernel\src\net\arp.rs:187:4
+    |
+187 | fn send_arp_reply(dst_mac: MacAddress, dst_ip: Ipv4Address) {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `lookup` is never used
+   --> kernel\src\net\arp.rs:227:8
+    |
+227 | pub fn lookup(ip: Ipv4Address) -> Option<MacAddress> {
+    |        ^^^^^^
+
+warning: function `cleanup_cache` is never used
+   --> kernel\src\net\arp.rs:265:8
+    |
+265 | pub fn cleanup_cache() {
+    |        ^^^^^^^^^^^^^
+
+warning: function `print_cache` is never used
+   --> kernel\src\net\arp.rs:281:8
+    |
+281 | pub fn print_cache() {
+    |        ^^^^^^^^^^^
+
+warning: constant `DHCP_OFFER` is never used
+  --> kernel\src\net\dhcp.rs:17:7
+   |
+17 | const DHCP_OFFER: u8 = 2;
+   |       ^^^^^^^^^^
+
+warning: constant `DHCP_REQUEST` is never used
+  --> kernel\src\net\dhcp.rs:18:7
+   |
+18 | const DHCP_REQUEST: u8 = 3;
+   |       ^^^^^^^^^^^^
+
+warning: constant `DHCP_DECLINE` is never used
+  --> kernel\src\net\dhcp.rs:19:7
+   |
+19 | const DHCP_DECLINE: u8 = 4;
+   |       ^^^^^^^^^^^^
+
+warning: constant `DHCP_ACK` is never used
+  --> kernel\src\net\dhcp.rs:20:7
+   |
+20 | const DHCP_ACK: u8 = 5;
+   |       ^^^^^^^^
+
+warning: constant `DHCP_NAK` is never used
+  --> kernel\src\net\dhcp.rs:21:7
+   |
+21 | const DHCP_NAK: u8 = 6;
+   |       ^^^^^^^^
+
+warning: constant `DHCP_RELEASE` is never used
+  --> kernel\src\net\dhcp.rs:22:7
+   |
+22 | const DHCP_RELEASE: u8 = 7;
+   |       ^^^^^^^^^^^^
+
+warning: struct `DhcpPacket` is never constructed
+  --> kernel\src\net\dhcp.rs:26:8
+   |
+26 | struct DhcpPacket {
+   |        ^^^^^^^^^^
+
+warning: constant `OPT_REQUESTED_IP` is never used
+  --> kernel\src\net\dhcp.rs:50:7
+   |
+50 | const OPT_REQUESTED_IP: u8 = 50;
+   |       ^^^^^^^^^^^^^^^^
+
+warning: constant `OPT_SERVER_ID` is never used
+  --> kernel\src\net\dhcp.rs:51:7
+   |
+51 | const OPT_SERVER_ID: u8 = 54;
+   |       ^^^^^^^^^^^^^
+
+warning: variants `Requesting` and `Bound` are never constructed
+  --> kernel\src\net\dhcp.rs:59:5
+   |
+56 | enum DhcpState {
+   |      --------- variants in this enum
+...
+59 |     Requesting,
+   |     ^^^^^^^^^^
+60 |     Bound,
+   |     ^^^^^
+   |
+   = note: `DhcpState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `send_request` is never used
+   --> kernel\src\net\dhcp.rs:166:4
+    |
+166 | fn send_request(offer: &DhcpOffer) {
+    |    ^^^^^^^^^^^^
+
+warning: struct `DhcpOffer` is never constructed
+   --> kernel\src\net\dhcp.rs:229:8
+    |
+229 | struct DhcpOffer {
+    |        ^^^^^^^^^
+
+warning: function `process_dhcp_packet` is never used
+   --> kernel\src\net\dhcp.rs:238:8
+    |
+238 | pub fn process_dhcp_packet(data: &[u8]) {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_offer` is never used
+   --> kernel\src\net\dhcp.rs:267:4
+    |
+267 | fn parse_offer(data: &[u8]) -> Option<DhcpOffer> {
+    |    ^^^^^^^^^^^
+
+warning: function `parse_ack` is never used
+   --> kernel\src\net\dhcp.rs:355:4
+    |
+355 | fn parse_ack(data: &[u8]) -> bool {
+    |    ^^^^^^^^^
+
+warning: function `is_bound` is never used
+   --> kernel\src\net\dhcp.rs:434:8
+    |
+434 | pub fn is_bound() -> bool {
+    |        ^^^^^^^^
+
+warning: constant `DNS_OPCODE_QUERY` is never used
+  --> kernel\src\net\dns.rs:18:7
+   |
+18 | const DNS_OPCODE_QUERY: u16 = 0;
+   |       ^^^^^^^^^^^^^^^^
+
+warning: fields `id`, `name`, `result`, and `completed` are never read
+  --> kernel\src\net\dns.rs:70:5
+   |
+69 | struct DnsQuery {
+   |        -------- fields in this struct
+70 |     id: u16,
+   |     ^^
+71 |     name: String,
+   |     ^^^^
+72 |     result: Option<Ipv4Address>,
+   |     ^^^^^^
+73 |     completed: bool,
+   |     ^^^^^^^^^
+
+warning: variant `Inet6` is never constructed
+  --> kernel\src\net\socket.rs:19:5
+   |
+17 | pub enum SocketDomain {
+   |          ------------ variant in this enum
+18 |     Inet = 2,   // IPv4
+19 |     Inet6 = 10, // IPv6
+   |     ^^^^^
+   |
+   = note: `SocketDomain` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Default` and `Udp` are never constructed
+  --> kernel\src\net\socket.rs:32:5
+   |
+31 | pub enum SocketProtocol {
+   |          -------------- variants in this enum
+32 |     Default = 0,
+   |     ^^^^^^^
+33 |     Tcp = 6,
+34 |     Udp = 17,
+   |     ^^^
+   |
+   = note: `SocketProtocol` has derived impls for the traits `Clone` and `Debug`, but these are 
+intentionally ignored during dead code analysis
+
+warning: variants `Bound` and `Listening` are never constructed
+  --> kernel\src\net\socket.rs:41:5
+   |
+39 | pub enum SocketState {
+   |          ----------- variants in this enum
+40 |     Created,
+41 |     Bound,
+   |     ^^^^^
+42 |     Listening,
+   |     ^^^^^^^^^
+   |
+   = note: `SocketState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `domain`, `protocol`, `rx_buffer`, and `non_blocking` are never read
+  --> kernel\src\net\socket.rs:53:9
+   |
+49 | pub struct Socket {
+   |            ------ fields in this struct
+...
+53 |     pub domain: SocketDomain,
+   |         ^^^^^^
+...
+57 |     pub protocol: SocketProtocol,
+   |         ^^^^^^^^
+...
+71 |     pub rx_buffer: Vec<u8>,
+   |         ^^^^^^^^^
+72 |     /// Non-blocking mode
+73 |     pub non_blocking: bool,
+   |         ^^^^^^^^^^^^
+
+warning: function `bind` is never used
+   --> kernel\src\net\socket.rs:125:8
+    |
+125 | pub fn bind(fd: usize, addr: Ipv4Address, port: Port) -> Result<(), NetError> {
+    |        ^^^^
+
+warning: function `listen` is never used
+   --> kernel\src\net\socket.rs:148:8
+    |
+148 | pub fn listen(fd: usize, _backlog: usize) -> Result<(), NetError> {
+    |        ^^^^^^
+
+warning: function `accept` is never used
+   --> kernel\src\net\socket.rs:171:8
+    |
+171 | pub fn accept(fd: usize) -> Result<usize, NetError> {
+    |        ^^^^^^
+
+warning: function `sendto` is never used
+   --> kernel\src\net\socket.rs:290:8
+    |
+290 | pub fn sendto(fd: usize, data: &[u8], _flags: i32, addr: Ipv4Address, port: Port) -> Result<usize, 
+NetError> {
+    |        ^^^^^^
+
+warning: function `recvfrom` is never used
+   --> kernel\src\net\socket.rs:307:8
+    |
+307 | pub fn recvfrom(fd: usize, buf: &mut [u8], _flags: i32) -> Result<(usize, Ipv4Address, Port), 
+NetError> {
+    |        ^^^^^^^^
+
+warning: function `get_socket` is never used
+   --> kernel\src\net\socket.rs:351:8
+    |
+351 | pub fn get_socket(fd: usize) -> Option<Box<Socket>> {
+    |        ^^^^^^^^^^
+
+warning: variants `Success`, `InvalidState`, `AddressInUse`, and `NotSupported` are never constructed
+   --> kernel\src\net\socket.rs:483:5
+    |
+482 | pub enum NetError {
+    |          -------- variants in this enum
+483 |     Success = 0,
+    |     ^^^^^^^
+484 |     InvalidSocket = 1,
+485 |     InvalidState = 2,
+    |     ^^^^^^^^^^^^
+486 |     AddressInUse = 3,
+    |     ^^^^^^^^^^^^
+...
+492 |     NotSupported = 9,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `NetError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Post`, `Put`, `Delete`, `Head`, `Options`, and `Patch` are never constructed
+  --> kernel\src\net\http\mod.rs:21:5
+   |
+19 | pub enum Method {
+   |          ------ variants in this enum
+20 |     Get,
+21 |     Post,
+   |     ^^^^
+22 |     Put,
+   |     ^^^
+23 |     Delete,
+   |     ^^^^^^
+24 |     Head,
+   |     ^^^^
+25 |     Options,
+   |     ^^^^^^^
+26 |     Patch,
+   |     ^^^^^
+   |
+   = note: `Method` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated items `post` and `header` are never used
+  --> kernel\src\net\http\mod.rs:84:12
+   |
+71 | impl Request {
+   | ------------ associated items in this implementation
+...
+84 |     pub fn post(url: &str, body: Vec<u8>) -> Result<Self, HttpError> {
+   |            ^^^^
+...
+97 |     pub fn header(&mut self, name: &str, value: &str) -> &mut Self {
+   |            ^^^^^^
+
+warning: fields `timeout_ms` and `max_redirects` are never read
+   --> kernel\src\net\http\mod.rs:350:5
+    |
+349 | pub struct Client {
+    |            ------ fields in this struct
+350 |     timeout_ms: u64,
+    |     ^^^^^^^^^^
+351 |     follow_redirects: bool,
+352 |     max_redirects: u32,
+    |     ^^^^^^^^^^^^^
+
+warning: method `post` is never used
+   --> kernel\src\net\http\mod.rs:479:12
+    |
+355 | impl Client {
+    | ----------- method in this implementation
+...
+479 |     pub fn post(&self, url: &str, body: Vec<u8>) -> Result<Response, HttpError> {
+    |            ^^^^
+
+warning: variants `Success`, `Timeout`, `TooManyRedirects`, `TlsError`, and `Unknown` are never constructed
+   --> kernel\src\net\http\mod.rs:494:5
+    |
+493 | pub enum HttpError {
+    |          --------- variants in this enum
+494 |     Success = 0,
+    |     ^^^^^^^
+...
+498 |     Timeout = 4,
+    |     ^^^^^^^
+499 |     TooManyRedirects = 5,
+    |     ^^^^^^^^^^^^^^^^
+500 |     TlsError = 6,
+    |     ^^^^^^^^
+501 |     Unknown = 255,
+    |     ^^^^^^^
+    |
+    = note: `HttpError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `post` is never used
+   --> kernel\src\net\http\mod.rs:551:8
+    |
+551 | pub fn post(url: &str, body: Vec<u8>) -> Result<Response, HttpError> {
+    |        ^^^^
+
+warning: fields `user_agent`, `images_enabled`, and `css_enabled` are never read
+  --> kernel\src\browser\mod.rs:24:9
+   |
+22 | pub struct BrowserConfig {
+   |            ------------- fields in this struct
+23 |     /// User agent string
+24 |     pub user_agent: String,
+   |         ^^^^^^^^^^
+...
+30 |     pub images_enabled: bool,
+   |         ^^^^^^^^^^^^^^
+31 |     /// CSS enabled
+32 |     pub css_enabled: bool,
+   |         ^^^^^^^^^^^
+
+warning: field `render_context` is never read
+  --> kernel\src\browser\mod.rs:65:9
+   |
+55 | pub struct Browser {
+   |            ------- field in this struct
+...
+65 |     pub render_context: render::RenderContext,
+   |         ^^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> kernel\src\browser\mod.rs:81:12
+    |
+68  | impl Browser {
+    | ------------ methods in this implementation
+...
+81  |     pub fn navigate(&mut self, url: &str) -> Result<(), BrowserError> {
+    |            ^^^^^^^^
+...
+135 |     fn fetch(&self, url: &Url) -> Result<Vec<u8>, BrowserError> {
+    |        ^^^^^
+...
+145 |     fn fetch_http(&self, url: &Url, _tls: bool) -> Result<Vec<u8>, BrowserError> {
+    |        ^^^^^^^^^^
+...
+152 |     fn fetch_file(&self, _url: &Url) -> Result<Vec<u8>, BrowserError> {
+    |        ^^^^^^^^^^
+...
+158 |     fn apply_stylesheets(&mut self) -> Result<(), BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^
+...
+166 |     fn execute_scripts(&mut self) -> Result<(), BrowserError> {
+    |        ^^^^^^^^^^^^^^^
+...
+176 |     fn layout(&mut self) -> Result<(), BrowserError> {
+    |        ^^^^^^
+...
+185 |     fn render(&mut self) -> Result<(), BrowserError> {
+    |        ^^^^^^
+
+warning: struct `Url` is never constructed
+   --> kernel\src\browser\mod.rs:204:12
+    |
+204 | pub struct Url {
+    |            ^^^
+
+warning: associated items `parse` and `content_type` are never used
+   --> kernel\src\browser\mod.rs:215:12
+    |
+213 | impl Url {
+    | -------- associated items in this implementation
+214 |     /// Parse URL string
+215 |     pub fn parse(url: &str) -> Result<Self, BrowserError> {
+    |            ^^^^^
+...
+251 |     pub fn content_type(&self) -> ContentType {
+    |            ^^^^^^^^^^^^
+
+warning: multiple variants are never constructed
+   --> kernel\src\browser\mod.rs:269:5
+    |
+268 | pub enum ContentType {
+    |          ----------- variants in this enum
+269 |     Html,
+    |     ^^^^
+270 |     Css,
+    |     ^^^
+271 |     JavaScript,
+    |     ^^^^^^^^^^
+272 |     Wasm,
+    |     ^^^^
+273 |     Json,
+    |     ^^^^
+274 |     Text,
+    |     ^^^^
+275 |     Image,
+    |     ^^^^^
+276 |     Unknown,
+    |     ^^^^^^^
+    |
+    = note: `ContentType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple variants are never constructed
+   --> kernel\src\browser\mod.rs:282:5
+    |
+281 | pub enum BrowserError {
+    |          ------------ variants in this enum
+282 |     Success = 0,
+    |     ^^^^^^^
+283 |     InvalidUrl = 1,
+    |     ^^^^^^^^^^
+284 |     NetworkError = 2,
+    |     ^^^^^^^^^^^^
+285 |     ParseError = 3,
+    |     ^^^^^^^^^^
+286 |     UnsupportedProtocol = 4,
+    |     ^^^^^^^^^^^^^^^^^^^
+287 |     UnsupportedContentType = 5,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+288 |     NotFound = 6,
+    |     ^^^^^^^^
+289 |     JsError = 7,
+    |     ^^^^^^^
+290 |     WasmError = 8,
+    |     ^^^^^^^^^
+291 |     Unknown = 255,
+    |     ^^^^^^^
+    |
+    = note: `BrowserError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `navigate` is never used
+   --> kernel\src\browser\mod.rs:327:8
+    |
+327 | pub fn navigate(url: &str) -> Result<(), BrowserError> {
+    |        ^^^^^^^^
+
+warning: function `get_title` is never used
+   --> kernel\src\browser\mod.rs:336:8
+    |
+336 | pub fn get_title() -> String {
+    |        ^^^^^^^^^
+
+warning: fields `doctype`, `scripts`, and `stylesheets` are never read
+  --> kernel\src\browser\html.rs:15:9
+   |
+13 | pub struct Document {
+   |            -------- fields in this struct
+14 |     /// Document type
+15 |     pub doctype: Option<String>,
+   |         ^^^^^^^
+...
+19 |     pub scripts: Vec<Script>,
+   |         ^^^^^^^
+20 |     /// Document stylesheets
+21 |     pub stylesheets: Vec<StylesheetRef>,
+   |         ^^^^^^^^^^^
+
+warning: fields `tag`, `attributes`, and `computed_styles` are never read
+  --> kernel\src\browser\html.rs:34:9
+   |
+32 | pub struct Element {
+   |            ------- fields in this struct
+33 |     /// Tag name
+34 |     pub tag: String,
+   |         ^^^
+35 |     /// Attributes
+36 |     pub attributes: Vec<(String, String)>,
+   |         ^^^^^^^^^^
+...
+40 |     pub computed_styles: Vec<(String, String)>,
+   |         ^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `get_attr` are never used
+  --> kernel\src\browser\html.rs:45:12
+   |
+43 | impl Element {
+   | ------------ associated items in this implementation
+44 |     /// Create new element
+45 |     pub fn new(tag: &str) -> Self {
+   |            ^^^
+...
+55 |     pub fn get_attr(&self, name: &str) -> Option<&str> {
+   |            ^^^^^^^^
+
+warning: variants `Element`, `Text`, and `Comment` are never constructed
+  --> kernel\src\browser\html.rs:78:5
+   |
+77 | pub enum Node {
+   |          ---- variants in this enum
+78 |     Element(Element),
+   |     ^^^^^^^
+79 |     Text(String),
+   |     ^^^^
+80 |     Comment(String),
+   |     ^^^^^^^
+
+warning: fields `src`, `content`, `async_`, and `defer` are never read
+  --> kernel\src\browser\html.rs:86:9
+   |
+84 | pub struct Script {
+   |            ------ fields in this struct
+85 |     /// Script source URL (if external)
+86 |     pub src: Option<String>,
+   |         ^^^
+87 |     /// Script content (if inline)
+88 |     pub content: Vec<u8>,
+   |         ^^^^^^^
+89 |     /// Async loading
+90 |     pub async_: bool,
+   |         ^^^^^^
+91 |     /// Deferred loading
+92 |     pub defer: bool,
+   |         ^^^^^
+
+warning: fields `href` and `content` are never read
+   --> kernel\src\browser\html.rs:98:9
+    |
+96  | pub struct StylesheetRef {
+    |            ------------- fields in this struct
+97  |     /// URL (if external)
+98  |     pub href: Option<String>,
+    |         ^^^^
+99  |     /// Inline content
+100 |     pub content: String,
+    |         ^^^^^^^
+
+warning: enum `Token` is never used
+   --> kernel\src\browser\html.rs:105:6
+    |
+105 | enum Token {
+    |      ^^^^^
+
+warning: struct `Tokenizer` is never constructed
+   --> kernel\src\browser\html.rs:115:8
+    |
+115 | struct Tokenizer<'a> {
+    |        ^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> kernel\src\browser\html.rs:121:8
+    |
+120 | impl<'a> Tokenizer<'a> {
+    | ---------------------- associated items in this implementation
+121 |     fn new(input: &'a [u8]) -> Self {
+    |        ^^^
+...
+125 |     fn peek(&self) -> Option<u8> {
+    |        ^^^^
+...
+129 |     fn next(&mut self) -> Option<u8> {
+    |        ^^^^
+...
+135 |     fn consume_whitespace(&mut self) {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+144 |     fn consume_until(&mut self, target: u8) -> String {
+    |        ^^^^^^^^^^^^^
+...
+156 |     fn tokenize(&mut self) -> Vec<Token> {
+    |        ^^^^^^^^
+...
+207 |     fn parse_tag_name(&mut self) -> String {
+    |        ^^^^^^^^^^^^^^
+...
+223 |     fn parse_start_tag(&mut self) -> (String, Vec<(String, String)>) {
+    |        ^^^^^^^^^^^^^^^
+...
+259 |     fn parse_attr_name(&mut self) -> String {
+    |        ^^^^^^^^^^^^^^^
+...
+274 |     fn parse_attr_value(&mut self) -> String {
+    |        ^^^^^^^^^^^^^^^^
+
+warning: struct `DomBuilder` is never constructed
+   --> kernel\src\browser\html.rs:298:8
+    |
+298 | struct DomBuilder {
+    |        ^^^^^^^^^^
+
+warning: associated items `new` and `build` are never used
+   --> kernel\src\browser\html.rs:305:8
+    |
+304 | impl DomBuilder {
+    | --------------- associated items in this implementation
+305 |     fn new() -> Self {
+    |        ^^^
+...
+313 |     fn build(mut self, tokens: &[Token]) -> Result<Document, BrowserError> {
+    |        ^^^^^
+
+warning: function `parse` is never used
+   --> kernel\src\browser\html.rs:434:8
+    |
+434 | pub fn parse(input: &[u8]) -> Result<Document, BrowserError> {
+    |        ^^^^^
+
+warning: function `create_test_document` is never used
+   --> kernel\src\browser\html.rs:448:8
+    |
+448 | pub fn create_test_document() -> Document {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `Stylesheet` is never constructed
+  --> kernel\src\browser\css.rs:13:12
+   |
+13 | pub struct Stylesheet {
+   |            ^^^^^^^^^^
+
+warning: struct `Rule` is never constructed
+  --> kernel\src\browser\css.rs:19:12
+   |
+19 | pub struct Rule {
+   |            ^^^^
+
+warning: enum `Selector` is never used
+  --> kernel\src\browser\css.rs:28:10
+   |
+28 | pub enum Selector {
+   |          ^^^^^^^^
+   |
+   = note: `Selector` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `Declaration` is never constructed
+  --> kernel\src\browser\css.rs:47:12
+   |
+47 | pub struct Declaration {
+   |            ^^^^^^^^^^^
+   |
+   = note: `Declaration` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: enum `Value` is never used
+  --> kernel\src\browser\css.rs:56:10
+   |
+56 | pub enum Value {
+   |          ^^^^^
+   |
+   = note: `Value` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: multiple variants are never constructed
+  --> kernel\src\browser\css.rs:74:5
+   |
+73 | pub enum Unit {
+   |          ---- variants in this enum
+74 |     Px,
+   |     ^^
+75 |     Em,
+   |     ^^
+76 |     Rem,
+   |     ^^^
+77 |     Percent,
+   |     ^^^^^^^
+78 |     Pt,
+   |     ^^
+79 |     Cm,
+   |     ^^
+80 |     Mm,
+   |     ^^
+81 |     In,
+   |     ^^
+   |
+   = note: `Unit` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: struct `Color` is never constructed
+  --> kernel\src\browser\css.rs:86:12
+   |
+86 | pub struct Color {
+   |            ^^^^^
+   |
+   = note: `Color` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: associated functions `rgb`, `rgba`, and `parse` are never used
+   --> kernel\src\browser\css.rs:95:12
+    |
+93  | impl Color {
+    | ---------- associated functions in this implementation
+94  |     /// Create color from RGB
+95  |     pub fn rgb(r: u8, g: u8, b: u8) -> Self {
+    |            ^^^
+...
+100 |     pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
+    |            ^^^^
+...
+105 |     pub fn parse(s: &str) -> Option<Self> {
+    |            ^^^^^
+
+warning: enum `Token` is never used
+   --> kernel\src\browser\css.rs:181:6
+    |
+181 | enum Token {
+    |      ^^^^^
+
+warning: struct `Tokenizer` is never constructed
+   --> kernel\src\browser\css.rs:202:8
+    |
+202 | struct Tokenizer<'a> {
+    |        ^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> kernel\src\browser\css.rs:208:8
+    |
+207 | impl<'a> Tokenizer<'a> {
+    | ---------------------- associated items in this implementation
+208 |     fn new(input: &'a [u8]) -> Self {
+    |        ^^^
+...
+212 |     fn peek(&self) -> Option<u8> {
+    |        ^^^^
+...
+216 |     fn next(&mut self) -> Option<u8> {
+    |        ^^^^
+...
+222 |     fn consume_whitespace(&mut self) {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+231 |     fn consume_ident(&mut self) -> String {
+    |        ^^^^^^^^^^^^^
+...
+244 |     fn consume_number(&mut self) -> f32 {
+    |        ^^^^^^^^^^^^^^
+...
+264 |     fn consume_string(&mut self, quote: u8) -> String {
+    |        ^^^^^^^^^^^^^^
+...
+280 |     fn tokenize(&mut self) -> Vec<Token> {
+    |        ^^^^^^^^
+
+warning: function `parse` is never used
+   --> kernel\src\browser\css.rs:360:8
+    |
+360 | pub fn parse(input: &str) -> Result<Stylesheet, BrowserError> {
+    |        ^^^^^
+
+warning: function `parse_selectors` is never used
+   --> kernel\src\browser\css.rs:404:4
+    |
+404 | fn parse_selectors(tokens: &[Token], pos: &mut usize) -> Result<Vec<Selector>, BrowserError> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `parse_declarations` is never used
+   --> kernel\src\browser\css.rs:464:4
+    |
+464 | fn parse_declarations(tokens: &[Token], pos: &mut usize) -> Result<Vec<Declaration>, BrowserError> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `parse_value` is never used
+   --> kernel\src\browser\css.rs:526:4
+    |
+526 | fn parse_value(tokens: &[Token], pos: &mut usize) -> Result<Value, BrowserError> {
+    |    ^^^^^^^^^^^
+
+warning: function `apply_styles` is never used
+   --> kernel\src\browser\css.rs:574:8
+    |
+574 | pub fn apply_styles(document: &mut Document) -> Result<(), BrowserError> {
+    |        ^^^^^^^^^^^^
+
+warning: function `apply_rules_to_element` is never used
+   --> kernel\src\browser\css.rs:592:4
+    |
+592 | fn apply_rules_to_element(sheet: &Stylesheet, element: &mut Element) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `matches_selector` is never used
+   --> kernel\src\browser\css.rs:641:4
+    |
+641 | fn matches_selector(selector: &Selector, element: &Element) -> bool {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `int_to_string` is never used
+   --> kernel\src\browser\css.rs:656:4
+    |
+656 | fn int_to_string(n: i64) -> String {
+    |    ^^^^^^^^^^^^^
+
+warning: enum `Value` is never used
+  --> kernel\src\browser\js.rs:16:10
+   |
+16 | pub enum Value {
+   |          ^^^^^
+   |
+   = note: `Value` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: function `trunc_f64` is never used
+  --> kernel\src\browser\js.rs:28:4
+   |
+28 | fn trunc_f64(n: f64) -> f64 {
+   |    ^^^^^^^^^
+
+warning: function `int_to_string` is never used
+  --> kernel\src\browser\js.rs:40:4
+   |
+40 | fn int_to_string(n: i64) -> String {
+   |    ^^^^^^^^^^^^^
+
+warning: methods `to_string` and `is_truthy` are never used
+  --> kernel\src\browser\js.rs:63:12
+   |
+61 | impl Value {
+   | ---------- methods in this implementation
+62 |     /// Convert to string
+63 |     pub fn to_string(&self) -> String {
+   |            ^^^^^^^^^
+...
+86 |     pub fn is_truthy(&self) -> bool {
+   |            ^^^^^^^^^
+
+warning: struct `Object` is never constructed
+  --> kernel\src\browser\js.rs:99:12
+   |
+99 | pub struct Object {
+   |            ^^^^^^
+   |
+   = note: `Object` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated items `new`, `get`, and `set` are never used
+   --> kernel\src\browser\js.rs:105:12
+    |
+104 | impl Object {
+    | ----------- associated items in this implementation
+105 |     pub fn new() -> Self {
+    |            ^^^
+...
+112 |     pub fn get(&self, key: &str) -> Value {
+    |            ^^^
+...
+117 |     pub fn set(&mut self, key: &str, value: Value) {
+    |            ^^^
+
+warning: struct `Function` is never constructed
+   --> kernel\src\browser\js.rs:124:12
+    |
+124 | pub struct Function {
+    |            ^^^^^^^^
+    |
+    = note: `Function` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `Environment` is never constructed
+   --> kernel\src\browser\js.rs:132:12
+    |
+132 | pub struct Environment {
+    |            ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> kernel\src\browser\js.rs:142:12
+    |
+141 | impl Environment {
+    | ---------------- associated items in this implementation
+142 |     pub fn new() -> Self {
+    |            ^^^
+...
+156 |     pub fn define(&mut self, name: &str, value: Value) {
+    |            ^^^^^^
+...
+163 |     pub fn get(&self, name: &str) -> Value {
+    |            ^^^
+...
+180 |     pub fn set(&mut self, name: &str, value: Value) {
+    |            ^^^
+...
+193 |     pub fn push_scope(&mut self) {
+    |            ^^^^^^^^^^
+...
+198 |     pub fn pop_scope(&mut self) {
+    |            ^^^^^^^^^
+...
+205 |     pub fn log(&mut self, msg: &str) {
+    |            ^^^
+...
+212 |     pub fn get_output(&self) -> &str {
+    |            ^^^^^^^^^^
+
+warning: enum `Token` is never used
+   --> kernel\src\browser\js.rs:219:6
+    |
+219 | enum Token {
+    |      ^^^^^
+
+warning: constant `KEYWORDS` is never used
+   --> kernel\src\browser\js.rs:239:7
+    |
+239 | const KEYWORDS: &[&str] = &[
+    |       ^^^^^^^^
+
+warning: struct `Tokenizer` is never constructed
+   --> kernel\src\browser\js.rs:246:8
+    |
+246 | struct Tokenizer<'a> {
+    |        ^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> kernel\src\browser\js.rs:252:8
+    |
+251 | impl<'a> Tokenizer<'a> {
+    | ---------------------- associated items in this implementation
+252 |     fn new(input: &'a [u8]) -> Self {
+    |        ^^^
+...
+256 |     fn peek(&self) -> Option<u8> {
+    |        ^^^^
+...
+260 |     fn next(&mut self) -> Option<u8> {
+    |        ^^^^
+...
+266 |     fn skip_whitespace(&mut self) {
+    |        ^^^^^^^^^^^^^^^
+...
+276 |     fn read_identifier(&mut self) -> String {
+    |        ^^^^^^^^^^^^^^^
+...
+289 |     fn read_number(&mut self) -> f64 {
+    |        ^^^^^^^^^^^
+...
+309 |     fn read_string(&mut self, quote: u8) -> String {
+    |        ^^^^^^^^^^^
+...
+340 |     fn tokenize(&mut self) -> Vec<Token> {
+    |        ^^^^^^^^
+
+warning: enum `Statement` is never used
+   --> kernel\src\browser\js.rs:403:6
+    |
+403 | enum Statement {
+    |      ^^^^^^^^^
+
+warning: enum `Expr` is never used
+   --> kernel\src\browser\js.rs:417:6
+    |
+417 | enum Expr {
+    |      ^^^^
+
+warning: struct `Parser` is never constructed
+   --> kernel\src\browser\js.rs:434:8
+    |
+434 | struct Parser {
+    |        ^^^^^^
+
+warning: multiple associated items are never used
+   --> kernel\src\browser\js.rs:440:8
+    |
+439 | impl Parser {
+    | ----------- associated items in this implementation
+440 |     fn new(tokens: Vec<Token>) -> Self {
+    |        ^^^
+...
+444 |     fn peek(&self) -> &Token {
+    |        ^^^^
+...
+448 |     fn next(&mut self) -> Token {
+    |        ^^^^
+...
+456 |     fn expect(&mut self, expected: Token) -> Result<(), BrowserError> {
+    |        ^^^^^^
+...
+465 |     fn parse(&mut self) -> Result<Vec<Statement>, BrowserError> {
+    |        ^^^^^
+...
+473 |     fn parse_statement(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^^^^^
+...
+495 |     fn parse_var_decl(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^^^^
+...
+516 |     fn parse_let_decl(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^^^^
+...
+537 |     fn parse_const_decl(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^
+...
+554 |     fn parse_function_decl(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^^
+...
+570 |     fn parse_params(&mut self) -> Result<Vec<String>, BrowserError> {
+    |        ^^^^^^^^^^^^
+...
+589 |     fn parse_return(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^^
+...
+605 |     fn parse_if(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^
+...
+622 |     fn parse_while(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^
+...
+632 |     fn parse_block(&mut self) -> Result<Statement, BrowserError> {
+    |        ^^^^^^^^^^^
+...
+638 |     fn parse_block_body(&mut self) -> Result<Vec<Statement>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^
+...
+649 |     fn parse_expr(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^
+...
+653 |     fn parse_assignment(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^
+...
+665 |     fn parse_equality(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^^^^^
+...
+682 |     fn parse_comparison(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^
+...
+699 |     fn parse_term(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^
+...
+716 |     fn parse_factor(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^^^
+...
+733 |     fn parse_unary(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^^
+...
+746 |     fn parse_call(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^
+...
+773 |     fn parse_args(&mut self) -> Result<Vec<Expr>, BrowserError> {
+    |        ^^^^^^^^^^
+...
+788 |     fn parse_primary(&mut self) -> Result<Expr, BrowserError> {
+    |        ^^^^^^^^^^^^^
+
+warning: function `execute` is never used
+   --> kernel\src\browser\js.rs:845:8
+    |
+845 | pub fn execute(code: &[u8]) -> Result<(), BrowserError> {
+    |        ^^^^^^^
+
+warning: function `evaluate_statement` is never used
+   --> kernel\src\browser\js.rs:868:4
+    |
+868 | fn evaluate_statement(env: &mut Environment, stmt: &Statement) -> Result<Value, BrowserError> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `evaluate_expr` is never used
+   --> kernel\src\browser\js.rs:946:4
+    |
+946 | fn evaluate_expr(env: &mut Environment, expr: &Expr) -> Result<Value, BrowserError> {
+    |    ^^^^^^^^^^^^^
+
+warning: variants `I32`, `I64`, `F32`, and `F64` are never constructed
+  --> kernel\src\browser\wasm.rs:18:5
+   |
+17 | pub enum ValueType {
+   |          --------- variants in this enum
+18 |     I32,
+   |     ^^^
+19 |     I64,
+   |     ^^^
+20 |     F32,
+   |     ^^^
+21 |     F64,
+   |     ^^^
+   |
+   = note: `ValueType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: enum `Value` is never used
+  --> kernel\src\browser\wasm.rs:26:10
+   |
+26 | pub enum Value {
+   |          ^^^^^
+   |
+   = note: `Value` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: method `value_type` is never used
+  --> kernel\src\browser\wasm.rs:34:12
+   |
+33 | impl Value {
+   | ---------- method in this implementation
+34 |     pub fn value_type(&self) -> ValueType {
+   |            ^^^^^^^^^^
+
+warning: struct `Module` is never constructed
+  --> kernel\src\browser\wasm.rs:45:12
+   |
+45 | pub struct Module {
+   |            ^^^^^^
+
+warning: struct `FuncType` is never constructed
+  --> kernel\src\browser\wasm.rs:64:12
+   |
+64 | pub struct FuncType {
+   |            ^^^^^^^^
+   |
+   = note: `FuncType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `Function` is never constructed
+  --> kernel\src\browser\wasm.rs:71:12
+   |
+71 | pub struct Function {
+   |            ^^^^^^^^
+   |
+   = note: `Function` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `Export` is never constructed
+  --> kernel\src\browser\wasm.rs:79:12
+   |
+79 | pub struct Export {
+   |            ^^^^^^
+   |
+   = note: `Export` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Func`, `Table`, `Mem`, and `Global` are never constructed
+  --> kernel\src\browser\wasm.rs:87:5
+   |
+86 | pub enum ExportKind {
+   |          ---------- variants in this enum
+87 |     Func,
+   |     ^^^^
+88 |     Table,
+   |     ^^^^^
+89 |     Mem,
+   |     ^^^
+90 |     Global,
+   |     ^^^^^^
+   |
+   = note: `ExportKind` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `Memory` is never constructed
+  --> kernel\src\browser\wasm.rs:95:12
+   |
+95 | pub struct Memory {
+   |            ^^^^^^
+   |
+   = note: `Memory` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead 
+code analysis
+
+warning: associated items `new`, `read`, `write`, `read_i32`, and `write_i32` are never used
+   --> kernel\src\browser\wasm.rs:102:12
+    |
+101 | impl Memory {
+    | ----------- associated items in this implementation
+102 |     pub fn new(min: u32, max: Option<u32>) -> Self {
+    |            ^^^
+...
+111 |     pub fn read(&self, addr: usize, len: usize) -> &[u8] {
+    |            ^^^^
+...
+115 |     pub fn write(&mut self, addr: usize, data: &[u8]) {
+    |            ^^^^^
+...
+120 |     pub fn read_i32(&self, addr: usize) -> i32 {
+    |            ^^^^^^^^
+...
+125 |     pub fn write_i32(&mut self, addr: usize, val: i32) {
+    |            ^^^^^^^^^
+
+warning: struct `Global` is never constructed
+   --> kernel\src\browser\wasm.rs:132:12
+    |
+132 | pub struct Global {
+    |            ^^^^^^
+    |
+    = note: `Global` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `DataSegment` is never constructed
+   --> kernel\src\browser\wasm.rs:140:12
+    |
+140 | pub struct DataSegment {
+    |            ^^^^^^^^^^^
+    |
+    = note: `DataSegment` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: enum `Instruction` is never used
+   --> kernel\src\browser\wasm.rs:148:10
+    |
+148 | pub enum Instruction {
+    |          ^^^^^^^^^^^
+    |
+    = note: `Instruction` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `Parser` is never constructed
+   --> kernel\src\browser\wasm.rs:264:8
+    |
+264 | struct Parser<'a> {
+    |        ^^^^^^
+
+warning: multiple associated items are never used
+   --> kernel\src\browser\wasm.rs:270:8
+    |
+269 | impl<'a> Parser<'a> {
+    | ------------------- associated items in this implementation
+270 |     fn new(data: &'a [u8]) -> Self {
+    |        ^^^
+...
+274 |     fn peek(&self) -> Option<u8> {
+    |        ^^^^
+...
+278 |     fn next(&mut self) -> Option<u8> {
+    |        ^^^^
+...
+284 |     fn read_u32(&mut self) -> u32 {
+    |        ^^^^^^^^
+...
+298 |     fn read_i32(&mut self) -> i32 {
+    |        ^^^^^^^^
+...
+315 |     fn read_f32(&mut self) -> f32 {
+    |        ^^^^^^^^
+...
+325 |     fn read_f64(&mut self) -> f64 {
+    |        ^^^^^^^^
+...
+339 |     fn read_bytes(&mut self, len: usize) -> Vec<u8> {
+    |        ^^^^^^^^^^
+...
+347 |     fn read_string(&mut self) -> String {
+    |        ^^^^^^^^^^^
+...
+353 |     fn read_value_type(&mut self) -> Option<ValueType> {
+    |        ^^^^^^^^^^^^^^^
+...
+363 |     fn parse(&mut self) -> Result<Module, BrowserError> {
+    |        ^^^^^
+...
+407 |     fn parse_type_section(&mut self) -> Result<Vec<FuncType>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+435 |     fn parse_function_section(&mut self, types: &[FuncType]) -> Result<Vec<Function>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+451 |     fn parse_global_section(&mut self) -> Result<Vec<Global>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+470 |     fn parse_export_section(&mut self) -> Result<BTreeMap<String, Export>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+491 |     fn parse_data_section(&mut self) -> Result<Vec<DataSegment>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+511 |     fn parse_init_expr(&mut self) -> Result<Value, BrowserError> {
+    |        ^^^^^^^^^^^^^^^
+...
+517 |     fn parse_instruction_sequence(&mut self) -> Result<Vec<Instruction>, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+537 |     fn parse_instruction(&mut self) -> Result<Instruction, BrowserError> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `Runtime` is never constructed
+   --> kernel\src\browser\wasm.rs:601:12
+    |
+601 | pub struct Runtime {
+    |            ^^^^^^^
+
+warning: struct `ActivationFrame` is never constructed
+   --> kernel\src\browser\wasm.rs:609:8
+    |
+609 | struct ActivationFrame {
+    |        ^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `call`, `call_function`, and `step` are never used
+   --> kernel\src\browser\wasm.rs:616:12
+    |
+615 | impl Runtime {
+    | ------------ associated items in this implementation
+616 |     pub fn new(module: Module) -> Self {
+    |            ^^^
+...
+633 |     pub fn call(&mut self, name: &str, args: Vec<Value>) -> Result<Vec<Value>, BrowserError> {
+    |            ^^^^
+...
+651 |     fn call_function(&mut self, idx: u32, args: Vec<Value>) -> Result<(), BrowserError> {
+    |        ^^^^^^^^^^^^^
+...
+684 |     fn step(&mut self) -> Result<(), BrowserError> {
+    |        ^^^^
+
+warning: function `load` is never used
+   --> kernel\src\browser\wasm.rs:714:8
+    |
+714 | pub fn load(data: &[u8]) -> Result<Module, BrowserError> {
+    |        ^^^^
+
+warning: function `test` is never used
+   --> kernel\src\browser\wasm.rs:725:8
+    |
+725 | pub fn test() -> Result<(), BrowserError> {
+    |        ^^^^
+
+warning: multiple fields are never read
+  --> kernel\src\browser\layout.rs:17:9
+   |
+15 | pub struct LayoutBox {
+   |            --------- fields in this struct
+16 |     /// Position (x, y)
+17 |     pub x: f32,
+   |         ^
+18 |     pub y: f32,
+   |         ^
+19 |     /// Dimensions
+20 |     pub width: f32,
+   |         ^^^^^
+21 |     pub height: f32,
+   |         ^^^^^^
+22 |     /// Padding
+23 |     pub padding: Edge,
+   |         ^^^^^^^
+24 |     /// Border
+25 |     pub border: Edge,
+   |         ^^^^^^
+26 |     /// Margin
+27 |     pub margin: Edge,
+   |         ^^^^^^
+28 |     /// Content width
+29 |     pub content_width: f32,
+   |         ^^^^^^^^^^^^^
+30 |     /// Content height
+31 |     pub content_height: f32,
+   |         ^^^^^^^^^^^^^^
+32 |     /// Box type
+33 |     pub box_type: BoxType,
+   |         ^^^^^^^^
+34 |     /// Children
+35 |     pub children: Vec<LayoutBox>,
+   |         ^^^^^^^^
+36 |     /// Text content
+37 |     pub text: Option<String>,
+   |         ^^^^
+38 |     /// Styles
+39 |     pub styles: LayoutStyles,
+   |         ^^^^^^
+   |
+   = note: `LayoutBox` has a derived impl for the trait `Debug`, but this is intentionally ignored during 
+dead code analysis
+
+warning: variants `Block`, `Inline`, `InlineBlock`, and `None` are never constructed
+  --> kernel\src\browser\layout.rs:45:5
+   |
+44 | pub enum BoxType {
+   |          ------- variants in this enum
+45 |     Block,
+   |     ^^^^^
+46 |     Inline,
+   |     ^^^^^^
+47 |     InlineBlock,
+   |     ^^^^^^^^^^^
+48 |     None,
+   |     ^^^^
+   |
+   = note: `BoxType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `top`, `right`, `bottom`, and `left` are never read
+  --> kernel\src\browser\layout.rs:54:9
+   |
+53 | pub struct Edge {
+   |            ---- fields in this struct
+54 |     pub top: f32,
+   |         ^^^
+55 |     pub right: f32,
+   |         ^^^^^
+56 |     pub bottom: f32,
+   |         ^^^^^^
+57 |     pub left: f32,
+   |         ^^^^
+   |
+   = note: `Edge` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: associated items `new`, `uniform`, `horizontal`, and `vertical` are never used
+  --> kernel\src\browser\layout.rs:61:12
+   |
+60 | impl Edge {
+   | --------- associated items in this implementation
+61 |     pub fn new() -> Self {
+   |            ^^^
+...
+70 |     pub fn uniform(value: f32) -> Self {
+   |            ^^^^^^^
+...
+79 |     pub fn horizontal(&self) -> f32 {
+   |            ^^^^^^^^^^
+...
+83 |     pub fn vertical(&self) -> f32 {
+   |            ^^^^^^^^
+
+warning: fields `display`, `background_color`, `color`, `font_size`, `font_weight`, and `text_align` are 
+never read
+  --> kernel\src\browser\layout.rs:91:9
+   |
+90 | pub struct LayoutStyles {
+   |            ------------ fields in this struct
+91 |     pub display: BoxType,
+   |         ^^^^^^^
+92 |     pub background_color: Option<Color>,
+   |         ^^^^^^^^^^^^^^^^
+93 |     pub color: Option<Color>,
+   |         ^^^^^
+94 |     pub font_size: f32,
+   |         ^^^^^^^^^
+95 |     pub font_weight: FontWeight,
+   |         ^^^^^^^^^^^
+96 |     pub text_align: TextAlign,
+   |         ^^^^^^^^^^
+   |
+   = note: `LayoutStyles` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated function `default` is never used
+   --> kernel\src\browser\layout.rs:100:12
+    |
+99  | impl LayoutStyles {
+    | ----------------- associated function in this implementation
+100 |     pub fn default() -> Self {
+    |            ^^^^^^^
+
+warning: fields `r`, `g`, and `b` are never read
+   --> kernel\src\browser\layout.rs:115:9
+    |
+114 | pub struct Color {
+    |            ----- fields in this struct
+115 |     pub r: u8,
+    |         ^
+116 |     pub g: u8,
+    |         ^
+117 |     pub b: u8,
+    |         ^
+    |
+    = note: `Color` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: associated functions `black`, `white`, and `gray` are never used
+   --> kernel\src\browser\layout.rs:121:12
+    |
+120 | impl Color {
+    | ---------- associated functions in this implementation
+121 |     pub fn black() -> Self {
+    |            ^^^^^
+...
+125 |     pub fn white() -> Self {
+    |            ^^^^^
+...
+129 |     pub fn gray() -> Self {
+    |            ^^^^
+
+warning: variants `Normal` and `Bold` are never constructed
+   --> kernel\src\browser\layout.rs:137:5
+    |
+136 | pub enum FontWeight {
+    |          ---------- variants in this enum
+137 |     Normal,
+    |     ^^^^^^
+138 |     Bold,
+    |     ^^^^
+    |
+    = note: `FontWeight` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Left`, `Center`, `Right`, and `Justify` are never constructed
+   --> kernel\src\browser\layout.rs:144:5
+    |
+143 | pub enum TextAlign {
+    |          --------- variants in this enum
+144 |     Left,
+    |     ^^^^
+145 |     Center,
+    |     ^^^^^^
+146 |     Right,
+    |     ^^^^^
+147 |     Justify,
+    |     ^^^^^^^
+    |
+    = note: `TextAlign` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `root`, `viewport_width`, and `viewport_height` are never read
+   --> kernel\src\browser\layout.rs:152:9
+    |
+151 | pub struct LayoutTree {
+    |            ---------- fields in this struct
+152 |     pub root: LayoutBox,
+    |         ^^^^
+153 |     pub viewport_width: f32,
+    |         ^^^^^^^^^^^^^^
+154 |     pub viewport_height: f32,
+    |         ^^^^^^^^^^^^^^^
+
+warning: function `layout` is never used
+   --> kernel\src\browser\layout.rs:158:8
+    |
+158 | pub fn layout(document: &Document, viewport_width: u32, viewport_height: u32) -> Result<LayoutTree, 
+BrowserError> {
+    |        ^^^^^^
+
+warning: struct `Dimensions` is never constructed
+   --> kernel\src\browser\layout.rs:177:8
+    |
+177 | struct Dimensions {
+    |        ^^^^^^^^^^
+
+warning: function `build_layout_tree` is never used
+   --> kernel\src\browser\layout.rs:183:4
+    |
+183 | fn build_layout_tree(element: &Element) -> Result<LayoutBox, BrowserError> {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `determine_box_type` is never used
+   --> kernel\src\browser\layout.rs:241:4
+    |
+241 | fn determine_box_type(element: &Element) -> BoxType {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `compute_styles` is never used
+   --> kernel\src\browser\layout.rs:251:4
+    |
+251 | fn compute_styles(element: &Element) -> LayoutStyles {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `parse_color` is never used
+   --> kernel\src\browser\layout.rs:297:4
+    |
+297 | fn parse_color(s: &str) -> Option<Color> {
+    |    ^^^^^^^^^^^
+
+warning: function `parse_length` is never used
+   --> kernel\src\browser\layout.rs:327:4
+    |
+327 | fn parse_length(s: &str) -> Option<f32> {
+    |    ^^^^^^^^^^^^
+
+warning: function `calculate_layout` is never used
+   --> kernel\src\browser\layout.rs:342:4
+    |
+342 | fn calculate_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `calculate_block_layout` is never used
+   --> kernel\src\browser\layout.rs:352:4
+    |
+352 | fn calculate_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_inline_layout` is never used
+   --> kernel\src\browser\layout.rs:379:4
+    |
+379 | fn calculate_inline_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_inline_block_layout` is never used
+   --> kernel\src\browser\layout.rs:398:4
+    |
+398 | fn calculate_inline_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `width`, `height`, and `data` are never read
+  --> kernel\src\browser\render.rs:15:9
+   |
+13 | pub struct Framebuffer {
+   |            ----------- fields in this struct
+14 |     /// Width in pixels
+15 |     pub width: u32,
+   |         ^^^^^
+16 |     /// Height in pixels
+17 |     pub height: u32,
+   |         ^^^^^^
+18 |     /// Pixel data (RGBA)
+19 |     pub data: Vec<u32>,
+   |         ^^^^
+
+warning: multiple associated items are never used
+  --> kernel\src\browser\render.rs:24:12
+   |
+22 | impl Framebuffer {
+   | ---------------- associated items in this implementation
+23 |     /// Create new framebuffer
+24 |     pub fn new(width: u32, height: u32) -> Self {
+   |            ^^^
+...
+34 |     pub fn clear(&mut self, color: u32) {
+   |            ^^^^^
+...
+41 |     pub fn set_pixel(&mut self, x: i32, y: i32, color: u32) {
+   |            ^^^^^^^^^
+...
+49 |     pub fn get_pixel(&self, x: i32, y: i32) -> u32 {
+   |            ^^^^^^^^^
+...
+59 |     pub fn fill_rect(&mut self, x: i32, y: i32, width: u32, height: u32, color: u32) {
+   |            ^^^^^^^^^
+...
+68 |     pub fn draw_rect(&mut self, x: i32, y: i32, width: u32, height: u32, color: u32) {
+   |            ^^^^^^^^^
+...
+80 |     pub fn draw_line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, color: u32) {
+   |            ^^^^^^^^^
+
+warning: fields `framebuffer`, `layout_tree`, `viewport_width`, and `viewport_height` are never read
+   --> kernel\src\browser\render.rs:112:9
+    |
+110 | pub struct RenderContext {
+    |            ------------- fields in this struct
+111 |     /// Framebuffer (lazy init)
+112 |     pub framebuffer: Option<Framebuffer>,
+    |         ^^^^^^^^^^^
+113 |     /// Layout tree
+114 |     pub layout_tree: Option<LayoutTree>,
+    |         ^^^^^^^^^^^
+115 |     /// Viewport width
+116 |     pub viewport_width: u32,
+    |         ^^^^^^^^^^^^^^
+117 |     /// Viewport height
+118 |     pub viewport_height: u32,
+    |         ^^^^^^^^^^^^^^^
+
+warning: method `init_framebuffer` is never used
+   --> kernel\src\browser\render.rs:133:12
+    |
+121 | impl RenderContext {
+    | ------------------ method in this implementation
+...
+133 |     pub fn init_framebuffer(&mut self, width: u32, height: u32) {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `render` is never used
+   --> kernel\src\browser\render.rs:141:8
+    |
+141 | pub fn render(layout_tree: &LayoutTree, framebuffer: &mut Framebuffer) -> Result<(), BrowserError> {
+    |        ^^^^^^
+
+warning: function `render_box` is never used
+   --> kernel\src\browser\render.rs:152:4
+    |
+152 | fn render_box(layout_box: &LayoutBox, framebuffer: &mut Framebuffer, offset_x: f32, offset_y: f32) -> 
+Result<(), BrowserError> {
+    |    ^^^^^^^^^^
+
+warning: function `render_text` is never used
+   --> kernel\src\browser\render.rs:203:4
+    |
+203 | fn render_text(framebuffer: &mut Framebuffer, text: &str, x: i32, y: i32, font_size: f32, color: u32) {
+    |    ^^^^^^^^^^^
+
+warning: function `render_char` is never used
+   --> kernel\src\browser\render.rs:214:4
+    |
+214 | fn render_char(framebuffer: &mut Framebuffer, ch: char, x: i32, y: i32, width: i32, height: i32, 
+color: u32) {
+    |    ^^^^^^^^^^^
+
+warning: function `rgb_to_u32` is never used
+   --> kernel\src\browser\render.rs:252:4
+    |
+252 | fn rgb_to_u32(r: u8, g: u8, b: u8) -> u32 {
+    |    ^^^^^^^^^^
+
+warning: function `test_pattern` is never used
+   --> kernel\src\browser\render.rs:262:8
+    |
+262 | pub fn test_pattern(framebuffer: &mut Framebuffer) {
+    |        ^^^^^^^^^^^^
+
+warning: variants `Success`, `NoMedia`, `WriteProtected`, and `Busy` are never constructed
+  --> kernel\src\storage\mod.rs:41:5
+   |
+39 | pub enum StorageError {
+   |          ------------ variants in this enum
+40 |     /// Success
+41 |     Success = 0,
+   |     ^^^^^^^
+...
+51 |     NoMedia = 5,
+   |     ^^^^^^^
+52 |     /// Write protected
+53 |     WriteProtected = 6,
+   |     ^^^^^^^^^^^^^^
+54 |     /// Busy
+55 |     Busy = 7,
+   |     ^^^^
+   |
+   = note: `StorageError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `StorageInfo` is never constructed
+  --> kernel\src\storage\mod.rs:62:12
+   |
+62 | pub struct StorageInfo {
+   |            ^^^^^^^^^^^
+   |
+   = note: `StorageInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `get_device` is never used
+   --> kernel\src\storage\mod.rs:122:8
+    |
+122 | pub fn get_device(idx: usize) -> Option<Box<dyn BlockDevice>> {
+    |        ^^^^^^^^^^
+
+warning: constant `PRIMARY_ERROR` is never used
+  --> kernel\src\storage\ata.rs:16:7
+   |
+16 | const PRIMARY_ERROR: u16 = 0x1F1;
+   |       ^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_SECTOR_COUNT` is never used
+  --> kernel\src\storage\ata.rs:17:7
+   |
+17 | const PRIMARY_SECTOR_COUNT: u16 = 0x1F2;
+   |       ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_LBA_LOW` is never used
+  --> kernel\src\storage\ata.rs:18:7
+   |
+18 | const PRIMARY_LBA_LOW: u16 = 0x1F3;
+   |       ^^^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_LBA_MID` is never used
+  --> kernel\src\storage\ata.rs:19:7
+   |
+19 | const PRIMARY_LBA_MID: u16 = 0x1F4;
+   |       ^^^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_LBA_HIGH` is never used
+  --> kernel\src\storage\ata.rs:20:7
+   |
+20 | const PRIMARY_LBA_HIGH: u16 = 0x1F5;
+   |       ^^^^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_DRIVE` is never used
+  --> kernel\src\storage\ata.rs:21:7
+   |
+21 | const PRIMARY_DRIVE: u16 = 0x1F6;
+   |       ^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_STATUS` is never used
+  --> kernel\src\storage\ata.rs:22:7
+   |
+22 | const PRIMARY_STATUS: u16 = 0x1F7;
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `PRIMARY_COMMAND` is never used
+  --> kernel\src\storage\ata.rs:23:7
+   |
+23 | const PRIMARY_COMMAND: u16 = 0x1F7;
+   |       ^^^^^^^^^^^^^^^
+
+warning: constant `STATUS_DRDY` is never used
+  --> kernel\src\storage\ata.rs:34:7
+   |
+34 | const STATUS_DRDY: u8 = 0x40; // Drive ready
+   |       ^^^^^^^^^^^
+
+warning: constant `REG_IS` is never used
+  --> kernel\src\storage\ahci.rs:21:7
+   |
+21 | const REG_IS: usize = 0x08;      // Interrupt Status
+   |       ^^^^^^
+
+warning: constant `REG_VS` is never used
+  --> kernel\src\storage\ahci.rs:23:7
+   |
+23 | const REG_VS: usize = 0x10;      // Version
+   |       ^^^^^^
+
+warning: constant `REG_CAP2` is never used
+  --> kernel\src\storage\ahci.rs:25:7
+   |
+25 | const REG_CAP2: usize = 0x24;    // Host Capabilities Extended
+   |       ^^^^^^^^
+
+warning: constant `PORT_IE` is never used
+  --> kernel\src\storage\ahci.rs:33:7
+   |
+33 | const PORT_IE: usize = 0x14;     // Interrupt Enable
+   |       ^^^^^^^
+
+warning: constant `PORT_SSTS` is never used
+  --> kernel\src\storage\ahci.rs:37:7
+   |
+37 | const PORT_SSTS: usize = 0x28;   // SATA Status
+   |       ^^^^^^^^^
+
+warning: constant `PORT_SCTL` is never used
+  --> kernel\src\storage\ahci.rs:38:7
+   |
+38 | const PORT_SCTL: usize = 0x2C;   // SATA Control
+   |       ^^^^^^^^^
+
+warning: constant `PORT_SERR` is never used
+  --> kernel\src\storage\ahci.rs:39:7
+   |
+39 | const PORT_SERR: usize = 0x30;   // SATA Error
+   |       ^^^^^^^^^
+
+warning: constant `PORT_SACT` is never used
+  --> kernel\src\storage\ahci.rs:40:7
+   |
+40 | const PORT_SACT: usize = 0x34;   // SATA Active
+   |       ^^^^^^^^^
+
+warning: constant `SIG_SEMB` is never used
+  --> kernel\src\storage\ahci.rs:52:7
+   |
+52 | const SIG_SEMB: u32 = 0xC33C0101;
+   |       ^^^^^^^^
+
+warning: constant `SIG_PM` is never used
+  --> kernel\src\storage\ahci.rs:53:7
+   |
+53 | const SIG_PM: u32 = 0x96690101;
+   |       ^^^^^^
+
+warning: struct `AhciController` is never constructed
+  --> kernel\src\storage\ahci.rs:69:12
+   |
+69 | pub struct AhciController {
+   |            ^^^^^^^^^^^^^^
+
+warning: constant `REG_VS` is never used
+  --> kernel\src\storage\nvme.rs:21:7
+   |
+21 | const REG_VS: usize = 0x0008;     // Version
+   |       ^^^^^^
+
+warning: constant `REG_INTMS` is never used
+  --> kernel\src\storage\nvme.rs:22:7
+   |
+22 | const REG_INTMS: usize = 0x000C;  // Interrupt Mask Set
+   |       ^^^^^^^^^
+
+warning: constant `REG_INTMC` is never used
+  --> kernel\src\storage\nvme.rs:23:7
+   |
+23 | const REG_INTMC: usize = 0x000E;  // Interrupt Mask Clear
+   |       ^^^^^^^^^
+
+warning: constant `REG_NSSR` is never used
+  --> kernel\src\storage\nvme.rs:26:7
+   |
+26 | const REG_NSSR: usize = 0x0020;   // NVM Subsystem Reset
+   |       ^^^^^^^^
+
+warning: constant `DOORBELL_STRIDE` is never used
+  --> kernel\src\storage\nvme.rs:32:7
+   |
+32 | const DOORBELL_STRIDE: usize = 4; // Each doorbell is 4 bytes
+   |       ^^^^^^^^^^^^^^^
+
+warning: constant `CC_SHN_NONE` is never used
+  --> kernel\src\storage\nvme.rs:38:7
+   |
+38 | const CC_SHN_NONE: u32 = 0 << 14;
+   |       ^^^^^^^^^^^
+
+warning: constant `CMD_DELETE_SQ` is never used
+  --> kernel\src\storage\nvme.rs:47:7
+   |
+47 | const CMD_DELETE_SQ: u8 = 0x00;
+   |       ^^^^^^^^^^^^^
+
+warning: constant `CMD_DELETE_CQ` is never used
+  --> kernel\src\storage\nvme.rs:49:7
+   |
+49 | const CMD_DELETE_CQ: u8 = 0x04;
+   |       ^^^^^^^^^^^^^
+
+warning: constant `CNS_NS_LIST` is never used
+  --> kernel\src\storage\nvme.rs:61:7
+   |
+61 | const CNS_NS_LIST: u32 = 0x02;
+   |       ^^^^^^^^^^^
+
+warning: fields `sq_entry_size` and `cq_entry_size` are never read
+   --> kernel\src\storage\nvme.rs:106:5
+    |
+93  | pub struct NvmeController {
+    |            -------------- fields in this struct
+...
+106 |     sq_entry_size: usize,
+    |     ^^^^^^^^^^^^^
+107 |     cq_entry_size: usize,
+    |     ^^^^^^^^^^^^^
+
+warning: fields `nsid` and `model` are never read
+   --> kernel\src\storage\nvme.rs:124:5
+    |
+122 | pub struct NvmeNamespace {
+    |            ------------- fields in this struct
+123 |     controller: *mut NvmeController,
+124 |     nsid: u32,
+    |     ^^^^
+...
+127 |     model: [u8; 40],
+    |     ^^^^^
+
+warning: function `get_boot_disk` is never used
+  --> kernel\src\storage\boot_disk.rs:86:8
+   |
+86 | pub fn get_boot_disk() -> Option<Arc<BootDisk>> {
+   |        ^^^^^^^^^^^^^
+
+warning: function `is_available` is never used
+  --> kernel\src\storage\boot_disk.rs:91:8
+   |
+91 | pub fn is_available() -> bool {
+   |        ^^^^^^^^^^^^
+
+warning: function `read` is never used
+  --> kernel\src\storage\boot_disk.rs:96:8
+   |
+96 | pub fn read(start: u64, count: usize, buf: &mut [u8]) -> Result<(), StorageError> {
+   |        ^^^^
+
+warning: function `write` is never used
+   --> kernel\src\storage\boot_disk.rs:105:8
+    |
+105 | pub fn write(start: u64, count: usize, buf: &[u8]) -> Result<(), StorageError> {
+    |        ^^^^^
+
+warning: associated function `new` is never used
+  --> kernel\src\storage\simple_disk.rs:19:12
+   |
+17 | impl SimpleDisk {
+   | --------------- associated function in this implementation
+18 |     /// Create new simple disk
+19 |     pub fn new(device_index: usize) -> Self {
+   |            ^^^
+
+warning: function `create_boot_disk` is never used
+  --> kernel\src\storage\simple_disk.rs:51:8
+   |
+51 | pub fn create_boot_disk() -> Option<Box<SimpleDisk>> {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: function `constant_time_eq` is never used
+  --> kernel\src\crypto\mod.rs:34:8
+   |
+34 | pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: function `xor_in_place` is never used
+  --> kernel\src\crypto\mod.rs:48:8
+   |
+48 | pub fn xor_in_place(a: &mut [u8], b: &[u8]) {
+   |        ^^^^^^^^^^^^
+
+warning: function `secure_clear` is never used
+  --> kernel\src\crypto\mod.rs:56:8
+   |
+56 | pub fn secure_clear(buf: &mut [u8]) {
+   |        ^^^^^^^^^^^^
+
+warning: function `hmac` is never used
+   --> kernel\src\crypto\sha256\mod.rs:196:8
+    |
+196 | pub fn hmac(key: &[u8], data: &[u8]) -> [u8; DIGEST_SIZE] {
+    |        ^^^^
+
+warning: constant `DIGEST_SIZE` is never used
+ --> kernel\src\crypto\sha384\mod.rs:6:11
+  |
+6 | pub const DIGEST_SIZE: usize = 48;
+  |           ^^^^^^^^^^^
+
+warning: fields `state`, `buffer`, `buffer_len`, and `total_len` are never read
+  --> kernel\src\crypto\sha384\mod.rs:13:5
+   |
+12 | pub struct Sha384 {
+   |            ------ fields in this struct
+13 |     state: [u64; 8],
+   |     ^^^^^
+14 |     buffer: [u8; BLOCK_SIZE],
+   |     ^^^^^^
+15 |     buffer_len: usize,
+   |     ^^^^^^^^^^
+16 |     total_len: u64,
+   |     ^^^^^^^^^
+
+warning: methods `update` and `finalize` are never used
+  --> kernel\src\crypto\sha384\mod.rs:37:12
+   |
+25 | impl Sha384 {
+   | ----------- methods in this implementation
+...
+37 |     pub fn update(&mut self, data: &[u8]) {
+   |            ^^^^^^
+...
+47 |     pub fn finalize(self) -> [u8; DIGEST_SIZE] {
+   |            ^^^^^^^^
+
+warning: function `hash` is never used
+  --> kernel\src\crypto\sha384\mod.rs:67:8
+   |
+67 | pub fn hash(data: &[u8]) -> [u8; DIGEST_SIZE] {
+   |        ^^^^
+
+warning: constant `BLOCK_SIZE` is never used
+ --> kernel\src\crypto\aes\mod.rs:6:11
+  |
+6 | pub const BLOCK_SIZE: usize = 16;
+  |           ^^^^^^^^^^
+
+warning: constant `KEY_SIZE_128` is never used
+ --> kernel\src\crypto\aes\mod.rs:9:11
+  |
+9 | pub const KEY_SIZE_128: usize = 16;
+  |           ^^^^^^^^^^^^
+
+warning: constant `AES_256_KEY_SIZE` is never used
+  --> kernel\src\crypto\aes\mod.rs:12:11
+   |
+12 | pub const AES_256_KEY_SIZE: usize = 32;
+   |           ^^^^^^^^^^^^^^^^
+
+warning: constant `TAG_SIZE` is never used
+  --> kernel\src\crypto\aes\mod.rs:15:11
+   |
+15 | pub const TAG_SIZE: usize = 16;
+   |           ^^^^^^^^
+
+warning: struct `AesGcm` is never constructed
+  --> kernel\src\crypto\aes\mod.rs:18:12
+   |
+18 | pub struct AesGcm {
+   |            ^^^^^^
+
+warning: struct `AesState` is never constructed
+  --> kernel\src\crypto\aes\mod.rs:24:8
+   |
+24 | struct AesState {
+   |        ^^^^^^^^
+
+warning: associated items `new_128`, `new_256`, `encrypt_in_place`, and `decrypt_in_place` are never used
+  --> kernel\src\crypto\aes\mod.rs:30:12
+   |
+28 | impl AesGcm {
+   | ----------- associated items in this implementation
+29 |     /// Create new AES-128-GCM instance
+30 |     pub fn new_128(key: &[u8; KEY_SIZE_128]) -> Self {
+   |            ^^^^^^^
+...
+40 |     pub fn new_256(key: &[u8; AES_256_KEY_SIZE]) -> Self {
+   |            ^^^^^^^
+...
+48 |     pub fn encrypt_in_place(
+   |            ^^^^^^^^^^^^^^^^
+...
+72 |     pub fn decrypt_in_place(
+   |            ^^^^^^^^^^^^^^^^
+
+warning: associated function `decrypt_in_place` is never used
+   --> kernel\src\crypto\chacha20\mod.rs:303:12
+    |
+281 | impl ChaCha20Poly1305 {
+    | --------------------- associated function in this implementation
+...
+303 |     pub fn decrypt_in_place(
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `extract` is never used
+ --> kernel\src\crypto\hkdf\mod.rs:9:8
+  |
+9 | pub fn extract(salt: &[u8], ikm: &[u8]) -> [u8; DIGEST_SIZE] {
+  |        ^^^^^^^
+
+warning: function `expand` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:14:8
+   |
+14 | pub fn expand(prk: &[u8; DIGEST_SIZE], info: &[u8], out_len: usize) -> Vec<u8> {
+   |        ^^^^^^
+
+warning: function `derive` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:32:8
+   |
+32 | pub fn derive(salt: &[u8], ikm: &[u8], info: &[u8], out_len: usize) -> Vec<u8> {
+   |        ^^^^^^
+
+warning: function `make_label` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:56:4
+   |
+56 | fn make_label(label: &[u8], context: &[u8], length: u16) -> Vec<u8> {
+   |    ^^^^^^^^^^
+
+warning: function `expand_label` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:74:8
+   |
+74 | pub fn expand_label(
+   |        ^^^^^^^^^^^^
+
+warning: function `derive_secret` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:85:8
+   |
+85 | pub fn derive_secret(secret: &[u8; DIGEST_SIZE], label: &[u8], messages: &[u8]) -> [u8; DIGEST_SIZE] {
+   |        ^^^^^^^^^^^^^
+
+warning: constant `EXTERNAL_PSK_BINDER` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:39:15
+   |
+39 |     pub const EXTERNAL_PSK_BINDER: &[u8] = b"ext binder";
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `RESUMPTION_PSK_BINDER` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:40:15
+   |
+40 |     pub const RESUMPTION_PSK_BINDER: &[u8] = b"res binder";
+   |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CLIENT_EARLY_TRAFFIC` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:41:15
+   |
+41 |     pub const CLIENT_EARLY_TRAFFIC: &[u8] = b"c e traffic";
+   |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `EARLY_EXPORTER_MASTER` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:42:15
+   |
+42 |     pub const EARLY_EXPORTER_MASTER: &[u8] = b"e exp master";
+   |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CLIENT_HANDSHAKE_TRAFFIC` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:43:15
+   |
+43 |     pub const CLIENT_HANDSHAKE_TRAFFIC: &[u8] = b"c hs traffic";
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `SERVER_HANDSHAKE_TRAFFIC` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:44:15
+   |
+44 |     pub const SERVER_HANDSHAKE_TRAFFIC: &[u8] = b"s hs traffic";
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CLIENT_APPLICATION_TRAFFIC` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:45:15
+   |
+45 |     pub const CLIENT_APPLICATION_TRAFFIC: &[u8] = b"c ap traffic";
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `SERVER_APPLICATION_TRAFFIC` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:46:15
+   |
+46 |     pub const SERVER_APPLICATION_TRAFFIC: &[u8] = b"s ap traffic";
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `EXPORTER_MASTER` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:47:15
+   |
+47 |     pub const EXPORTER_MASTER: &[u8] = b"exp master";
+   |               ^^^^^^^^^^^^^^^
+
+warning: constant `RESUMPTION_MASTER` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:48:15
+   |
+48 |     pub const RESUMPTION_MASTER: &[u8] = b"res master";
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: constant `KEY` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:49:15
+   |
+49 |     pub const KEY: &[u8] = b"key";
+   |               ^^^
+
+warning: constant `IV` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:50:15
+   |
+50 |     pub const IV: &[u8] = b"iv";
+   |               ^^
+
+warning: constant `FINISHED` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:51:15
+   |
+51 |     pub const FINISHED: &[u8] = b"finished";
+   |               ^^^^^^^^
+
+warning: constant `DERIVED` is never used
+  --> kernel\src\crypto\hkdf\mod.rs:52:15
+   |
+52 |     pub const DERIVED: &[u8] = b"derived";
+   |               ^^^^^^^
+
+warning: type alias `SharedSecret` is never used
+  --> kernel\src\crypto\x25519\mod.rs:15:10
+   |
+15 | pub type SharedSecret = [u8; 32];
+   |          ^^^^^^^^^^^^
+
+warning: constant `SQRT_M1` is never used
+  --> kernel\src\crypto\x25519\mod.rs:31:7
+   |
+31 | const SQRT_M1: Fe = [0x0ea3baec, 0x7819c4c9, 0xdfb7a46d, 0x24650942,
+   |       ^^^^^^^
+
+warning: function `fe_pow` is never used
+   --> kernel\src\crypto\x25519\mod.rs:116:4
+    |
+116 | fn fe_pow(a: &Fe, n: &[u8]) -> Fe {
+    |    ^^^^^^
+
+warning: function `shared_secret` is never used
+   --> kernel\src\crypto\x25519\mod.rs:334:8
+    |
+334 | pub fn shared_secret(private_key: &PrivateKey, public_key: &PublicKey) -> SharedSecret {
+    |        ^^^^^^^^^^^^^
+
+warning: variants `ChangeCipherSpec`, `Alert`, `Handshake`, and `ApplicationData` are never constructed
+  --> kernel\src\tls\mod.rs:18:5
+   |
+17 | pub enum ContentType {
+   |          ----------- variants in this enum
+18 |     ChangeCipherSpec = 20,
+   |     ^^^^^^^^^^^^^^^^
+19 |     Alert = 21,
+   |     ^^^^^
+20 |     Handshake = 22,
+   |     ^^^^^^^^^
+21 |     ApplicationData = 23,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `ContentType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple variants are never constructed
+  --> kernel\src\tls\mod.rs:29:5
+   |
+27 | pub enum HandshakeType {
+   |          ------------- variants in this enum
+28 |     ClientHello = 1,
+29 |     ServerHello = 2,
+   |     ^^^^^^^^^^^
+30 |     NewSessionTicket = 4,
+   |     ^^^^^^^^^^^^^^^^
+31 |     EndOfEarlyData = 5,
+   |     ^^^^^^^^^^^^^^
+32 |     EncryptedExtensions = 8,
+   |     ^^^^^^^^^^^^^^^^^^^
+33 |     Certificate = 11,
+   |     ^^^^^^^^^^^
+34 |     CertificateRequest = 13,
+   |     ^^^^^^^^^^^^^^^^^^
+35 |     CertificateVerify = 15,
+   |     ^^^^^^^^^^^^^^^^^
+36 |     Finished = 20,
+   |     ^^^^^^^^
+37 |     KeyUpdate = 24,
+   |     ^^^^^^^^^
+38 |     MessageHash = 254,
+   |     ^^^^^^^^^^^
+   |
+   = note: `HandshakeType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Aes128GcmSha256`, `Aes256GcmSha384`, `Chacha20Poly1305Sha256`, `Aes128CcmSha256`, and 
+`Aes128Ccm8Sha256` are never constructed
+  --> kernel\src\tls\mod.rs:45:5
+   |
+44 | pub enum CipherSuite {
+   |          ----------- variants in this enum
+45 |     Aes128GcmSha256 = 0x1301,
+   |     ^^^^^^^^^^^^^^^
+46 |     Aes256GcmSha384 = 0x1302,
+   |     ^^^^^^^^^^^^^^^
+47 |     Chacha20Poly1305Sha256 = 0x1303,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+48 |     Aes128CcmSha256 = 0x1304,
+   |     ^^^^^^^^^^^^^^^
+49 |     Aes128Ccm8Sha256 = 0x1305,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `CipherSuite` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: variants `Secp256r1`, `Secp384r1`, `Secp521r1`, `X25519`, and `X448` are never constructed
+  --> kernel\src\tls\mod.rs:56:5
+   |
+55 | pub enum NamedGroup {
+   |          ---------- variants in this enum
+56 |     Secp256r1 = 0x0017,
+   |     ^^^^^^^^^
+57 |     Secp384r1 = 0x0018,
+   |     ^^^^^^^^^
+58 |     Secp521r1 = 0x0019,
+   |     ^^^^^^^^^
+59 |     X25519 = 0x001d,
+   |     ^^^^^^
+60 |     X448 = 0x001e,
+   |     ^^^^
+   |
+   = note: `NamedGroup` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple variants are never constructed
+  --> kernel\src\tls\mod.rs:67:5
+   |
+66 | pub enum SignatureScheme {
+   |          --------------- variants in this enum
+67 |     EcdsaSecp256r1Sha256 = 0x0403,
+   |     ^^^^^^^^^^^^^^^^^^^^
+68 |     EcdsaSecp384r1Sha384 = 0x0503,
+   |     ^^^^^^^^^^^^^^^^^^^^
+69 |     EcdsaSecp521r1Sha512 = 0x0603,
+   |     ^^^^^^^^^^^^^^^^^^^^
+70 |     Ed25519 = 0x0807,
+   |     ^^^^^^^
+71 |     RsaPssRsaeSha256 = 0x0804,
+   |     ^^^^^^^^^^^^^^^^
+72 |     RsaPssRsaeSha384 = 0x0805,
+   |     ^^^^^^^^^^^^^^^^
+73 |     RsaPssRsaeSha512 = 0x0806,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `SignatureScheme` has derived impls for the traits `Clone` and `Debug`, but these are 
+intentionally ignored during dead code analysis
+
+warning: multiple fields are never read
+  --> kernel\src\tls\mod.rs:79:5
+   |
+77 | pub struct TlsConnection {
+   |            ------------- fields in this struct
+78 |     state: TlsState,
+79 |     cipher_suite: Option<CipherSuite>,
+   |     ^^^^^^^^^^^^
+80 |     // Handshake secrets
+81 |     client_handshake_secret: [u8; 32],
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+82 |     server_handshake_secret: [u8; 32],
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+83 |     // Application secrets
+84 |     client_application_secret: [u8; 32],
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+85 |     server_application_secret: [u8; 32],
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+86 |     // Write keys
+87 |     client_write_key: [u8; CHACHA_KEY_SIZE],
+   |     ^^^^^^^^^^^^^^^^
+88 |     server_write_key: [u8; CHACHA_KEY_SIZE],
+   |     ^^^^^^^^^^^^^^^^
+89 |     // Write IVs
+90 |     client_write_iv: [u8; NONCE_SIZE],
+   |     ^^^^^^^^^^^^^^^
+91 |     server_write_iv: [u8; NONCE_SIZE],
+   |     ^^^^^^^^^^^^^^^
+92 |     // Sequence numbers
+93 |     client_seq: u64,
+   |     ^^^^^^^^^^
+94 |     server_seq: u64,
+   |     ^^^^^^^^^^
+
+warning: variants `ServerHelloReceived`, `EncryptedExtensionsReceived`, `CertificateReceived`, 
+`CertificateVerifyReceived`, `FinishedReceived`, and `Closed` are never constructed
+   --> kernel\src\tls\mod.rs:102:5
+    |
+99  | pub enum TlsState {
+    |          -------- variants in this enum
+...
+102 |     ServerHelloReceived,
+    |     ^^^^^^^^^^^^^^^^^^^
+103 |     EncryptedExtensionsReceived,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+104 |     CertificateReceived,
+    |     ^^^^^^^^^^^^^^^^^^^
+105 |     CertificateVerifyReceived,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+106 |     FinishedReceived,
+    |     ^^^^^^^^^^^^^^^^
+107 |     Connected,
+108 |     Closed,
+    |     ^^^^^^
+    |
+    = note: `TlsState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `RecordLayer` is never constructed
+   --> kernel\src\tls\mod.rs:112:12
+    |
+112 | pub struct RecordLayer {
+    |            ^^^^^^^^^^^
+
+warning: struct `HandshakeMessage` is never constructed
+   --> kernel\src\tls\mod.rs:119:12
+    |
+119 | pub struct HandshakeMessage {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: struct `ClientHello` is never constructed
+   --> kernel\src\tls\mod.rs:125:12
+    |
+125 | pub struct ClientHello {
+    |            ^^^^^^^^^^^
+
+warning: struct `Extension` is never constructed
+   --> kernel\src\tls\mod.rs:135:12
+    |
+135 | pub struct Extension {
+    |            ^^^^^^^^^
+
+warning: methods `process_server_hello`, `derive_handshake_secrets`, `derive_keys`, and 
+`encrypt_application_data` are never used
+   --> kernel\src\tls\mod.rs:225:12
+    |
+140 | impl TlsConnection {
+    | ------------------ methods in this implementation
+...
+225 |     pub fn process_server_hello(&mut self, data: &[u8]) -> Result<(), TlsError> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+281 |     pub fn derive_handshake_secrets(&mut self, shared_secret: &SharedSecret) {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+302 |     fn derive_keys(&mut self) {
+    |        ^^^^^^^^^^^
+...
+321 |     pub fn encrypt_application_data(&mut self, data: &[u8]) -> Vec<u8> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple variants are never constructed
+   --> kernel\src\tls\mod.rs:363:5
+    |
+362 | pub enum TlsError {
+    |          -------- variants in this enum
+363 |     Success = 0,
+    |     ^^^^^^^
+364 |     InvalidMessage = 1,
+    |     ^^^^^^^^^^^^^^
+365 |     UnsupportedCipherSuite = 2,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+366 |     DecryptError = 3,
+    |     ^^^^^^^^^^^^
+367 |     BadRecordMac = 4,
+    |     ^^^^^^^^^^^^
+368 |     HandshakeFailure = 5,
+    |     ^^^^^^^^^^^^^^^^
+369 |     CertificateError = 6,
+    |     ^^^^^^^^^^^^^^^^
+370 |     AlertReceived = 7,
+    |     ^^^^^^^^^^^^^
+371 |     IoError = 8,
+    |     ^^^^^^^
+372 |     Unknown = 255,
+    |     ^^^^^^^
+    |
+    = note: `TlsError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: struct `FramebufferInfo` is never constructed
+  --> kernel\src\graphics\mod.rs:15:12
+   |
+15 | pub struct FramebufferInfo {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `FramebufferInfo` has derived impls for the traits `Clone` and `Debug`, but these are 
+intentionally ignored during dead code analysis
+
+warning: struct `Framebuffer` is never constructed
+  --> kernel\src\graphics\mod.rs:26:12
+   |
+26 | pub struct Framebuffer {
+   |            ^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> kernel\src\graphics\mod.rs:51:12
+    |
+39  | impl GraphicsContext {
+    | -------------------- methods in this implementation
+...
+51  |     pub fn init_buffer(&mut self) {
+    |            ^^^^^^^^^^^
+...
+68  |     pub fn clear(&mut self, color: u32) {
+    |            ^^^^^
+...
+74  |     pub fn set_pixel(&mut self, x: u32, y: u32, color: u32) {
+    |            ^^^^^^^^^
+...
+82  |     pub fn get_pixel(&self, x: u32, y: u32) -> u32 {
+    |            ^^^^^^^^^
+...
+91  |     pub fn fill_rect(&mut self, x: i32, y: i32, w: u32, h: u32, color: u32) {
+    |            ^^^^^^^^^
+...
+100 |     pub fn draw_rect(&mut self, x: i32, y: i32, w: u32, h: u32, color: u32) {
+    |            ^^^^^^^^^
+...
+112 |     pub fn draw_line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, color: u32) {
+    |            ^^^^^^^^^
+...
+141 |     pub fn draw_circle(&mut self, cx: i32, cy: i32, radius: i32, color: u32) {
+    |            ^^^^^^^^^^^
+...
+166 |     pub fn fill_circle(&mut self, cx: i32, cy: i32, radius: i32, color: u32) {
+    |            ^^^^^^^^^^^
+...
+174 |     pub fn blit(&mut self, src: &GraphicsContext, x: i32, y: i32) {
+    |            ^^^^
+...
+184 |     pub fn draw_text(&mut self, text: &str, x: i32, y: i32, color: u32, scale: u32) {
+    |            ^^^^^^^^^
+...
+193 |     fn draw_char(&mut self, ch: char, x: i32, y: i32, color: u32, scale: u32) {
+    |        ^^^^^^^^^
+...
+218 |     pub fn pixels_mut(&mut self) -> &mut [u32] {
+    |            ^^^^^^^^^^
+
+warning: function `get_char_bitmap` is never used
+   --> kernel\src\graphics\mod.rs:224:4
+    |
+224 | fn get_char_bitmap(ch: char) -> [u8; 8] {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `context` is never used
+   --> kernel\src\graphics\mod.rs:344:8
+    |
+344 | pub fn context() -> Option<GraphicsContext> {
+    |        ^^^^^^^
+
+warning: function `set_context` is never used
+   --> kernel\src\graphics\mod.rs:349:8
+    |
+349 | pub fn set_context(ctx: GraphicsContext) {
+    |        ^^^^^^^^^^^
+
+warning: function `integer_sqrt` is never used
+   --> kernel\src\graphics\mod.rs:365:4
+    |
+365 | fn integer_sqrt(n: i32) -> i32 {
+    |    ^^^^^^^^^^^^
+
+warning: function `rgb` is never used
+   --> kernel\src\graphics\mod.rs:382:18
+    |
+382 |     pub const fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    |                  ^^^
+
+warning: function `rgba` is never used
+   --> kernel\src\graphics\mod.rs:387:18
+    |
+387 |     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> u32 {
+    |                  ^^^^
+
+warning: constant `BLACK` is never used
+   --> kernel\src\graphics\mod.rs:391:15
+    |
+391 |     pub const BLACK: u32 = 0xFF000000;
+    |               ^^^^^
+
+warning: constant `WHITE` is never used
+   --> kernel\src\graphics\mod.rs:392:15
+    |
+392 |     pub const WHITE: u32 = 0xFFFFFFFF;
+    |               ^^^^^
+
+warning: constant `RED` is never used
+   --> kernel\src\graphics\mod.rs:393:15
+    |
+393 |     pub const RED: u32 = 0xFF0000FF;
+    |               ^^^
+
+warning: constant `GREEN` is never used
+   --> kernel\src\graphics\mod.rs:394:15
+    |
+394 |     pub const GREEN: u32 = 0xFF00FF00;
+    |               ^^^^^
+
+warning: constant `BLUE` is never used
+   --> kernel\src\graphics\mod.rs:395:15
+    |
+395 |     pub const BLUE: u32 = 0xFFFF0000;
+    |               ^^^^
+
+warning: constant `YELLOW` is never used
+   --> kernel\src\graphics\mod.rs:396:15
+    |
+396 |     pub const YELLOW: u32 = 0xFF00FFFF;
+    |               ^^^^^^
+
+warning: constant `CYAN` is never used
+   --> kernel\src\graphics\mod.rs:397:15
+    |
+397 |     pub const CYAN: u32 = 0xFFFFFF00;
+    |               ^^^^
+
+warning: constant `MAGENTA` is never used
+   --> kernel\src\graphics\mod.rs:398:15
+    |
+398 |     pub const MAGENTA: u32 = 0xFFFF00FF;
+    |               ^^^^^^^
+
+warning: constant `GRAY` is never used
+   --> kernel\src\graphics\mod.rs:399:15
+    |
+399 |     pub const GRAY: u32 = 0xFF808080;
+    |               ^^^^
+
+warning: constant `DARK_GRAY` is never used
+   --> kernel\src\graphics\mod.rs:400:15
+    |
+400 |     pub const DARK_GRAY: u32 = 0xFF404040;
+    |               ^^^^^^^^^
+
+warning: constant `LIGHT_GRAY` is never used
+   --> kernel\src\graphics\mod.rs:401:15
+    |
+401 |     pub const LIGHT_GRAY: u32 = 0xFFC0C0C0;
+    |               ^^^^^^^^^^
+
+warning: variant `Failed` is never constructed
+  --> kernel\src\testing\mod.rs:11:5
+   |
+9  | pub enum TestResult {
+   |          ---------- variant in this enum
+10 |     Passed,
+11 |     Failed,
+   |     ^^^^^^
+   |
+   = note: `TestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: method `add_test_with_message` is never used
+  --> kernel\src\testing\mod.rs:48:12
+   |
+29 | impl TestSuite {
+   | -------------- method in this implementation
+...
+48 |     pub fn add_test_with_message(&mut self, name: &'static str, result: TestResult, message: &'static 
+str) {
+   |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `total`, `passed`, and `failed` are never read
+   --> kernel\src\testing\mod.rs:238:5
+    |
+237 | pub struct TestRunner {
+    |            ---------- fields in this struct
+238 |     total: usize,
+    |     ^^^^^
+239 |     passed: usize,
+    |     ^^^^^^
+240 |     failed: usize,
+    |     ^^^^^^
+
+warning: methods `run` and `summary` are never used
+   --> kernel\src\testing\mod.rs:254:12
+    |
+243 | impl TestRunner {
+    | --------------- methods in this implementation
+...
+254 |     pub fn run<F: FnOnce() -> bool>(&mut self, name: &str, test: F) {
+    |            ^^^
+...
+266 |     pub fn summary(&self) {
+    |            ^^^^^^^
+
+warning: fields `shell` and `groups` are never read
+  --> kernel\src\users\mod.rs:28:9
+   |
+23 | pub struct User {
+   |            ---- fields in this struct
+...
+28 |     pub shell: String,
+   |         ^^^^^
+29 |     pub groups: Vec<GroupId>,
+   |         ^^^^^^
+   |
+   = note: `User` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: fields `id`, `name`, and `members` are never read
+  --> kernel\src\users\mod.rs:37:9
+   |
+36 | pub struct Group {
+   |            ----- fields in this struct
+37 |     pub id: GroupId,
+   |         ^^
+38 |     pub name: String,
+   |         ^^^^
+39 |     pub members: Vec<UserId>,
+   |         ^^^^^^^
+   |
+   = note: `Group` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: fields `groups` and `next_group_id` are never read
+  --> kernel\src\users\mod.rs:53:5
+   |
+51 | pub struct UserManager {
+   |            ----------- fields in this struct
+52 |     users: BTreeMap<UserId, User>,
+53 |     groups: BTreeMap<GroupId, Group>,
+   |     ^^^^^^
+...
+56 |     next_group_id: GroupId,
+   |     ^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> kernel\src\users\mod.rs:125:12
+    |
+61  | impl UserManager {
+    | ---------------- methods in this implementation
+...
+125 |     pub fn create_user(
+    |            ^^^^^^^^^^^
+...
+191 |     pub fn logout(&mut self, session_id: u64) -> bool {
+    |            ^^^^^^
+...
+218 |     pub fn find_user_by_name(&self, username: &str) -> Option<&User> {
+    |            ^^^^^^^^^^^^^^^^^
+...
+228 |     pub fn change_password(&mut self, user_id: UserId, new_password: &str) -> Result<(), UserError> {
+    |            ^^^^^^^^^^^^^^^
+...
+243 |     pub fn delete_user(&mut self, user_id: UserId) -> Result<(), UserError> {
+    |            ^^^^^^^^^^^
+...
+265 |     pub fn set_user_active(&mut self, user_id: UserId, active: bool) -> Result<(), UserError> {
+    |            ^^^^^^^^^^^^^^^
+...
+282 |     pub fn get_session(&self, session_id: u64) -> Option<&Session> {
+    |            ^^^^^^^^^^^
+
+warning: variants `UserNotFound`, `UsernameExists`, `InvalidUsername`, `WeakPassword`, 
+`CannotDeleteLastAdmin`, and `NotAuthenticated` are never constructed
+   --> kernel\src\users\mod.rs:290:5
+    |
+289 | pub enum UserError {
+    |          --------- variants in this enum
+290 |     UserNotFound,
+    |     ^^^^^^^^^^^^
+291 |     UsernameExists,
+    |     ^^^^^^^^^^^^^^
+292 |     InvalidUsername,
+    |     ^^^^^^^^^^^^^^^
+293 |     WeakPassword,
+    |     ^^^^^^^^^^^^
+294 |     CannotDeleteLastAdmin,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+295 |     NotAuthenticated,
+    |     ^^^^^^^^^^^^^^^^
+    |
+    = note: `UserError` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: function `logout` is never used
+   --> kernel\src\users\mod.rs:340:8
+    |
+340 | pub fn logout(session_id: u64) -> bool {
+    |        ^^^^^^
+
+warning: function `create_user` is never used
+   --> kernel\src\users\mod.rs:350:8
+    |
+350 | pub fn create_user(username: &str, password: &str, is_admin: bool) -> Result<UserId, UserError> {
+    |        ^^^^^^^^^^^
+
+warning: function `delete_user` is never used
+   --> kernel\src\users\mod.rs:360:8
+    |
+360 | pub fn delete_user(user_id: UserId) -> Result<(), UserError> {
+    |        ^^^^^^^^^^^
+
+warning: function `change_password` is never used
+   --> kernel\src\users\mod.rs:365:8
+    |
+365 | pub fn change_password(user_id: UserId, new_password: &str) -> Result<(), UserError> {
+    |        ^^^^^^^^^^^^^^^
+
+warning: variants `Normal`, `Minimized`, and `Maximized` are never constructed
+  --> kernel\src\desktop\mod.rs:27:5
+   |
+26 | pub enum WindowState {
+   |          ----------- variants in this enum
+27 |     Normal,
+   |     ^^^^^^
+28 |     Minimized,
+   |     ^^^^^^^^^
+29 |     Maximized,
+   |     ^^^^^^^^^
+   |
+   = note: `WindowState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple fields are never read
+  --> kernel\src\desktop\mod.rs:36:9
+   |
+35 | pub struct Window {
+   |            ------ fields in this struct
+36 |     pub id: WindowId,
+   |         ^^
+37 |     pub app_id: AppId,
+38 |     pub title: String,
+   |         ^^^^^
+39 |     pub x: i32,
+   |         ^
+40 |     pub y: i32,
+   |         ^
+41 |     pub width: u32,
+   |         ^^^^^
+42 |     pub height: u32,
+   |         ^^^^^^
+...
+45 |     pub content: String, // HTML content
+   |         ^^^^^^^
+46 |     pub icon: char, // Unicode icon
+   |         ^^^^
+   |
+   = note: `Window` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `description`, `css_styles`, and `js_scripts` are never read
+  --> kernel\src\desktop\mod.rs:56:9
+   |
+51 | pub struct Application {
+   |            ----------- fields in this struct
+...
+56 |     pub description: String,
+   |         ^^^^^^^^^^^
+57 |     pub html_content: String,
+58 |     pub css_styles: String,
+   |         ^^^^^^^^^^
+59 |     pub js_scripts: String,
+   |         ^^^^^^^^^^
+   |
+   = note: `Application` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: multiple fields are never read
+  --> kernel\src\desktop\mod.rs:66:9
+   |
+65 | pub struct DesktopItem {
+   |            ----------- fields in this struct
+66 |     pub id: u32,
+   |         ^^
+67 |     pub name: String,
+   |         ^^^^
+68 |     pub icon: char,
+   |         ^^^^
+69 |     pub x: i32,
+   |         ^
+70 |     pub y: i32,
+   |         ^
+71 |     pub is_folder: bool,
+   |         ^^^^^^^^^
+72 |     pub path: String,
+   |         ^^^^
+   |
+   = note: `DesktopItem` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: fields `wallpaper` and `taskbar_height` are never read
+  --> kernel\src\desktop\mod.rs:84:5
+   |
+76 | pub struct DesktopManager {
+   |            -------------- fields in this struct
+...
+84 |     wallpaper: String,
+   |     ^^^^^^^^^
+...
+90 |     taskbar_height: u32,
+   |     ^^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> kernel\src\desktop\mod.rs:316:12
+    |
+93  | impl DesktopManager {
+    | ------------------- methods in this implementation
+...
+316 |     pub fn close_window(&mut self, window_id: WindowId) -> bool {
+    |            ^^^^^^^^^^^^
+...
+347 |     pub fn minimize_window(&mut self, window_id: WindowId) {
+    |            ^^^^^^^^^^^^^^^
+...
+354 |     pub fn maximize_window(&mut self, window_id: WindowId) {
+    |            ^^^^^^^^^^^^^^^
+...
+369 |     pub fn list_windows(&self) -> Vec<&Window> {
+    |            ^^^^^^^^^^^^
+...
+374 |     pub fn list_desktop_items(&self) -> &[DesktopItem] {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+379 |     pub fn active_window(&self) -> Option<&Window> {
+    |            ^^^^^^^^^^^^^
+...
+397 |     pub fn logout(&mut self) {
+    |            ^^^^^^
+...
+407 |     pub fn showing_login(&self) -> bool {
+    |            ^^^^^^^^^^^^^
+...
+412 |     pub fn showing_desktop(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^
+...
+417 |     pub fn current_user(&self) -> Option<&User> {
+    |            ^^^^^^^^^^^^
+...
+422 |     pub fn generate_html(&self) -> String {
+    |            ^^^^^^^^^^^^^
+
+warning: function `close_window` is never used
+   --> kernel\src\desktop\mod.rs:454:8
+    |
+454 | pub fn close_window(window_id: WindowId) -> bool {
+    |        ^^^^^^^^^^^^
+
+warning: function `logout` is never used
+   --> kernel\src\desktop\mod.rs:464:8
+    |
+464 | pub fn logout() {
+    |        ^^^^^^
+
+warning: function `current_user` is never used
+   --> kernel\src\desktop\mod.rs:469:8
+    |
+469 | pub fn current_user() -> Option<User> {
+    |        ^^^^^^^^^^^^
+
+warning: function `generate_html` is never used
+   --> kernel\src\desktop\mod.rs:474:8
+    |
+474 | pub fn generate_html() -> String {
+    |        ^^^^^^^^^^^^^
+
+warning: function `generate_login_page` is never used
+   --> kernel\src\desktop\mod.rs:504:4
+    |
+504 | fn generate_login_page() -> String {
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_desktop_page` is never used
+   --> kernel\src\desktop\mod.rs:631:4
+    |
+631 | fn generate_desktop_page(manager: &DesktopManager) -> String {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `is_folder` is never read
+  --> kernel\src\desktop\ui.rs:44:9
+   |
+35 | pub struct Icon {
+   |            ---- field in this struct
+...
+44 |     pub is_folder: bool,           // For desktop icons
+   |         ^^^^^^^^^
+   |
+   = note: `Icon` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored 
+during dead code analysis
+
+warning: field `0` is never read
+  --> kernel\src\desktop\ui.rs:50:16
+   |
+50 |     OpenFolder(String),     // Open folder in file manager
+   |     ---------- ^^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `IconAction` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field 
+numbering, or remove the field
+   |
+50 |     OpenFolder(()),     // Open folder in file manager
+   |                ~~
+
+warning: variant `None` is never constructed
+  --> kernel\src\desktop\ui.rs:51:5
+   |
+48 | pub enum IconAction {
+   |          ---------- variant in this enum
+...
+51 |     None,
+   |     ^^^^
+   |
+   = note: `IconAction` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+
+warning: methods `mouse_position`, `redraw_cursor_area`, and `get_background_color` are never used
+   --> kernel\src\desktop\ui.rs:121:12
+    |
+84  | impl DesktopUI {
+    | -------------- methods in this implementation
+...
+121 |     pub fn mouse_position(&self) -> (i32, i32) {
+    |            ^^^^^^^^^^^^^^
+...
+333 |     fn redraw_cursor_area(&self, driver: &mut VesaDriver, x: i32, y: i32) {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+360 |     fn get_background_color(&self, x: i32, y: i32, screen_w: u32, screen_h: u32) -> u32 {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `is_active` is never used
+   --> kernel\src\desktop\ui.rs:868:8
+    |
+868 | pub fn is_active() -> bool {
+    |        ^^^^^^^^^
+
+warning: constant `ICON_SELECTED` is never used
+  --> kernel\src\desktop\ui.rs:25:15
+   |
+25 |     pub const ICON_SELECTED: u32 = 0xFF0080FF;    // Blue
+   |               ^^^^^^^^^^^^^
+
+warning: field `show_password` is never read
+  --> kernel\src\login_screen.rs:43:5
+   |
+37 | pub struct LoginScreen {
+   |            ----------- field in this struct
+...
+43 |     show_password: bool,
+   |     ^^^^^^^^^^^^^
+
+warning: methods `draw_gradient_background`, `interpolate_color`, `draw_logo`, `draw_input_field`, 
+`draw_button`, and `draw_hint_box` are never used
+   --> kernel\src\login_screen.rs:237:8
+    |
+54  | impl LoginScreen {
+    | ---------------- methods in this implementation
+...
+237 |     fn draw_gradient_background(&self, driver: &mut VesaDriver, screen_w: i32, screen_h: i32) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+246 |     fn interpolate_color(&self, c1: u32, c2: u32, t: f32) -> u32 {
+    |        ^^^^^^^^^^^^^^^^^
+...
+263 |     fn draw_logo(&self, driver: &mut VesaDriver, cx: i32, cy: i32) {
+    |        ^^^^^^^^^
+...
+281 |     fn draw_input_field(&self, driver: &mut VesaDriver, x: i32, y: i32, w: u32, h: u32, 
+    |        ^^^^^^^^^^^^^^^^
+...
+308 |     fn draw_button(&self, driver: &mut VesaDriver, x: i32, y: i32, w: u32, h: u32,
+    |        ^^^^^^^^^^^
+...
+327 |     fn draw_hint_box(&self, driver: &mut VesaDriver, x: i32, y: i32, w: u32, h: u32) {
+    |        ^^^^^^^^^^^^^
+
+warning: function `hide` is never used
+   --> kernel\src\login_screen.rs:470:8
+    |
+470 | pub fn hide() {
+    |        ^^^^
+
+warning: function `redraw` is never used
+   --> kernel\src\login_screen.rs:485:8
+    |
+485 | pub fn redraw() {
+    |        ^^^^^^
+
+warning: constant `BG_BOTTOM` is never used
+  --> kernel\src\login_screen.rs:23:15
+   |
+23 |     pub const BG_BOTTOM: u32 = rgb(118, 75, 162);    // #764ba2 - Purple gradient bottom
+   |               ^^^^^^^^^
+
+warning: creating a shared reference to mutable static is discouraged
+   --> kernel\src\arch\interrupts.rs:172:19
+    |
+172 |             base: IDT.as_ptr() as u64,
+    |                   ^^^^^^^^^^^^ shared reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: shared references to mutable statics are dangerous; it's undefined behavior if the static is 
+mutated or if a mutable reference is created for it while the shared reference lives
+    = note: `#[warn(static_mut_refs)]` on by default
+
+warning: creating a shared reference to mutable static is discouraged
+   --> kernel\src\arch\gdt.rs:198:24
+    |
+198 |         let tss_addr = &TSS as *const _ as u64;
+    |                        ^^^^ shared reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: shared references to mutable statics are dangerous; it's undefined behavior if the static is 
+mutated or if a mutable reference is created for it while the shared reference lives
+help: use `&raw const` instead to create a raw pointer
+    |
+198 |         let tss_addr = &raw const TSS as *const _ as u64;
+    |                        ~~~~~~~~~~
+
+warning: creating a shared reference to mutable static is discouraged
+   --> kernel\src\arch\gdt.rs:219:19
+    |
+219 |             base: GDT.as_ptr() as u64,
+    |                   ^^^^^^^^^^^^ shared reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: shared references to mutable statics are dangerous; it's undefined behavior if the static is 
+mutated or if a mutable reference is created for it while the shared reference lives
+
+warning: creating a mutable reference to mutable static is discouraged
+   --> kernel\src\arch\gdt.rs:258:9
+    |
+258 |         TSS.set_rsp0(stack_top);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other 
+pointer to the static is used or if any other reference is created for the static while the mutable 
+reference lives
+
+warning: creating a mutable reference to mutable static is discouraged
+   --> kernel\src\drivers\input\mod.rs:624:9
+    |
+624 |         IRQ_KEYBOARD_DRIVER.init();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other 
+pointer to the static is used or if any other reference is created for the static while the mutable 
+reference lives
+
+warning: creating a mutable reference to mutable static is discouraged
+   --> kernel\src\drivers\input\mod.rs:625:9
+    |
+625 |         IRQ_MOUSE_DRIVER.init();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other 
+pointer to the static is used or if any other reference is created for the static while the mutable 
+reference lives
+
+warning: creating a mutable reference to mutable static is discouraged
+   --> kernel\src\drivers\input\mod.rs:644:30
+    |
+644 |         if let Some(event) = IRQ_KEYBOARD_DRIVER.handle_interrupt() {
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other 
+pointer to the static is used or if any other reference is created for the static while the mutable 
+reference lives
+
+warning: creating a mutable reference to mutable static is discouraged
+   --> kernel\src\drivers\input\mod.rs:655:9
+    |
+655 |         IRQ_MOUSE_DRIVER.handle_interrupt();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other 
+pointer to the static is used or if any other reference is created for the static while the mutable 
+reference lives
+
+warning: creating a mutable reference to mutable static is discouraged
+   --> kernel\src\drivers\input\mod.rs:719:9
+    |
+719 |         IRQ_MOUSE_DRIVER.set_screen_dimensions(width, height); 
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see 
+<https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other 
+pointer to the static is used or if any other reference is created for the static while the mutable 
+reference lives
+
+warning: calls to `std::mem::drop` with a reference instead of an owned value does nothing
+   --> kernel\src\desktop\mod.rs:268:21
+    |
+268 |                     drop(id);
+    |                     ^^^^^--^
+    |                          |
+    |                          argument has type `&u32`
+    |
+    = note: `#[warn(dropping_references)]` on by default
+help: use `let _ = ...` to ignore the expression or result
+    |
+268 -                     drop(id);
+268 +                     let _ = id;
+    |
+
+warning: `kernel` (bin "kernel") generated 652 warnings (run `cargo fix --bin "kernel"` to apply 51 
+suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.68s

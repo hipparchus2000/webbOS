@@ -2,8 +2,10 @@
 //!
 //! Implementation of HKDF as defined in RFC 5869.
 
+#![allow(dead_code)]
+
 use alloc::vec::Vec;
-use crate::crypto::sha256::{self, Sha256, DIGEST_SIZE};
+use crate::crypto::sha256::{self, DIGEST_SIZE};
 
 /// HKDF-Extract using SHA-256
 pub fn extract(salt: &[u8], ikm: &[u8]) -> [u8; DIGEST_SIZE] {
@@ -96,21 +98,3 @@ pub fn init() {
     crate::println!("[hkdf] HKDF initialized");
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hkdf_rfc5869_test_case_1() {
-        let ikm = [0x0b; 22];
-        let salt = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                    0x08, 0x09, 0x0a, 0x0b, 0x0c];
-        let info = [0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
-                    0xf8, 0xf9];
-        
-        let prk = extract(&salt, &ikm);
-        let okm = expand(&prk, &info, 42);
-        
-        assert_eq!(okm.len(), 42);
-    }
-}

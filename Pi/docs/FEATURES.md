@@ -59,26 +59,6 @@ WebbOS is a web browser operating system that provides a complete desktop enviro
 - **PS/2 Mouse**: 3-button mouse with scroll support
 - **Serial Console**: Debug output via serial port
 
-## System Commands
-
-```
-help              - Show available commands
-info              - System information
-memory            - Memory statistics
-processes         - Show running processes
-network           - Network status
-storage           - Storage devices
-users             - List user accounts
-login             - Login to desktop
-desktop           - Show desktop info
-launch <app>      - Launch application
-vesa              - Graphics info
-input             - Input device status
-test              - Run test suite
-reboot            - Reboot system
-shutdown          - Shutdown system
-```
-
 ## Technical Specifications
 
 ### Architecture

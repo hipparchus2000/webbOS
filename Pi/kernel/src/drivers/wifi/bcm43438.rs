@@ -12,6 +12,8 @@
 //! - brcmfmac43430-sdio.txt (Pi 3 NVRAM config)
 //! - brcmfmac43455-sdio.bin (Pi 4 firmware binary)
 //! - brcmfmac43455-sdio.clm_blob (Pi 4 calibration data)
+#![allow(dead_code)]
+
 //! - brcmfmac43455-sdio.txt (Pi 4 NVRAM config)
 
 use crate::drivers::DriverError;
@@ -64,10 +66,8 @@ const SDPCM_CONTROL_CHANNEL: u8 = 0;
 const SDPCM_EVENT_CHANNEL: u8 = 1;
 const SDPCM_DATA_CHANNEL: u8 = 2;
 
-use crate::drivers::wifi::firmware_download;
-use crate::drivers::wifi::sdpcm;
 use crate::drivers::wifi::ioctl;
-use crate::drivers::wifi::wpa2::{FourWayHandshake, HandshakeState};
+use crate::drivers::wifi::wpa2::FourWayHandshake;
 use crate::drivers::wifi::eapol;
 use crate::net::dhcp_client::{DhcpClientSocket, DhcpEvent};
 use crate::net::Ipv4Address;
@@ -828,7 +828,7 @@ impl Bcm43438Device {
         // Parse SDPCM header
         if let Some(header) = SdpcmHeader::from_bytes(&rx_buf) {
             let channel = header.channel_flags & 0x0F;
-            let data_offset = header.next_offset as usize;
+            let _data_offset = header.next_offset as usize;
             let data_len = (header.frame_len & SDPCM_FRAME_LEN_MASK) as usize;
             
             if data_len > SDPCM_HEADER_LEN && data_len <= rx_buf.len() {
@@ -1054,7 +1054,7 @@ impl NetworkInterface for Bcm43438Device {
         }
     }
 
-    fn receive(&self, buf: &mut [u8]) -> Result<usize, NetError> {
+    fn receive(&self, _buf: &mut [u8]) -> Result<usize, NetError> {
         // Process any pending RX packets
         if let Err(_) = self.process_rx() {
             return Err(NetError::NoBuffer);

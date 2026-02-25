@@ -2,12 +2,11 @@
 //!
 //! A simple block device that uses the storage module directly.
 
+#![allow(dead_code)]
+
 use alloc::boxed::Box;
-use alloc::vec::Vec;
-use spin::Mutex;
 
 use crate::storage::{BlockDevice, StorageError};
-use crate::println;
 
 /// Simple disk that wraps a storage device index
 pub struct SimpleDisk {

@@ -1,4 +1,5 @@
 //! USB Subsystem
+#![allow(dead_code)]
 //!
 //! USB Host Controller and HID drivers for Raspberry Pi.
 //! Uses the DWC OTG controller found in BCM2835/2836/2837/2711.

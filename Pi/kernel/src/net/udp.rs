@@ -1,5 +1,7 @@
 //! UDP (User Datagram Protocol)
 //!
+#![allow(dead_code)]
+
 //! Simple connectionless transport protocol.
 
 use alloc::collections::BTreeMap;
@@ -21,16 +23,36 @@ pub struct UdpHeader {
     pub checksum: u16,
 }
 
+/// UDP header size
+pub const UDP_HEADER_SIZE: usize = 8;
+/// Maximum UDP payload size
+pub const UDP_MAX_PAYLOAD_SIZE: usize = 65507;
+/// Maximum UDP packet size (header + payload)
+pub const UDP_MAX_PACKET_SIZE: usize = 65535;
+
 impl UdpHeader {
     pub fn from_bytes(data: &[u8]) -> Option<Self> {
-        if data.len() < 8 {
+        // Check minimum header size
+        if data.len() < UDP_HEADER_SIZE {
+            return None;
+        }
+
+        let length = u16::from_be_bytes([data[4], data[5]]);
+        
+        // Validate UDP length field (must be at least header size)
+        if length < UDP_HEADER_SIZE as u16 {
+            return None;
+        }
+        
+        // Validate length doesn't exceed maximum
+        if length > UDP_MAX_PACKET_SIZE as u16 {
             return None;
         }
 
         Some(Self {
             src_port: u16::from_be_bytes([data[0], data[1]]),
             dst_port: u16::from_be_bytes([data[2], data[3]]),
-            length: u16::from_be_bytes([data[4], data[5]]),
+            length,
             checksum: u16::from_be_bytes([data[6], data[7]]),
         })
     }
@@ -91,7 +113,7 @@ pub struct UdpSocket {
     pub receive_queue: Vec<(Ipv4Address, Port, Vec<u8>)>,
 }
 
-/// UDP socket table
+// UDP socket table
 lazy_static! {
     static ref SOCKETS: Mutex<BTreeMap<Port, UdpSocket>> = Mutex::new(BTreeMap::new());
     static ref NEXT_EPHEMERAL_PORT: Mutex<u16> = Mutex::new(33434);
@@ -106,19 +128,55 @@ fn get_ephemeral_port() -> Port {
 }
 
 /// Process incoming UDP packet
-pub fn process_udp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+pub fn process_udp_packet(src: Ipv4Address, _dst: Ipv4Address, data: &[u8]) {
+    // Validate minimum packet size
+    if data.len() < UDP_HEADER_SIZE {
+        return;
+    }
+    
     let header = match UdpHeader::from_bytes(data) {
         Some(h) => h,
         None => return,
     };
+    
+    // Validate that the length field in header matches actual data
+    let claimed_len = header.length as usize;
+    if claimed_len > data.len() {
+        // Truncated packet
+        return;
+    }
+    
+    if claimed_len < UDP_HEADER_SIZE {
+        // Invalid length field
+        return;
+    }
+    
+    // Calculate actual payload length
+    let payload_len = claimed_len - UDP_HEADER_SIZE;
+    
+    // Validate payload length
+    if payload_len > UDP_MAX_PAYLOAD_SIZE {
+        return;
+    }
+    
+    // Ensure we have enough data for the claimed payload
+    if data.len() < claimed_len {
+        return;
+    }
 
-    let payload = &data[8..];
+    let payload = &data[UDP_HEADER_SIZE..claimed_len];
+    
+    // Verify payload length matches
+    if payload.len() != payload_len {
+        return;
+    }
+    
     let dst_port = Port::new(header.dst_port);
 
     let mut sockets = SOCKETS.lock();
     
     if let Some(socket) = sockets.get_mut(&dst_port) {
-        // Store in receive queue
+        // Store in receive queue (limit queue size to prevent memory exhaustion)
         if socket.receive_queue.len() < 64 {
             socket.receive_queue.push((
                 src,

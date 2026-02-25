@@ -17,17 +17,28 @@ pub fn init_heap(
     frame_allocator: &mut BootInfoFrameAllocator,
 ) -> Result<(), MapToError> {
     let heap_start = HEAP_START;
-    let heap_end = heap_start + HEAP_SIZE - 1;
+    // Use checked arithmetic for heap boundary calculations
+    let heap_end = heap_start
+        .checked_add(HEAP_SIZE)
+        .and_then(|v| v.checked_sub(1))
+        .ok_or(MapToError::SizeOverflow)?;
     let heap_start_page = Page::containing_address(heap_start);
     let heap_end_page = Page::containing_address(heap_end);
     
-    // Calculate number of pages
+    // Calculate number of pages with overflow protection
     let start_idx = heap_start_page.addr() >> 12;
     let end_idx = heap_end_page.addr() >> 12;
-    let num_pages = end_idx - start_idx + 1;
+    let num_pages = end_idx
+        .checked_sub(start_idx)
+        .and_then(|v| v.checked_add(1))
+        .ok_or(MapToError::SizeOverflow)?;
 
     for i in 0..num_pages {
-        let page_addr = heap_start + (i << 12);
+        // Use checked arithmetic for page address calculation
+        let offset = (i as u64).checked_shl(12).ok_or(MapToError::SizeOverflow)?;
+        let page_addr = heap_start
+            .checked_add(offset)
+            .ok_or(MapToError::SizeOverflow)?;
         let page = Page::containing_address(page_addr);
         let frame = frame_allocator
             .allocate_frame()

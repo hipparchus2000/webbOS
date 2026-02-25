@@ -2,6 +2,8 @@
 //!
 //! Implementation of the SHA-384 cryptographic hash function (FIPS 180-4).
 
+#![allow(dead_code)]
+
 /// SHA-384 digest size in bytes
 pub const DIGEST_SIZE: usize = 48;
 

@@ -1,15 +1,15 @@
 //! Socket API
 //!
+#![allow(dead_code)]
+
 //! BSD-style socket interface for network programming.
 
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-use alloc::string::String;
 use spin::Mutex;
 use lazy_static::lazy_static;
 
 use crate::net::{Ipv4Address, Port, tcp, udp};
-use crate::net;
 use crate::println;
 
 /// Socket domain
@@ -92,7 +92,7 @@ impl Socket {
     }
 }
 
-/// Socket table
+// Socket table
 lazy_static! {
     static ref SOCKETS: Mutex<Vec<Option<Box<Socket>>>> = Mutex::new(Vec::new());
     static ref NEXT_FD: Mutex<usize> = Mutex::new(3); // Start after stdin/stdout/stderr

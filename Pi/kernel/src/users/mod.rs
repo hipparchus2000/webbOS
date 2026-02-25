@@ -1,4 +1,5 @@
 //! User Management System
+#![allow(dead_code)]
 //!
 //! Multi-user support for WebbOS with authentication and permissions.
 
@@ -10,7 +11,6 @@ use spin::Mutex;
 use lazy_static::lazy_static;
 
 use crate::println;
-use crate::crypto::sha256;
 
 /// User ID type
 pub type UserId = u32;
@@ -297,8 +297,8 @@ pub enum UserError {
     NotAuthenticated,
 }
 
-/// Global user manager
 lazy_static! {
+    /// Global user manager
     static ref USER_MANAGER: Mutex<UserManager> = Mutex::new(UserManager::new());
 }
 
@@ -308,18 +308,16 @@ fn hash_password(password: &str, username: &str) -> [u8; 32] {
     use crate::crypto::sha256;
     
     // Per-user salt derived from username (ensures unique salt per user)
-    let mut salt = [0u8; 32];
     let mut salt_hasher = sha256::Sha256::new();
     salt_hasher.update(username.as_bytes());
     salt_hasher.update(b"WebbOS-v1-salt");
-    salt = salt_hasher.finalize();
+    let salt = salt_hasher.finalize();
     
     // Initial hash of password + salt
-    let mut hash = [0u8; 32];
     let mut hasher = sha256::Sha256::new();
     hasher.update(password.as_bytes());
     hasher.update(&salt);
-    hash = hasher.finalize();
+    let mut hash = hasher.finalize();
     
     // Multiple iterations (PBKDF2-like)
     // Using 100,000 iterations for reasonable security

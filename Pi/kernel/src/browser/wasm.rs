@@ -3,10 +3,11 @@
 //! A minimal WebAssembly interpreter for WebbOS.
 //! Supports the core WebAssembly spec.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 
 use crate::browser::BrowserError;
@@ -432,7 +433,7 @@ impl<'a> Parser<'a> {
         Ok(types)
     }
 
-    fn parse_function_section(&mut self, types: &[FuncType]) -> Result<Vec<Function>, BrowserError> {
+    fn parse_function_section(&mut self, _types: &[FuncType]) -> Result<Vec<Function>, BrowserError> {
         let count = self.read_u32();
         let mut functions = Vec::with_capacity(count as usize);
 
@@ -509,13 +510,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_init_expr(&mut self) -> Result<Value, BrowserError> {
-        let insts = self.parse_instruction_sequence()?;
+        let _insts = self.parse_instruction_sequence()?;
         // Simplified: just return a default value
         Ok(Value::I32(0))
     }
 
     fn parse_instruction_sequence(&mut self) -> Result<Vec<Instruction>, BrowserError> {
-        let mut insts = Vec::new();
+        let mut _insts = Vec::new();
 
         loop {
             match self.peek() {
@@ -523,15 +524,15 @@ impl<'a> Parser<'a> {
                     self.next(); // end
                     break;
                 }
-                Some(opcode) => {
+                Some(_opcode) => {
                     let inst = self.parse_instruction()?;
-                    insts.push(inst);
+                    _insts.push(inst);
                 }
                 None => break,
             }
         }
 
-        Ok(insts)
+        Ok(_insts)
     }
 
     fn parse_instruction(&mut self) -> Result<Instruction, BrowserError> {

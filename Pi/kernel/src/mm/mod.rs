@@ -3,6 +3,8 @@
 //! Handles physical memory allocation, virtual memory mapping,
 //! and the kernel heap allocator.
 
+#![allow(dead_code)]
+
 use webbos_shared::bootinfo::BootInfo;
 use webbos_shared::types::{MemoryRegionType, PhysAddr, VirtAddr, PAGE_SIZE, KERNEL_BASE};
 use crate::arch::mmu::{BootInfoFrameAllocator, Page, PhysFrame, PageTableFlags, OffsetPageTable};
@@ -110,9 +112,12 @@ unsafe fn map_framebuffer(
     println!("  Mapping framebuffer: {:016X} -> {:016X} ({} KB)",
         phys_start, virt_start, size / 1024);
     
-    // Map each page of the framebuffer
+    // Map each page of the framebuffer with overflow protection
     let page_size = PAGE_SIZE as u64;
-    let num_pages = ((size + page_size - 1) / page_size) as usize;
+    let num_pages = size
+        .checked_add(page_size - 1)
+        .map(|v| v / page_size)
+        .unwrap_or(0) as usize;
     
     for i in 0..num_pages {
         let phys_addr = PhysAddr::new(phys_start + (i as u64) * page_size);
@@ -154,6 +159,7 @@ pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
 }
 
 /// Convert virtual address to physical address (if mapped)
+#[allow(dead_code)]
 pub fn virt_to_phys(addr: VirtAddr) -> Option<PhysAddr> {
     crate::arch::mmu::translate_addr(addr.as_u64(), PHYSICAL_MEMORY_OFFSET)
 }

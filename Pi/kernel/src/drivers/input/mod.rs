@@ -5,6 +5,8 @@
 //!
 //! ARCHITECTURE:
 //! - USB polling at 1000Hz from timer
+#![allow(dead_code)]
+
 //! - Events queued and processed by desktop/input handlers
 //! - Atomic mouse position for thread safety
 
@@ -14,7 +16,6 @@ use alloc::collections::VecDeque;
 use core::sync::atomic::{AtomicU64, AtomicI32, Ordering};
 
 use crate::println;
-use crate::drivers::usb::hid;
 
 /// Maximum event queue size
 const MAX_EVENTS: usize = 64;

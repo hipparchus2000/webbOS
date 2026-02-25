@@ -2,8 +2,9 @@
 //!
 //! Block device drivers and storage management.
 
+#![allow(dead_code)]
+
 use alloc::boxed::Box;
-use alloc::vec;
 use alloc::vec::Vec;
 use alloc::string::String;
 use spin::Mutex;
@@ -16,7 +17,6 @@ pub mod boot_disk;
 pub mod simple_disk;
 pub mod sd_card;
 
-use crate::drivers::pci::PciDevice;
 use crate::println;
 
 /// Block device trait
@@ -75,7 +75,7 @@ pub struct StorageInfo {
     pub serial: String,
 }
 
-/// Global block device list
+// Global block device list
 lazy_static! {
     static ref BLOCK_DEVICES: Mutex<Vec<Box<dyn BlockDevice>>> = Mutex::new(Vec::new());
 }
@@ -124,7 +124,7 @@ pub fn device_count() -> usize {
 
 /// Get block device by index
 pub fn get_device(idx: usize) -> Option<Box<dyn BlockDevice>> {
-    BLOCK_DEVICES.lock().get(idx).map(|d| {
+    BLOCK_DEVICES.lock().get(idx).map(|_d| {
         // Create a simple wrapper - in reality we'd use Arc or similar
         // For now, just return None since we can't easily clone Box<dyn BlockDevice>
         // The actual usage would be through the global list

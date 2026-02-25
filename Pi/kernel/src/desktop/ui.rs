@@ -1,4 +1,5 @@
 //! Graphical Desktop UI (macOS-style)
+#![allow(dead_code)]
 //!
 //! Renders a desktop environment with:
 //! - Menu bar at top
@@ -12,7 +13,7 @@ use alloc::vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use crate::drivers::vesa::{self, VesaDriver, colors};
+use crate::drivers::vesa::{self, VesaDriver};
 use crate::println;
 use crate::browser;
 
@@ -918,8 +919,8 @@ impl DesktopUI {
 
 }
 
-/// Global desktop UI instance
 lazy_static! {
+    /// Global desktop UI instance
     static ref DESKTOP_UI: Mutex<DesktopUI> = Mutex::new(DesktopUI::new(1280, 800));
 }
 

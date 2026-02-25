@@ -2,6 +2,8 @@
 //!
 //! Parses CSS stylesheets and applies styles to DOM elements.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::boxed::Box;

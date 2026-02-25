@@ -2,8 +2,9 @@
 //!
 //! Implements the window and document global objects for JavaScript.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
-use alloc::vec::Vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -103,13 +104,12 @@ impl JsDocument {
     }
 }
 
-/// Global instances
+// Global instances
 lazy_static! {
     static ref GLOBAL_WINDOW: Mutex<Option<Window>> = Mutex::new(None);
     static ref GLOBAL_DOCUMENT: Mutex<Option<JsDocument>> = Mutex::new(None);
 }
 
-/// Initialize window and document
 pub fn init(window_width: u32, window_height: u32) {
     *GLOBAL_WINDOW.lock() = Some(Window::new(window_width, window_height));
     *GLOBAL_DOCUMENT.lock() = Some(JsDocument::new());

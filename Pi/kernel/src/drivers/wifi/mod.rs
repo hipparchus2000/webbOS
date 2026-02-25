@@ -1,4 +1,5 @@
 //! WiFi Drivers
+#![allow(dead_code)]
 //!
 //! Wireless network device drivers for WebbOS.
 //!

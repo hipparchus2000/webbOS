@@ -4,6 +4,7 @@
 //! 
 //! NOTE: This driver only works on x86_64. On ARM/Pi, this is a stub.
 
+#![allow(dead_code)]
 #![cfg(target_arch = "x86_64")]
 
 use core::arch::asm;

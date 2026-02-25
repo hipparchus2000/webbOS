@@ -1,5 +1,7 @@
 //! DNS (Domain Name System)
 //!
+#![allow(dead_code)]
+
 //! Simple DNS client for hostname resolution.
 
 use alloc::string::String;

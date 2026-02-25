@@ -11,6 +11,7 @@ use core::ptr::{read_volatile, write_volatile};
 /// PL011 UART base address for Pi 3
 const UART_BASE_PI3: usize = 0x3F201000;
 /// PL011 UART base address for Pi 4
+#[allow(dead_code)]
 const UART_BASE_PI4: usize = 0xFE201000;
 
 // PL011 register offsets (from base)
@@ -20,12 +21,14 @@ const REG_IBRD: usize = 0x24;    // Integer Baud Rate Divisor
 const REG_FBRD: usize = 0x28;    // Fractional Baud Rate Divisor
 const REG_LCRH: usize = 0x2C;    // Line Control Register
 const REG_CR: usize = 0x30;      // Control Register
+#[allow(dead_code)]
 const REG_IMSC: usize = 0x38;    // Interrupt Mask Set/Clear
 const REG_ICR: usize = 0x44;     // Interrupt Clear Register
 
 // Flag register bits
 const FR_TXFF: u32 = 0x20;       // Transmit FIFO full
 const FR_RXFE: u32 = 0x10;       // Receive FIFO empty
+#[allow(dead_code)]
 const FR_BUSY: u32 = 0x08;       // UART busy
 
 /// Serial port
@@ -74,6 +77,7 @@ impl SerialPort {
     }
 
     /// Check if receive FIFO is empty
+    #[allow(dead_code)]
     fn is_rx_empty(&self) -> bool {
         unsafe {
             (read_volatile((self.base + REG_FR) as *const u32) & FR_RXFE) != 0
@@ -92,6 +96,7 @@ impl SerialPort {
     }
 
     /// Read a byte from the serial port
+    #[allow(dead_code)]
     pub fn read_byte(&mut self) -> Option<u8> {
         unsafe {
             if self.is_rx_empty() {
@@ -141,8 +146,11 @@ pub fn try_receive() -> Option<u8> {
 /// COM1 base port (x86 legacy)
 pub const COM1: u16 = 0x3F8;
 /// COM2 base port (x86 legacy)
+#[allow(dead_code)]
 pub const COM2: u16 = 0x2F8;
 /// COM3 base port (x86 legacy)
+#[allow(dead_code)]
 pub const COM3: u16 = 0x3E8;
 /// COM4 base port (x86 legacy)
+#[allow(dead_code)]
 pub const COM4: u16 = 0x2E8;

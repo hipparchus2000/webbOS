@@ -1,5 +1,7 @@
 //! VGA text mode driver
 
+#![allow(dead_code)]
+
 use core::fmt;
 
 /// VGA buffer width

@@ -2,6 +2,8 @@
 //!
 //! Implements task scheduling, process creation, and context switching.
 
+#![allow(dead_code)]
+
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
 use spin::Mutex;
@@ -15,16 +17,21 @@ use webbos_shared::types::{Pid, Tid};
 use crate::println;
 
 /// Maximum number of processes
+#[allow(dead_code)]
 pub const MAX_PROCESSES: usize = 1024;
 /// Maximum number of threads per process
+#[allow(dead_code)]
 pub const MAX_THREADS_PER_PROCESS: usize = 256;
 /// Kernel stack size for each thread
+#[allow(dead_code)]
 pub const KERNEL_STACK_SIZE: usize = 128 * 1024; // 128KB
 /// User stack size
+#[allow(dead_code)]
 pub const USER_STACK_SIZE: usize = 8 * 1024 * 1024; // 8MB
 
 /// Process state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum ProcessState {
     /// Process is running
     Running,
@@ -40,6 +47,7 @@ pub enum ProcessState {
 
 /// Thread state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum ThreadState {
     /// Thread is running
     Running,
@@ -59,11 +67,15 @@ pub struct Priority(u8);
 
 impl Priority {
     pub const IDLE: Self = Self(0);
+    #[allow(dead_code)]
     pub const LOW: Self = Self(8);
     pub const NORMAL: Self = Self(16);
+    #[allow(dead_code)]
     pub const HIGH: Self = Self(24);
+    #[allow(dead_code)]
     pub const REALTIME: Self = Self(31);
 
+    #[allow(dead_code)]
     pub fn new(value: u8) -> Self {
         Self(value.min(31))
     }
@@ -74,6 +86,7 @@ impl Priority {
 }
 
 /// Thread control block
+#[allow(dead_code)]
 pub struct Thread {
     /// Thread ID
     pub tid: Tid,
@@ -109,12 +122,14 @@ impl Thread {
     }
 
     /// Check if thread is runnable
+    #[allow(dead_code)]
     pub fn is_runnable(&self) -> bool {
         matches!(self.state, ThreadState::Ready | ThreadState::Running)
     }
 }
 
 /// Process control block
+#[allow(dead_code)]
 pub struct Process {
     /// Process ID
     pub pid: Pid,

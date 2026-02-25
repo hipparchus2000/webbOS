@@ -2,6 +2,8 @@
 //!
 //! Provides VGA text mode and serial port output.
 
+#![allow(dead_code)]
+
 use core::fmt;
 use spin::Mutex;
 

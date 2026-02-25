@@ -1,4 +1,5 @@
 //! Pixel-Based Login Screen for WebbOS
+#![allow(dead_code)]
 //!
 //! This module implements a graphical login screen using direct pixel drawing
 //! to the VESA framebuffer. It appears after the boot triangle animation.
@@ -20,6 +21,7 @@ mod palette {
     }
 
     pub const BG_TOP: u32 = rgb(102, 126, 234);      // #667eea - Purple gradient top
+    #[allow(dead_code)]
     pub const BG_BOTTOM: u32 = rgb(118, 75, 162);    // #764ba2 - Purple gradient bottom
     pub const CARD_BG: u32 = colors::WHITE;
     pub const TEXT_PRIMARY: u32 = rgb(51, 51, 51);   // #333333
@@ -76,6 +78,7 @@ impl LoginScreen {
     }
     
     /// Hide the login screen
+    #[allow(dead_code)]
     pub fn hide(&mut self) {
         self.visible = false;
     }
@@ -176,6 +179,7 @@ impl LoginScreen {
     }
 
     /// Redraw only the input fields (optimized for keystroke updates)
+    #[allow(dead_code)]
     fn redraw_fields(&self) {
         if !self.visible {
             return;
@@ -456,8 +460,8 @@ pub enum LoginAction {
     LoginFailed,
 }
 
-/// Global login screen instance
 lazy_static! {
+    /// Global login screen instance
     static ref LOGIN_SCREEN: Mutex<LoginScreen> = Mutex::new(LoginScreen::new());
 }
 
@@ -467,6 +471,7 @@ pub fn show() {
 }
 
 /// Hide the login screen
+#[allow(dead_code)]
 pub fn hide() {
     LOGIN_SCREEN.lock().hide();
 }
@@ -482,6 +487,7 @@ pub fn handle_key(key: u8) -> LoginAction {
 }
 
 /// Redraw the login screen
+#[allow(dead_code)]
 pub fn redraw() {
     LOGIN_SCREEN.lock().draw();
 }

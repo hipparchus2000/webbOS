@@ -1,4 +1,5 @@
 //! BCM43438/BCM43455 Firmware Loader
+#![allow(dead_code)]
 //!
 //! Handles loading firmware binary files from the filesystem and
 //! transferring them to the WiFi chip via SDIO backplane.

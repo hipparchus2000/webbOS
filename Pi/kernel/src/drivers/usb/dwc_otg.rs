@@ -5,15 +5,15 @@
 //!
 //! Base addresses:
 //! - Pi 1/2/3 (BCM2835/2836/2837): 0x3F980000
+#![allow(dead_code)]
+
 //! - Pi 4 (BCM2711): 0xFE980000
 
 use core::ptr::{read_volatile, write_volatile};
 use spin::Mutex;
 use lazy_static::lazy_static;
 
-use crate::mm::{phys_to_virt, virt_to_phys_u64};
 use crate::println;
-use webbos_shared::types::PhysAddr;
 use super::UsbError;
 
 // =============================================================================

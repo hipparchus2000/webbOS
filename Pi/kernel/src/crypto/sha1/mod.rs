@@ -1,43 +1,31 @@
-//! SHA-256 Hash Function
+//! SHA-1 Hash Function
 //!
-//! Implementation of the SHA-256 cryptographic hash function (FIPS 180-4).
+//! Implementation of the SHA-1 cryptographic hash function (FIPS 180-4).
+//! Used for WPA2-PSK key derivation (PBKDF2-HMAC-SHA1).
 
 #![allow(dead_code)]
 
-/// SHA-256 digest size in bytes
-pub const DIGEST_SIZE: usize = 32;
+/// SHA-1 digest size in bytes
+pub const DIGEST_SIZE: usize = 20;
 
-/// SHA-256 block size in bytes
+/// SHA-1 block size in bytes
 pub const BLOCK_SIZE: usize = 64;
 
-/// SHA-256 state
-pub struct Sha256 {
-    state: [u32; 8],
+/// SHA-1 state
+pub struct Sha1 {
+    state: [u32; 5],
     buffer: [u8; BLOCK_SIZE],
     buffer_len: usize,
     total_len: u64,
 }
 
 /// Initial hash values
-const H: [u32; 8] = [
-    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+const H: [u32; 5] = [
+    0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0,
 ];
 
-/// Round constants
-const K: [u32; 64] = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-];
-
-impl Sha256 {
-    /// Create new SHA-256 hasher
+impl Sha1 {
+    /// Create new SHA-1 hasher
     pub fn new() -> Self {
         Self {
             state: H,
@@ -121,7 +109,7 @@ impl Sha256 {
 
     /// Process a single 64-byte block
     fn process_block(&mut self, block: &[u8]) {
-        let mut w = [0u32; 64];
+        let mut w = [0u32; 80];
         
         // Copy block into first 16 words
         for i in 0..16 {
@@ -133,11 +121,9 @@ impl Sha256 {
             ]);
         }
 
-        // Extend to 64 words
-        for i in 16..64 {
-            let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
-            let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-            w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
+        // Extend to 80 words
+        for i in 16..80 {
+            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
         }
 
         // Initialize working variables
@@ -146,27 +132,30 @@ impl Sha256 {
         let mut c = self.state[2];
         let mut d = self.state[3];
         let mut e = self.state[4];
-        let mut f = self.state[5];
-        let mut g = self.state[6];
-        let mut h = self.state[7];
 
         // Main loop
-        for i in 0..64 {
-            let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
-            let ch = (e & f) ^ ((!e) & g);
-            let temp1 = h.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
-            let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
-            let maj = (a & b) ^ (a & c) ^ (b & c);
-            let temp2 = s0.wrapping_add(maj);
+        for i in 0..80 {
+            let (f, k) = if i < 20 {
+                ((b & c) | ((!b) & d), 0x5a827999)
+            } else if i < 40 {
+                (b ^ c ^ d, 0x6ed9eba1)
+            } else if i < 60 {
+                ((b & c) | (b & d) | (c & d), 0x8f1bbcdc)
+            } else {
+                (b ^ c ^ d, 0xca62c1d6)
+            };
 
-            h = g;
-            g = f;
-            f = e;
-            e = d.wrapping_add(temp1);
+            let temp = a.rotate_left(5)
+                .wrapping_add(f)
+                .wrapping_add(e)
+                .wrapping_add(k)
+                .wrapping_add(w[i]);
+            
+            e = d;
             d = c;
-            c = b;
+            c = b.rotate_left(30);
             b = a;
-            a = temp1.wrapping_add(temp2);
+            a = temp;
         }
 
         // Add to state
@@ -175,26 +164,23 @@ impl Sha256 {
         self.state[2] = self.state[2].wrapping_add(c);
         self.state[3] = self.state[3].wrapping_add(d);
         self.state[4] = self.state[4].wrapping_add(e);
-        self.state[5] = self.state[5].wrapping_add(f);
-        self.state[6] = self.state[6].wrapping_add(g);
-        self.state[7] = self.state[7].wrapping_add(h);
     }
 }
 
-impl Default for Sha256 {
+impl Default for Sha1 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Compute SHA-256 hash of data
+/// Compute SHA-1 hash of data
 pub fn hash(data: &[u8]) -> [u8; DIGEST_SIZE] {
-    let mut hasher = Sha256::new();
+    let mut hasher = Sha1::new();
     hasher.update(data);
     hasher.finalize()
 }
 
-/// HMAC-SHA-256
+/// HMAC-SHA-1
 pub fn hmac(key: &[u8], data: &[u8]) -> [u8; DIGEST_SIZE] {
     const BLOCK_SIZE: usize = 64;
     
@@ -213,30 +199,30 @@ pub fn hmac(key: &[u8], data: &[u8]) -> [u8; DIGEST_SIZE] {
         outer[i] ^= 0x5c;
     }
 
-    let mut inner_hasher = Sha256::new();
+    let mut inner_hasher = Sha1::new();
     inner_hasher.update(&inner);
     inner_hasher.update(data);
     let inner_hash = inner_hasher.finalize();
 
-    let mut outer_hasher = Sha256::new();
+    let mut outer_hasher = Sha1::new();
     outer_hasher.update(&outer);
     outer_hasher.update(&inner_hash);
     outer_hasher.finalize()
 }
 
-/// Initialize SHA-256 module
+/// Initialize SHA-1 module
 pub fn init() {
+    // Self-test with known test vector
     let result = hash(b"abc");
     let expected = [
-        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
-        0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
-        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
-        0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
+        0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81, 0x6a,
+        0xba, 0x3e, 0x25, 0x71, 0x78, 0x50, 0xc2, 0x6c,
+        0x9c, 0xd0, 0xd8, 0x9d,
     ];
     
     if result == expected {
-        crate::println!("[sha256] Self-test passed");
+        crate::println!("[sha1] Self-test passed");
     } else {
-        crate::println!("[sha256] Self-test FAILED");
+        crate::println!("[sha1] Self-test FAILED");
     }
 }

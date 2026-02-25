@@ -1,5 +1,7 @@
 //! CPU-specific functions for ARM64
 
+#![allow(dead_code)]
+
 use crate::println;
 
 /// Initialize CPU features

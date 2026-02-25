@@ -4,6 +4,8 @@
 //! and configure a framebuffer on Raspberry Pi.
 //!
 //! The framebuffer is allocated by the GPU and returned as a physical address
+#![allow(dead_code)]
+
 //! that needs to be mapped into the kernel's address space.
 
 use core::ptr::{read_volatile, write_volatile};
@@ -704,7 +706,7 @@ fn get_char_bitmap(ch: char) -> [u8; 8] {
     }
 }
 
-/// Global Pi framebuffer driver
+// Global Pi framebuffer driver
 lazy_static! {
     static ref PI_FRAMEBUFFER: Mutex<PiFramebuffer> = Mutex::new(PiFramebuffer::new());
 }

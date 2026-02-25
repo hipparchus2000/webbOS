@@ -1,13 +1,12 @@
 //! EAPOL (EAP over LAN) Processing for WPA2
 //!
 //! Handles EAPOL frame processing for WPA2 4-way handshake.
+#![allow(dead_code)]
+
 //! Integrates with SDIO data path to capture and send EAPOL frames.
 
 use alloc::vec::Vec;
-use crate::drivers::wifi::wpa2::{FourWayHandshake, HandshakeState, EAPOL_KEY, EAPOL_KEY_TYPE_RSN};
-use crate::drivers::wifi::sdpcm::{SDPCM_DATA_CHANNEL, SdpcmPacketBuilder};
-use crate::drivers::wifi::bcm43438::Bcm43438Device;
-use crate::net::MacAddress;
+use crate::drivers::wifi::wpa2::FourWayHandshake;
 use crate::println;
 
 // EAPOL Ethernet type

@@ -2,6 +2,7 @@
 //! 
 //! NOTE: This driver requires PCI and only works on x86_64.
 
+#![allow(dead_code)]
 #![cfg(target_arch = "x86_64")]
 
 use crate::println;

@@ -1,6 +1,7 @@
+#![allow(dead_code)]
+
 //! DHCP Client with UDP Socket Integration
 
-use alloc::vec::Vec;
 use crate::net::{Ipv4Address, MacAddress, Port, udp};
 use crate::net::dhcp::{DhcpClient, DhcpMessage, DhcpState, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, DHCP_MAGIC_COOKIE, DHCP_OPTION_MESSAGE_TYPE, DHCP_OPTION_END};
 use crate::drivers::timer::elapsed_ms;

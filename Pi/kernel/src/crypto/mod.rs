@@ -7,6 +7,8 @@
 //! - HKDF key derivation
 //! - X25519 key exchange
 
+#![allow(dead_code)]
+
 pub mod sha256;
 pub mod sha384;
 pub mod aes;

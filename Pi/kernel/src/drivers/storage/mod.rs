@@ -2,6 +2,8 @@
 //!
 //! AHCI, NVMe, and other storage controllers.
 
+#![allow(dead_code)]
+
 pub mod ahci;
 
 use alloc::vec::Vec;

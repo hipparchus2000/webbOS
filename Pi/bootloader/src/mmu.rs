@@ -19,6 +19,7 @@ use crate::alloc_pages;
 use webbos_shared::types::PhysAddr;
 
 /// Page table entry flags
+#[allow(dead_code)]
 pub mod flags {
     /// Valid entry
     pub const VALID: u64 = 1 << 0;
@@ -95,11 +96,13 @@ pub struct PageTableEntry(u64);
 
 impl PageTableEntry {
     /// Create a new empty entry
+    #[allow(dead_code)]
     pub const fn new() -> Self {
         Self(0)
     }
 
     /// Get the physical address this entry points to
+    #[allow(dead_code)]
     pub fn addr(&self) -> PhysAddr {
         PhysAddr::new(self.0 & 0x0000_FFFF_FFFF_F000)
     }
@@ -110,11 +113,13 @@ impl PageTableEntry {
     }
 
     /// Check if entry is valid
+    #[allow(dead_code)]
     pub fn is_valid(&self) -> bool {
         (self.0 & flags::VALID) != 0
     }
 
     /// Check if this is a table entry (not a block/page)
+    #[allow(dead_code)]
     pub fn is_table(&self) -> bool {
         (self.0 & flags::TABLE) == flags::TABLE
     }
@@ -128,6 +133,7 @@ pub struct PageTable {
 
 impl PageTable {
     /// Create a new empty page table
+    #[allow(dead_code)]
     pub const fn new() -> Self {
         Self {
             entries: [PageTableEntry::new(); 512],
@@ -135,6 +141,7 @@ impl PageTable {
     }
 
     /// Get entry at index
+    #[allow(dead_code)]
     pub fn entry(&self, index: usize) -> &PageTableEntry {
         &self.entries[index]
     }

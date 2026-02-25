@@ -2,6 +2,8 @@
 //!
 //! Handles USB keyboards and mice using the boot protocol.
 //! Supports standard USB HID boot keyboards (8-byte reports)
+#![allow(dead_code)]
+
 //! and boot mice (3-byte reports).
 
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -403,7 +405,7 @@ pub fn enumerate_device(device_addr: u8) -> Result<(), UsbError> {
     // Parse and find HID interfaces
     let hid_device = parse_hid_interfaces(device_addr, &config_buffer[..config_len]);
     
-    if let Some(mut device) = hid_device {
+    if let Some(device) = hid_device {
         // Set configuration
         set_configuration(device_addr, 1)?;
         
@@ -649,7 +651,7 @@ pub fn poll() {
                         Err(UsbError::Timeout) => {
                             // No data available, this is normal
                         }
-                        Err(e) => {
+                        Err(_e) => {
                             // Other error, might be device disconnected
                         }
                     }
@@ -670,7 +672,7 @@ pub fn poll() {
                         Err(UsbError::Timeout) => {
                             // No data available
                         }
-                        Err(e) => {
+                        Err(_e) => {
                             // Other error
                         }
                     }

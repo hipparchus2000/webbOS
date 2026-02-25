@@ -1,6 +1,8 @@
 //! SDPCM Protocol Implementation
 //!
 //! SDPCM (SDIO Protocol for Control and Management) is Broadcom's protocol
+#![allow(dead_code)]
+
 //! for communicating with FullMAC WiFi chips over SDIO.
 
 use alloc::vec::Vec;

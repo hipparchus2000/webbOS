@@ -6,7 +6,9 @@
 //! - Level 2 (PMD): 512 entries, 2MB each (can be 2MB block)
 //! - Level 3 (PTE): 512 entries, 4KB each (must be page)
 
-use webbos_shared::types::{PhysAddr, VirtAddr, PAGE_SIZE};
+#![allow(dead_code)]
+
+use webbos_shared::types::{PhysAddr, PAGE_SIZE};
 
 /// Page table entry flags
 #[derive(Clone, Copy, Debug)]
@@ -224,6 +226,7 @@ pub enum MapToError {
     FrameAllocationFailed,
     ParentEntryHugePage,
     PageAlreadyMapped,
+    SizeOverflow,
 }
 
 /// Offset page table

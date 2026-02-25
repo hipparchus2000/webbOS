@@ -1,4 +1,5 @@
 //! Exception handling for ARM64
+#![allow(dead_code)]
 //!
 //! ARM64 uses an exception vector table instead of an IDT like x86.
 //! The VBAR_EL1 register points to the base of the exception vectors.
@@ -43,17 +44,18 @@ struct ExceptionVectorTable {
 /// Exception class (from ESR_EL1.EC)
 #[repr(u8)]
 #[derive(Debug, Copy, Clone)]
+#[allow(non_camel_case_types)]
 pub enum ExceptionClass {
     Unknown = 0x00,
     WFx = 0x01,
-    MCRMRC_CP15 = 0x03,
-    MCRRMRRC_CP15 = 0x04,
-    MCRMRC_CP14 = 0x05,
-    LDCSTC_CP14 = 0x06,
-    SME = 0x07,
-    FP = 0x08,
-    LDST = 0x09,
-    MRC_VMRS = 0x0A,
+    McrmrcCp15 = 0x03,
+    McrrmrrcCp15 = 0x04,
+    McrmrcCp14 = 0x05,
+    LdcstcCp14 = 0x06,
+    Sme = 0x07,
+    Fp = 0x08,
+    Ldst = 0x09,
+    MrcVmrs = 0x0A,
     BranchTarget = 0x0B,
     HVC = 0x16,
     SMC = 0x17,
@@ -236,23 +238,19 @@ extern "C" fn handle_exception(frame: &ExceptionFrame) {
     
     // For data aborts, print more info
     if ec == 0x24 || ec == 0x25 {
-        let isv = (frame.esr >> 24) & 1;
-        let sas = (frame.esr >> 22) & 3;
-        let sse = (frame.esr >> 21) & 1;
-        let srt = (frame.esr >> 16) & 0x1F;
-        let ea = (frame.esr >> 9) & 1;
-        let cm = (frame.esr >> 8) & 1;
-        let s1ptw = (frame.esr >> 7) & 1;
+        let _isv = (frame.esr >> 24) & 1;
+        let _sas = (frame.esr >> 22) & 3;
+        let _sse = (frame.esr >> 21) & 1;
+        let _srt = (frame.esr >> 16) & 0x1F;
+        let _ea = (frame.esr >> 9) & 1;
+        let _cm = (frame.esr >> 8) & 1;
+        let _s1ptw = (frame.esr >> 7) & 1;
         let wnr = (frame.esr >> 6) & 1;
         let dfsc = frame.esr & 0x3F;
         
         println!("  Data Abort:");
         println!("    Direction: {}", if wnr == 1 { "Write" } else { "Read" });
         println!("    DFSC: {:#x}", dfsc);
-        if isv == 1 {
-            println!("    Register: X{}", srt);
-            println!("    Size: {} bytes", 1 << sas);
-        }
     }
     
     panic!("Exception in kernel");
@@ -296,13 +294,11 @@ fn decode_exception_class(ec: u8) -> &'static str {
 /// IRQ handler
 #[no_mangle]
 extern "C" fn handle_irq(_frame: &ExceptionFrame) {
-    unsafe {
-        // Increment timer ticks for now
-        // In a real implementation, we'd check the interrupt source
-        TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
-        
-        // TODO: Route to device drivers
-    }
+    // Increment timer ticks for now
+    // In a real implementation, we'd check the interrupt source
+    TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
+    
+    // TODO: Route to device drivers
 }
 
 /// FIQ handler (Fast Interrupt)

@@ -2,8 +2,9 @@
 //!
 //! Performs CSS box model layout on the DOM tree.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::browser::BrowserError;
@@ -159,12 +160,12 @@ pub fn layout(document: &Document, viewport_width: u32, viewport_height: u32) ->
     let mut root_box = build_layout_tree(&document.root)?;
     
     // Calculate layout
-    let containing_block = Dimensions {
+    let _containing_block = Dimensions {
         width: viewport_width as f32,
         height: viewport_height as f32,
     };
     
-    calculate_layout(&mut root_box, &containing_block);
+    calculate_layout(&mut root_box, &_containing_block);
     
     Ok(LayoutTree {
         root: root_box,
@@ -375,8 +376,7 @@ fn calculate_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensi
     layout_box.height = layout_box.content_height + layout_box.padding.vertical() + layout_box.border.vertical() + layout_box.margin.vertical();
 }
 
-/// Calculate inline layout
-fn calculate_inline_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+fn calculate_inline_layout(layout_box: &mut LayoutBox, _containing_block: &Dimensions) {
     // Simple inline layout - just estimate text size
     if let Some(ref text) = layout_box.text {
         // Rough estimate: 8 pixels per character
@@ -394,8 +394,7 @@ fn calculate_inline_layout(layout_box: &mut LayoutBox, containing_block: &Dimens
     layout_box.height = layout_box.content_height + layout_box.padding.vertical() + layout_box.border.vertical();
 }
 
-/// Calculate inline-block layout
-fn calculate_inline_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+fn calculate_inline_block_layout(layout_box: &mut LayoutBox, _containing_block: &Dimensions) {
     // Similar to block but with natural width
     if layout_box.width == 0.0 {
         layout_box.width = 100.0; // Default width
