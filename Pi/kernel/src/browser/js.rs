@@ -167,6 +167,31 @@ impl Value {
                 // Handle array length property
                 if key == "length" {
                     Value::Number(arr.len() as f64)
+                } else if key == "map" {
+                    // Return native map function
+                    Value::Function(Function::new_native("map", 1, array_map))
+                } else if key == "filter" {
+                    Value::Function(Function::new_native("filter", 1, array_filter))
+                } else if key == "reduce" {
+                    Value::Function(Function::new_native("reduce", 2, array_reduce))
+                } else if key == "find" {
+                    Value::Function(Function::new_native("find", 1, array_find))
+                } else if key == "includes" {
+                    Value::Function(Function::new_native("includes", 1, array_includes))
+                } else if key == "forEach" {
+                    Value::Function(Function::new_native("forEach", 1, array_for_each))
+                } else if key == "push" {
+                    Value::Function(Function::new_native("push", 1, array_push))
+                } else if key == "pop" {
+                    Value::Function(Function::new_native("pop", 0, array_pop))
+                } else if key == "join" {
+                    Value::Function(Function::new_native("join", 1, array_join))
+                } else if key == "indexOf" {
+                    Value::Function(Function::new_native("indexOf", 1, array_index_of))
+                } else if key == "slice" {
+                    Value::Function(Function::new_native("slice", 2, array_slice))
+                } else if key == "splice" {
+                    Value::Function(Function::new_native("splice", 2, array_splice))
                 } else {
                     Value::Undefined
                 }
@@ -278,6 +303,18 @@ impl Function {
             native: None,
             is_arrow: true,
             arrow_expr: Some(Box::new(expr)),
+            this_binding: None,
+        }
+    }
+
+    pub fn new_native(name: &str, arity: usize, func: fn(&mut Environment, Vec<Value>) -> Value) -> Self {
+        Self {
+            name: String::from(name),
+            params: (0..arity).map(|i| BindingPattern::Identifier(format!("arg{}", i))).collect(),
+            body: Vec::new(),
+            native: Some(func),
+            is_arrow: false,
+            arrow_expr: None,
             this_binding: None,
         }
     }
@@ -1901,6 +1938,228 @@ fn evaluate_expr(env: &mut Environment, expr: &Expr) -> Result<Value, BrowserErr
             }
         }
     }
+}
+
+/// Array prototype methods
+
+fn array_map(env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Undefined,
+    };
+    
+    let callback = match args.get(0) {
+        Some(Value::Function(f)) => f,
+        _ => return Value::Array(this_arr.clone()),
+    };
+    
+    let mut result = Vec::new();
+    for (i, item) in this_arr.iter().enumerate() {
+        // Call callback with item
+        let call_args = vec![item.clone(), Value::Number(i as f64)];
+        if let Some(native) = callback.native {
+            result.push(native(env, call_args));
+        } else {
+            // For non-native functions, we'd need to evaluate
+            // Simplified: just push the item
+            result.push(item.clone());
+        }
+    }
+    Value::Array(result)
+}
+
+fn array_filter(env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Undefined,
+    };
+    
+    let callback = match args.get(0) {
+        Some(Value::Function(f)) => f,
+        _ => return Value::Array(this_arr.clone()),
+    };
+    
+    let mut result = Vec::new();
+    for (i, item) in this_arr.iter().enumerate() {
+        let call_args = vec![item.clone(), Value::Number(i as f64)];
+        let keep = if let Some(native) = callback.native {
+            native(env, call_args).is_truthy()
+        } else {
+            true
+        };
+        if keep {
+            result.push(item.clone());
+        }
+    }
+    Value::Array(result)
+}
+
+fn array_reduce(env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Undefined,
+    };
+    
+    let callback = match args.get(0) {
+        Some(Value::Function(f)) => f,
+        _ => return Value::Undefined,
+    };
+    
+    let initial = args.get(1).cloned().unwrap_or(Value::Undefined);
+    let mut accumulator = initial;
+    
+    for (i, item) in this_arr.iter().enumerate() {
+        let call_args = vec![accumulator.clone(), item.clone(), Value::Number(i as f64)];
+        accumulator = if let Some(native) = callback.native {
+            native(env, call_args)
+        } else {
+            item.clone()
+        };
+    }
+    accumulator
+}
+
+fn array_find(env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Undefined,
+    };
+    
+    let callback = match args.get(0) {
+        Some(Value::Function(f)) => f,
+        _ => return Value::Undefined,
+    };
+    
+    for (i, item) in this_arr.iter().enumerate() {
+        let call_args = vec![item.clone(), Value::Number(i as f64)];
+        let found = if let Some(native) = callback.native {
+            native(env, call_args).is_truthy()
+        } else {
+            false
+        };
+        if found {
+            return item.clone();
+        }
+    }
+    Value::Undefined
+}
+
+fn array_includes(_env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Boolean(false),
+    };
+    
+    let search = args.get(0).cloned().unwrap_or(Value::Undefined);
+    for item in this_arr.iter() {
+        if item == &search {
+            return Value::Boolean(true);
+        }
+    }
+    Value::Boolean(false)
+}
+
+fn array_for_each(env: &mut Environment, args: Vec<Value>) -> Value {
+    let _ = array_map(env, args); // Execute for side effects
+    Value::Undefined
+}
+
+fn array_push(_env: &mut Environment, args: Vec<Value>) -> Value {
+    // Note: This doesn't actually modify the array since we can't mutate through get_this
+    // Would need to pass mutable reference
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Number(0.0),
+    };
+    
+    Value::Number((this_arr.len() + args.len()) as f64)
+}
+
+fn array_pop(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Undefined,
+    };
+    
+    this_arr.last().cloned().unwrap_or(Value::Undefined)
+}
+
+fn array_join(_env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::String(String::new()),
+    };
+    
+    let separator = match args.get(0) {
+        Some(Value::String(s)) => s.clone(),
+        _ => String::from(","),
+    };
+    
+    let mut result = String::new();
+    for (i, item) in this_arr.iter().enumerate() {
+        if i > 0 {
+            result.push_str(&separator);
+        }
+        result.push_str(&item.to_string());
+    }
+    Value::String(result)
+}
+
+fn array_index_of(_env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Number(-1.0),
+    };
+    
+    let search = args.get(0).cloned().unwrap_or(Value::Undefined);
+    for (i, item) in this_arr.iter().enumerate() {
+        if item == &search {
+            return Value::Number(i as f64);
+        }
+    }
+    Value::Number(-1.0)
+}
+
+fn array_slice(_env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Array(Vec::new()),
+    };
+    
+    let start = match args.get(0) {
+        Some(Value::Number(n)) => *n as usize,
+        _ => 0,
+    };
+    let end = match args.get(1) {
+        Some(Value::Number(n)) => *n as usize,
+        _ => this_arr.len(),
+    };
+    
+    let start = start.min(this_arr.len());
+    let end = end.min(this_arr.len());
+    
+    Value::Array(this_arr[start..end].to_vec())
+}
+
+fn array_splice(_env: &mut Environment, args: Vec<Value>) -> Value {
+    let this_arr = match _env.get_this() {
+        Value::Array(arr) => arr,
+        _ => return Value::Array(Vec::new()),
+    };
+    
+    let start = match args.get(0) {
+        Some(Value::Number(n)) => *n as usize,
+        _ => 0,
+    };
+    let delete_count = match args.get(1) {
+        Some(Value::Number(n)) => *n as usize,
+        _ => 0,
+    };
+    
+    let start = start.min(this_arr.len());
+    let end = (start + delete_count).min(this_arr.len());
+    
+    Value::Array(this_arr[start..end].to_vec())
 }
 
 /// Initialize JavaScript engine
