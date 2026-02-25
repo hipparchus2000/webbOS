@@ -5,6 +5,7 @@
 use alloc::collections::VecDeque;
 use spin::Mutex;
 use lazy_static::lazy_static;
+use core::sync::atomic::{AtomicU64, Ordering};
 
 use super::{Priority, Tid};
 use crate::println;
@@ -12,8 +13,13 @@ use crate::println;
 /// Time slice in timer ticks (10ms per tick, so 100ms default)
 pub const DEFAULT_TIME_SLICE: u64 = 10;
 
-/// Current running thread on each CPU
-static mut CURRENT_THREADS: [Option<Tid>; 8] = [None; 8]; // Support up to 8 CPUs
+/// Current running thread on each CPU (0 means None)
+static CURRENT_THREADS: [AtomicU64; 8] = [
+    AtomicU64::new(0), AtomicU64::new(0),
+    AtomicU64::new(0), AtomicU64::new(0),
+    AtomicU64::new(0), AtomicU64::new(0),
+    AtomicU64::new(0), AtomicU64::new(0),
+]; // Support up to 8 CPUs
 
 /// Scheduler state
 struct Scheduler {
@@ -117,7 +123,10 @@ pub unsafe fn schedule_next() {
 
     // Get current thread
     let cpu_id = 0; // TODO: Get actual CPU ID
-    let current_tid = CURRENT_THREADS[cpu_id];
+    let current_tid = match CURRENT_THREADS[cpu_id].load(Ordering::Relaxed) {
+        0 => None,
+        tid => Some(Tid::new(tid)),
+    };
 
     // Get next thread from ready queue
     let next_tid = scheduler.dequeue()
@@ -148,7 +157,7 @@ pub unsafe fn schedule_next() {
     }
 
     // Update current thread
-    CURRENT_THREADS[cpu_id] = Some(next_tid);
+    CURRENT_THREADS[cpu_id].store(next_tid.as_u64(), Ordering::Relaxed);
     scheduler.time_slice = DEFAULT_TIME_SLICE;
 
     // Perform context switch
@@ -195,7 +204,10 @@ pub unsafe fn yield_current() {
 /// Get current thread ID
 pub fn current_thread() -> Option<Tid> {
     let cpu_id = 0; // TODO: Get actual CPU ID
-    unsafe { CURRENT_THREADS[cpu_id] }
+    match CURRENT_THREADS[cpu_id].load(Ordering::Relaxed) {
+        0 => None,
+        tid => Some(Tid::new(tid)),
+    }
 }
 
 /// Get scheduler statistics

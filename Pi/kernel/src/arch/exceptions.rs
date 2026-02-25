@@ -116,25 +116,47 @@ pub struct ExceptionFrame {
     pub far: u64,  // Fault Address Register
 }
 
+use core::cell::UnsafeCell;
+
+/// Wrapper type to allow Sync for UnsafeCell
+pub struct SyncUnsafeCell<T>(UnsafeCell<T>);
+
+impl<T> SyncUnsafeCell<T> {
+    /// Create a new SyncUnsafeCell
+    pub const fn new(value: T) -> Self {
+        Self(UnsafeCell::new(value))
+    }
+    
+    /// Get a raw pointer to the data
+    pub fn get(&self) -> *mut T {
+        self.0.get()
+    }
+}
+
+// SAFETY: This is safe because we only mutate during initialization (single-threaded).
+unsafe impl<T> Sync for SyncUnsafeCell<T> {}
+
 /// Static exception vector table
-static mut VECTOR_TABLE: ExceptionVectorTable = ExceptionVectorTable {
-    el1t_sync: [0; 128],
-    el1t_irq: [0; 128],
-    el1t_fiq: [0; 128],
-    el1t_error: [0; 128],
-    el1h_sync: [0; 128],
-    el1h_irq: [0; 128],
-    el1h_fiq: [0; 128],
-    el1h_error: [0; 128],
-    el0_64_sync: [0; 128],
-    el0_64_irq: [0; 128],
-    el0_64_fiq: [0; 128],
-    el0_64_error: [0; 128],
-    el0_32_sync: [0; 128],
-    el0_32_irq: [0; 128],
-    el0_32_fiq: [0; 128],
-    el0_32_error: [0; 128],
-};
+static VECTOR_TABLE: SyncUnsafeCell<ExceptionVectorTable> = SyncUnsafeCell::new(
+    ExceptionVectorTable {
+        el1t_sync: [0; 128],
+        el1t_irq: [0; 128],
+        el1t_fiq: [0; 128],
+        el1t_error: [0; 128],
+        el1h_sync: [0; 128],
+        el1h_irq: [0; 128],
+        el1h_fiq: [0; 128],
+        el1h_error: [0; 128],
+        el0_64_sync: [0; 128],
+        el0_64_irq: [0; 128],
+        el0_64_fiq: [0; 128],
+        el0_64_error: [0; 128],
+        el0_32_sync: [0; 128],
+        el0_32_irq: [0; 128],
+        el0_32_fiq: [0; 128],
+        el0_32_error: [0; 128],
+    }
+);
 
 /// Initialize exception handling
 pub fn init() {
@@ -143,12 +165,13 @@ pub fn init() {
         setup_vectors();
         
         // Set VBAR_EL1 to point to our vector table
+        let vt_ptr = VECTOR_TABLE.get();
         core::arch::asm!(
             "msr VBAR_EL1, {0}",
-            in(reg) &VECTOR_TABLE,
+            in(reg) vt_ptr,
         );
         
-        println!("[exceptions] Vector table installed at {:p}", &VECTOR_TABLE);
+        println!("[exceptions] Vector table installed at {:p}", vt_ptr);
     }
 }
 
@@ -183,11 +206,17 @@ pub fn are_enabled() -> bool {
 }
 
 /// Timer tick counter
-static mut TIMER_TICKS: u64 = 0;
+use core::sync::atomic::{AtomicU64, Ordering};
+static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
 
 /// Get the current timer tick count
 pub fn get_timer_ticks() -> u64 {
-    unsafe { TIMER_TICKS }
+    TIMER_TICKS.load(Ordering::Relaxed)
+}
+
+/// Increment timer tick counter (called from timer interrupt)
+pub fn increment_timer_ticks() {
+    TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
 }
 
 /// Default exception handler
@@ -270,7 +299,7 @@ extern "C" fn handle_irq(_frame: &ExceptionFrame) {
     unsafe {
         // Increment timer ticks for now
         // In a real implementation, we'd check the interrupt source
-        TIMER_TICKS += 1;
+        TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
         
         // TODO: Route to device drivers
     }

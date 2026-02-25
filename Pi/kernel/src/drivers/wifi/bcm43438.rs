@@ -15,13 +15,12 @@
 //! - brcmfmac43455-sdio.txt (Pi 4 NVRAM config)
 
 use crate::drivers::DriverError;
-use crate::drivers::sdio::{SdioFunction, controller};
+use crate::drivers::sdio::SdioFunction;
 use crate::net::{MacAddress, NetworkInterface, NetError};
 use crate::net;
 use crate::println;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use spin::Mutex;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 // Import submodules
@@ -347,53 +346,56 @@ impl Bcm43438Device {
 
     /// Enable SDIO functions
     fn enable_sdio_functions(&self) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        
-        // Enable function 1 (backplane)
-        controller.write_byte(SDIO_FUNC_BUS, SDIO_CCCR_IOEN, 0x02)?;
-        
-        // Wait for function to be ready
-        let mut timeout = 1000;
-        loop {
-            let ready = controller.read_byte(SDIO_FUNC_BUS, SDIO_CCCR_IORDY)?;
-            if (ready & 0x02) != 0 {
-                break;
+        match crate::drivers::sdio::with_controller(|controller| -> Result<(), DriverError> {
+            // Enable function 1 (backplane)
+            controller.write_byte(SDIO_FUNC_BUS, SDIO_CCCR_IOEN, 0x02)?;
+            
+            // Wait for function to be ready
+            let mut timeout = 1000;
+            loop {
+                let ready = controller.read_byte(SDIO_FUNC_BUS, SDIO_CCCR_IORDY)?;
+                if (ready & 0x02) != 0 {
+                    break;
+                }
+                timeout -= 1;
+                if timeout == 0 {
+                    return Err(DriverError::Timeout);
+                }
             }
-            timeout -= 1;
-            if timeout == 0 {
-                return Err(DriverError::Timeout);
+            
+            // Enable function 2 (WLAN)
+            controller.write_byte(SDIO_FUNC_BUS, SDIO_CCCR_IOEN, 0x06)?;
+            
+            // Wait for functions to be ready
+            let mut timeout = 1000;
+            loop {
+                let ready = controller.read_byte(SDIO_FUNC_BUS, SDIO_CCCR_IORDY)?;
+                if (ready & 0x06) == 0x06 {
+                    break;
+                }
+                timeout -= 1;
+                if timeout == 0 {
+                    return Err(DriverError::Timeout);
+                }
             }
+            
+            // Enable interrupts
+            controller.write_byte(SDIO_FUNC_BUS, SDIO_CCCR_INTEN, 0x07)?;
+            
+            // Set block size to 512 bytes for function 1
+            controller.write_byte(SDIO_FUNC_BUS, 0x10 + 1 * 2, 0x00)?; // Low byte
+            controller.write_byte(SDIO_FUNC_BUS, 0x11 + 1 * 2, 0x02)?; // High byte (512 >> 8)
+            
+            // Set block size to 512 bytes for function 2
+            controller.write_byte(SDIO_FUNC_BUS, 0x10 + 2 * 2, 0x00)?;
+            controller.write_byte(SDIO_FUNC_BUS, 0x11 + 2 * 2, 0x02)?;
+            
+            println!("[bcm43438] SDIO functions enabled");
+            Ok(())
+        }) {
+            Some(result) => result,
+            None => Err(DriverError::NotFound),
         }
-        
-        // Enable function 2 (WLAN)
-        controller.write_byte(SDIO_FUNC_BUS, SDIO_CCCR_IOEN, 0x06)?;
-        
-        // Wait for functions to be ready
-        timeout = 1000;
-        loop {
-            let ready = controller.read_byte(SDIO_FUNC_BUS, SDIO_CCCR_IORDY)?;
-            if (ready & 0x06) == 0x06 {
-                break;
-            }
-            timeout -= 1;
-            if timeout == 0 {
-                return Err(DriverError::Timeout);
-            }
-        }
-        
-        // Enable interrupts
-        controller.write_byte(SDIO_FUNC_BUS, SDIO_CCCR_INTEN, 0x07)?;
-        
-        // Set block size to 512 bytes for function 1
-        controller.write_byte(SDIO_FUNC_BUS, 0x10 + 1 * 2, 0x00)?; // Low byte
-        controller.write_byte(SDIO_FUNC_BUS, 0x11 + 1 * 2, 0x02)?; // High byte (512 >> 8)
-        
-        // Set block size to 512 bytes for function 2
-        controller.write_byte(SDIO_FUNC_BUS, 0x10 + 2 * 2, 0x00)?;
-        controller.write_byte(SDIO_FUNC_BUS, 0x11 + 2 * 2, 0x02)?;
-        
-        println!("[bcm43438] SDIO functions enabled");
-        Ok(())
     }
 
     /// Read chip ID from backplane
@@ -1069,7 +1071,11 @@ impl NetworkInterface for Bcm43438Device {
 }
 
 /// Global WiFi device instance
-static mut WIFI_DEVICE: Option<Mutex<Bcm43438Device>> = None;
+use spin::Mutex;
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref WIFI_DEVICE: Mutex<Option<Bcm43438Device>> = Mutex::new(None);
+}
 
 /// Initialize BCM43438/BCM43455 WiFi driver
 pub fn init(pi4: bool) {
@@ -1096,12 +1102,16 @@ pub fn init(pi4: bool) {
     }
 }
 
-/// Get the global WiFi device
-pub fn device() -> Option<&'static Mutex<Bcm43438Device>> {
-    unsafe { WIFI_DEVICE.as_ref() }
+/// With the global WiFi device
+pub fn with_device<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&mut Bcm43438Device) -> R,
+{
+    let mut guard = WIFI_DEVICE.lock();
+    guard.as_mut().map(f)
 }
 
 /// Check if WiFi is available
 pub fn is_available() -> bool {
-    unsafe { WIFI_DEVICE.is_some() }
+    WIFI_DEVICE.lock().is_some()
 }

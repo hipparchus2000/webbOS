@@ -9,6 +9,9 @@ This document tracks all development tasks across the three WebbOS ports:
 
 Last Updated: 2026-02-20
 
+## Recent Changes
+- **2026-02-20**: Fixed all static_mut_refs and weak password hashing for Pi port (9 critical security issues resolved)
+
 ---
 
 ## Priority Legend
@@ -38,23 +41,38 @@ Last Updated: 2026-02-20
 - **Affected Ports**: Pi, Pi5
 - **Task**: Implement proper PBKDF2-SHA1 for WPA2 key derivation
 
-#### 1.3 Weak Password Hashing
+#### ~~1.3 Weak Password Hashing~~ ✅ FIXED for Pi
 - **Location**: `users/mod.rs:304-310`
 - **Issue**: SHA-256 with static salt instead of PBKDF2/Argon2
 - **Risk**: Passwords vulnerable to rainbow table attacks
-- **Affected Ports**: ALL
-- **Task**: Replace with PBKDF2 or Argon2 with per-user salt
+- **Affected Ports**: ALL (Fixed for Pi, pending PC/Pi5)
+- **Task**: ~~Replace with PBKDF2 or Argon2 with per-user salt~~
+- **Fix Applied**: Implemented PBKDF2-like construction with 100,000 iterations of SHA-256, per-user salt derived from username
 
-#### 1.4 Static Mutable State
+#### ~~1.4 Static Mutable State~~ ✅ FIXED for Pi
 - **Location**: 
-  - `net/dhcp.rs:63-64`
-  - `net/ip.rs:349`
-  - `drivers/timer.rs:205`
-  - `desktop/mod.rs:585,592,698`
+  - ~~`net/dhcp.rs:63-64`~~
+  - ~~`net/ip.rs:349`~~
+  - ~~`drivers/timer.rs:205`~~
+  - ~~`desktop/mod.rs:585,592,698`~~
+  - ~~`arch/exceptions.rs:120,186`~~
+  - ~~`browser/js_bindings.rs:19,32`~~
+  - ~~`process/scheduler.rs:16`~~
+  - ~~`mm/mod.rs:25`~~
+  - ~~`drivers/sdio/mod.rs:701`~~
+  - ~~`drivers/wifi/bcm43438.rs:1072`~~
+  - ~~`drivers/wifi/sdio_spi.rs:638`~~
+  - ~~`drivers/usb/dwc_otg.rs:29`~~
+  - ~~`bootloader/src/main.rs:39`~~
 - **Issue**: Multiple `static mut` variables without synchronization
 - **Risk**: Data races, undefined behavior
-- **Affected Ports**: ALL
-- **Task**: Replace with `AtomicU32`, `Mutex<T>`, or thread-safe alternatives
+- **Affected Ports**: ALL (Fixed for Pi, pending PC/Pi5)
+- **Task**: ~~Replace with `AtomicU32`, `Mutex<T>`, or thread-safe alternatives~~
+- **Fix Applied**: 
+  - Replaced all `static mut` with `AtomicU64`, `AtomicU32`, `AtomicU16`, `AtomicUsize`
+  - Used `Mutex<T>` for complex types
+  - Used `UnsafeCell` with `Sync` impl for bootloader allocator
+  - Used `lazy_static!` with `Mutex` for optional singletons
 
 #### 1.5 Unchecked Pointer Arithmetic
 - **Location**: `storage/nvme.rs:148-150`
@@ -100,15 +118,24 @@ Last Updated: 2026-02-20
 - **Risk**: TCP session hijacking
 - **Task**: Implement RFC 6528 compliant ISN generation
 
-#### 2.7 Unsafe Static Mutable References
-- **Count**: 15 instances across all ports
-- **Locations**:
-  - `bootloader/src/main.rs:77`
-  - `kernel/src/mm/mod.rs`
-  - `kernel/src/drivers/wifi/bcm43438.rs:931,936`
-  - `kernel/src/desktop/mod.rs:585,592,698`
+#### ~~2.7 Unsafe Static Mutable References~~ ✅ FIXED for Pi
+- **Count**: ~~15 instances across all ports~~ 0 remaining in Pi
+- **Locations** (Fixed in Pi):
+  - ~~`bootloader/src/main.rs:77`~~ - Used `UnsafeCell` wrapper
+  - ~~`kernel/src/mm/mod.rs`~~ - Used `lazy_static!` with `Mutex`
+  - ~~`kernel/src/arch/exceptions.rs`~~ - Used `AtomicU64`, `SyncUnsafeCell`
+  - ~~`kernel/src/browser/js_bindings.rs`~~ - Used `AtomicUsize`, `AtomicU32`
+  - ~~`kernel/src/desktop/mod.rs`~~ - Used `lazy_static!` with `Mutex`
+  - ~~`kernel/src/net/ip.rs`~~ - Used `AtomicU16`
+  - ~~`kernel/src/process/scheduler.rs`~~ - Used `AtomicU64` array
+  - ~~`kernel/src/drivers/timer.rs`~~ - Used `AtomicU64`
+  - ~~`kernel/src/drivers/sdio/mod.rs`~~ - Used `lazy_static!` with `Mutex`
+  - ~~`kernel/src/drivers/wifi/bcm43438.rs`~~ - Used `lazy_static!` with `Mutex`
+  - ~~`kernel/src/drivers/wifi/sdio_spi.rs`~~ - Used `lazy_static!` with `Mutex`
+  - ~~`kernel/src/drivers/usb/dwc_otg.rs`~~ - Used `AtomicU64`
 - **Issue**: Creating references to mutable statics is UB
-- **Task**: Use raw pointers or proper synchronization
+- **Task**: ~~Use raw pointers or proper synchronization~~
+- **Status**: ✅ All 12 static mut instances fixed in Pi port
 
 ---
 

@@ -26,11 +26,12 @@ pub const USB_BASE_PI3: u64 = 0x3F98_0000;
 pub const USB_BASE_PI4: u64 = 0xFE98_0000;
 
 /// Current USB base address (detected at runtime)
-static mut USB_BASE: u64 = USB_BASE_PI3;
+use core::sync::atomic::{AtomicU64, Ordering};
+static USB_BASE: AtomicU64 = AtomicU64::new(USB_BASE_PI3);
 
 /// Get the current USB base address
 fn usb_base() -> u64 {
-    unsafe { USB_BASE }
+    USB_BASE.load(Ordering::Relaxed)
 }
 
 /// Read from DWC OTG register

@@ -351,12 +351,10 @@ pub fn ping(dst: Ipv4Address) -> Result<(), ()> {
 }
 
 /// Packet counter for identification
-static mut PACKET_ID: u16 = 0;
+use core::sync::atomic::{AtomicU16, Ordering};
+static PACKET_ID: AtomicU16 = AtomicU16::new(0);
 
 /// Get next packet ID
 pub fn next_packet_id() -> u16 {
-    unsafe {
-        PACKET_ID = PACKET_ID.wrapping_add(1);
-        PACKET_ID
-    }
+    PACKET_ID.fetch_add(1, Ordering::Relaxed)
 }

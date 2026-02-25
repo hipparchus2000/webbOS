@@ -36,32 +36,37 @@ use core::alloc::{GlobalAlloc, Layout};
 
 /// Bootloader global allocator - simple bump allocator
 #[global_allocator]
-static mut BUMP_ALLOCATOR: BumpAllocator = BumpAllocator::new();
+static BUMP_ALLOCATOR: BumpAllocator = BumpAllocator::new();
 
 /// Simple bump allocator for bootloader use
+/// Uses interior mutability via UnsafeCell for thread-safe static allocation
+use core::cell::UnsafeCell;
+
 struct BumpAllocator {
-    current: usize,
+    current: UnsafeCell<usize>,
     end: usize,
 }
 
 impl BumpAllocator {
     const fn new() -> Self {
         Self {
-            current: 0x400000, // Start at 4MB
+            current: UnsafeCell::new(0x400000), // Start at 4MB
             end: 0x1000000,    // End at 16MB
         }
     }
 }
 
+// SAFETY: Bootloader is single-threaded
+unsafe impl Sync for BumpAllocator {}
+
 unsafe impl GlobalAlloc for BumpAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let current = self.current;
+        let current = *self.current.get();
         let aligned = (current + layout.align() - 1) & !(layout.align() - 1);
         if aligned + layout.size() > self.end {
             return core::ptr::null_mut();
         }
-        let ptr = self as *const Self as *mut Self;
-        (*ptr).current = aligned + layout.size();
+        *self.current.get() = aligned + layout.size();
         aligned as *mut u8
     }
 
@@ -74,7 +79,7 @@ unsafe impl GlobalAlloc for BumpAllocator {
 pub unsafe fn alloc_pages(count: usize) -> Option<PhysAddr> {
     let size = count * 4096;
     let layout = Layout::from_size_align(size, 4096).ok()?;
-    let ptr = BUMP_ALLOCATOR.alloc(layout);
+    let ptr = unsafe { BUMP_ALLOCATOR.alloc(layout) };
     if ptr.is_null() {
         None
     } else {

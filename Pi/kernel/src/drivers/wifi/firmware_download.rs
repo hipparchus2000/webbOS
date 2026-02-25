@@ -5,7 +5,7 @@
 
 use alloc::vec::Vec;
 use crate::drivers::DriverError;
-use crate::drivers::sdio::{SdioFunction, controller};
+use crate::drivers::sdio::SdioFunction;
 use crate::println;
 
 // Backplane addresses for firmware download
@@ -147,18 +147,22 @@ pub fn download_firmware(sections: &[FirmwareSection]) -> Result<(), DriverError
 fn reset_chip_for_download() -> Result<(), DriverError> {
     println!("[fw_download] Resetting chip for download...");
     
-    // Get SDIO controller
-    let controller = controller().ok_or(DriverError::NotFound)?;
-    
-    // Reset SDIO core
-    // This puts the chip in a known state for firmware download
-    
-    // Disable SDIO interrupts during download
-    controller.write_byte(0, 0x04, 0x00)?;  // INTEN register
-    
-    // Reset backplane
-    // Write to SBSDIO_FUNC1_CHIPCLKCSR to force ALP (Active Low Power) clock
-    controller.write_byte(1, 0x1000, 0x00)?;
+    // Use SDIO controller
+    match crate::drivers::sdio::with_controller(|controller| -> Result<(), DriverError> {
+        // Reset SDIO core
+        // This puts the chip in a known state for firmware download
+        
+        // Disable SDIO interrupts during download
+        controller.write_byte(0, 0x04, 0x00)?;  // INTEN register
+        
+        // Reset backplane
+        // Write to SBSDIO_FUNC1_CHIPCLKCSR to force ALP (Active Low Power) clock
+        controller.write_byte(1, 0x1000, 0x00)?;
+        Ok(())
+    }) {
+        Some(result) => result?,
+        None => return Err(DriverError::NotFound),
+    }
     
     // Small delay for reset to complete
     for _ in 0..1000 {
@@ -268,11 +272,15 @@ pub fn download_nvram(nvram_data: &[u8]) -> Result<(), DriverError> {
 pub fn boot_firmware() -> Result<(), DriverError> {
     println!("[fw_download] Signaling firmware boot...");
     
-    // Get SDIO controller
-    let controller = controller().ok_or(DriverError::NotFound)?;
-    
-    // Re-enable SDIO interrupts
-    controller.write_byte(0, 0x04, 0x07)?;
+    // Use SDIO controller
+    match crate::drivers::sdio::with_controller(|controller| -> Result<(), DriverError> {
+        // Re-enable SDIO interrupts
+        controller.write_byte(0, 0x04, 0x07)?;
+        Ok(())
+    }) {
+        Some(result) => result?,
+        None => return Err(DriverError::NotFound),
+    }
     
     // The firmware should now be running
     // It will initialize and start responding to SDPCM commands

@@ -104,7 +104,7 @@ impl UserManager {
         let id = self.next_user_id;
         self.next_user_id += 1;
         
-        let password_hash = hash_password(password);
+        let password_hash = hash_password(password, username);
         
         let user = User {
             id,
@@ -152,7 +152,8 @@ impl UserManager {
     
     /// Authenticate user
     pub fn authenticate(&mut self, username: &str, password: &str) -> Option<UserId> {
-        let password_hash = hash_password(password);
+        // Hash password with username as salt for per-user unique hashing
+        let password_hash = hash_password(password, username);
         
         for (id, user) in &self.users {
             if user.username == username 
@@ -231,8 +232,9 @@ impl UserManager {
         }
         
         if let Some(user) = self.users.get_mut(&user_id) {
-            user.password_hash = hash_password(new_password);
-            println!("[users] Password changed for user '{}'", user.username);
+            let username = user.username.clone();
+            user.password_hash = hash_password(new_password, &username);
+            println!("[users] Password changed for user '{}'", username);
             Ok(())
         } else {
             Err(UserError::UserNotFound)
@@ -300,13 +302,35 @@ lazy_static! {
     static ref USER_MANAGER: Mutex<UserManager> = Mutex::new(UserManager::new());
 }
 
-/// Hash password using SHA-256
-fn hash_password(password: &str) -> [u8; 32] {
+/// Hash password using PBKDF2-like construction (multiple SHA-256 iterations)
+/// Uses 100,000 iterations for reasonable security
+fn hash_password(password: &str, username: &str) -> [u8; 32] {
+    use crate::crypto::sha256;
+    
+    // Per-user salt derived from username (ensures unique salt per user)
+    let mut salt = [0u8; 32];
+    let mut salt_hasher = sha256::Sha256::new();
+    salt_hasher.update(username.as_bytes());
+    salt_hasher.update(b"WebbOS-v1-salt");
+    salt = salt_hasher.finalize();
+    
+    // Initial hash of password + salt
+    let mut hash = [0u8; 32];
     let mut hasher = sha256::Sha256::new();
     hasher.update(password.as_bytes());
-    // Add a simple salt
-    hasher.update(b"WebbOS");
-    hasher.finalize()
+    hasher.update(&salt);
+    hash = hasher.finalize();
+    
+    // Multiple iterations (PBKDF2-like)
+    // Using 100,000 iterations for reasonable security
+    for _ in 0..100_000 {
+        let mut hasher = sha256::Sha256::new();
+        hasher.update(&hash);
+        hasher.update(&salt);
+        hash = hasher.finalize();
+    }
+    
+    hash
 }
 
 /// Get current time (placeholder)
