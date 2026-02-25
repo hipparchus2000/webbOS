@@ -359,7 +359,11 @@ pub fn init() {
 
 pub fn navigate(url: &str) -> Result<(), BrowserError> {
     if let Some(ref mut browser) = *BROWSER.lock() {
-        browser.navigate(url)
+        // Navigate and load content
+        browser.navigate(url)?;
+        // Automatically render after navigation
+        browser.render()?;
+        Ok(())
     } else {
         Err(BrowserError::Unknown)
     }
@@ -370,6 +374,26 @@ pub fn get_title() -> String {
         browser.title.clone()
     } else {
         String::new()
+    }
+}
+
+/// Get the rendered framebuffer data
+/// Returns (width, height, pixel_data) if a framebuffer exists
+pub fn get_framebuffer() -> Option<(u32, u32, alloc::vec::Vec<u32>)> {
+    if let Some(ref browser) = *BROWSER.lock() {
+        if let Some(ref fb) = browser.render_context.framebuffer {
+            return Some((fb.width, fb.height, fb.data.clone()));
+        }
+    }
+    None
+}
+
+/// Check if browser has a rendered page
+pub fn has_rendered_page() -> bool {
+    if let Some(ref browser) = *BROWSER.lock() {
+        browser.render_context.framebuffer.is_some() && browser.document.is_some()
+    } else {
+        false
     }
 }
 

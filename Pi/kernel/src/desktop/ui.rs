@@ -10,6 +10,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::format;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -50,6 +51,7 @@ pub struct Icon {
 pub enum IconAction {
     LaunchApp(String),      // Launch application by name
     OpenFolder(String),     // Open folder in file manager
+    OpenHtmlFile(String),   // Open HTML file in browser
     None,
 }
 
@@ -640,19 +642,14 @@ impl DesktopUI {
             28,
             0xFFCCCCCC
         );
-        driver.draw_text("https://webbos.local", BROWSER_X + 90, BROWSER_Y + 48, 0xFF666666, 1);
-
-        // Content area with welcome message
-        let content_y = BROWSER_Y + 80;
-        driver.draw_text("Welcome to WebbOS Browser!", BROWSER_X + 40, content_y, palette::TEXT_BLACK, 2);
-        driver.draw_text("A minimal web browser built into the OS", BROWSER_X + 40, content_y + 40, 0xFF666666, 1);
-
-        // Some demo content
-        driver.draw_text("Features:", BROWSER_X + 40, content_y + 80, palette::TEXT_BLACK, 1);
-        driver.draw_text("- HTML5 parsing engine", BROWSER_X + 60, content_y + 100, 0xFF666666, 1);
-        driver.draw_text("- CSS3 styling support", BROWSER_X + 60, content_y + 120, 0xFF666666, 1);
-        driver.draw_text("- JavaScript interpreter", BROWSER_X + 60, content_y + 140, 0xFF666666, 1);
-        driver.draw_text("- WebAssembly runtime", BROWSER_X + 60, content_y + 160, 0xFF666666, 1);
+        
+        // Show current URL or default
+        let url_text = if browser::has_rendered_page() {
+            browser::get_title()
+        } else {
+            String::from("https://webbos.local")
+        };
+        driver.draw_text(&url_text, BROWSER_X + 90, BROWSER_Y + 48, 0xFF666666, 1);
 
         // Navigation buttons
         driver.fill_rect(BROWSER_X + 10, BROWSER_Y + 40, 30, 28, 0xFFE0E0E0);
@@ -660,6 +657,81 @@ impl DesktopUI {
 
         driver.fill_rect(BROWSER_X + 45, BROWSER_Y + 40, 30, 28, 0xFFE0E0E0);
         driver.draw_text(">", BROWSER_X + 55, BROWSER_Y + 48, palette::TEXT_BLACK, 1);
+
+        // Content area - draw actual browser framebuffer if available
+        let content_x = BROWSER_X + 8;
+        let content_y = BROWSER_Y + 80;
+        let content_width = BROWSER_WIDTH - 16;
+        let content_height = BROWSER_HEIGHT - 88;
+        
+        if let Some((fb_width, fb_height, fb_data)) = browser::get_framebuffer() {
+            // Blit browser framebuffer to content area
+            self.blit_framebuffer(
+                driver,
+                content_x,
+                content_y,
+                content_width,
+                content_height,
+                fb_width,
+                fb_height,
+                &fb_data
+            );
+        } else {
+            // Show welcome message if no page loaded
+            let welcome_y = content_y + 40;
+            driver.draw_text("Welcome to WebbOS Browser!", content_x + 32, welcome_y, palette::TEXT_BLACK, 2);
+            driver.draw_text("A minimal web browser built into the OS", content_x + 32, welcome_y + 40, 0xFF666666, 1);
+            
+            driver.draw_text("Features:", content_x + 32, welcome_y + 80, palette::TEXT_BLACK, 1);
+            driver.draw_text("- HTML5 parsing engine", content_x + 52, welcome_y + 100, 0xFF666666, 1);
+            driver.draw_text("- CSS3 styling support", content_x + 52, welcome_y + 120, 0xFF666666, 1);
+            driver.draw_text("- JavaScript interpreter", content_x + 52, welcome_y + 140, 0xFF666666, 1);
+            driver.draw_text("- WebAssembly runtime", content_x + 52, welcome_y + 160, 0xFF666666, 1);
+        }
+    }
+    
+    /// Blit a framebuffer into the browser content area
+    fn blit_framebuffer(
+        &self,
+        driver: &mut VesaDriver,
+        dest_x: i32,
+        dest_y: i32,
+        dest_width: u32,
+        dest_height: u32,
+        fb_width: u32,
+        fb_height: u32,
+        fb_data: &[u32]
+    ) {
+        // Simple blit with scaling to fit content area
+        let scale_x = dest_width as f32 / fb_width as f32;
+        let scale_y = dest_height as f32 / fb_height as f32;
+        let scale = scale_x.min(scale_y).min(1.0); // Don't upscale beyond 1:1
+        
+        let scaled_width = (fb_width as f32 * scale) as u32;
+        let scaled_height = (fb_height as f32 * scale) as u32;
+        
+        // Center the content
+        let offset_x = (dest_width - scaled_width) / 2;
+        let offset_y = (dest_height - scaled_height) / 2;
+        
+        // Blit pixels
+        for y in 0..scaled_height {
+            for x in 0..scaled_width {
+                // Sample from source framebuffer
+                let src_x = (x as f32 / scale) as u32;
+                let src_y = (y as f32 / scale) as u32;
+                
+                if src_x < fb_width && src_y < fb_height {
+                    let src_idx = (src_y * fb_width + src_x) as usize;
+                    if src_idx < fb_data.len() {
+                        let pixel = fb_data[src_idx];
+                        let dst_x = dest_x + offset_x as i32 + x as i32;
+                        let dst_y = dest_y + offset_y as i32 + y as i32;
+                        driver.set_pixel(dst_x as u32, dst_y as u32, pixel);
+                    }
+                }
+            }
+        }
     }
 
     fn draw_menu_bar(&self, driver: &mut VesaDriver, screen_w: u32) {
@@ -837,6 +909,7 @@ impl DesktopUI {
         }
         
         // Check dock icons first (launch on single click)
+        let mut file_manager_clicked = false;
         for icon in &self.dock_icons {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
@@ -852,13 +925,26 @@ impl DesktopUI {
                         } else if app_name == "appstore" {
                             println!("[desktop] App Store coming soon!");
                         } else if app_name == "filemanager" {
-                            println!("[desktop] File Manager coming soon!");
+                            file_manager_clicked = true;
                         }
+                    }
+                    IconAction::OpenHtmlFile(path) => {
+                        println!("[desktop] Opening HTML file: {}", path);
+                        self.browser_open = true;
+                        crate::desktop::launch_html(path);
+                        self.mark_dirty(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
+                        return true;
                     }
                     _ => {}
                 }
                 // Mark dock icon as dirty
                 self.mark_dirty(icon.x - 4, icon.y - 4, icon.width + 8, icon.height + 8);
+                
+                // Handle file manager click after loop to avoid borrow issues
+                if file_manager_clicked {
+                    println!("[desktop] Opening File Manager...");
+                    self.open_file_manager_window("/");
+                }
                 return true;
             }
         }
@@ -1098,8 +1184,63 @@ pub fn browser_navigate(url: &str) {
     }
 }
 
-/// Open file manager with given path
+impl DesktopUI {
+    /// Open file manager window showing files from FAT32
+    fn open_file_manager_window(&mut self, path: &str) {
+        println!("[desktop] Opening File Manager at: {}", path);
+        
+        // Scan directory for HTML files
+        match crate::fs::read_dir(path) {
+            Ok(entries) => {
+                println!("[desktop] Found {} entries in {}", entries.len(), path);
+                
+                // Add HTML files as desktop icons dynamically
+                let mut x_pos = 100;
+                let mut y_pos = 400;
+                
+                for (name, is_dir) in entries {
+                    if is_dir {
+                        println!("[desktop]  [DIR]  {}", name);
+                    } else if name.ends_with(".html") || name.ends_with(".htm") {
+                        println!("[desktop]  [HTML] {}", name);
+                        
+                        // Add HTML file as a launchable icon
+                        let full_path = format!("{}/{}", path, name);
+                        self.desktop_icons.push(Icon {
+                            x: x_pos,
+                            y: y_pos,
+                            width: 80,
+                            height: 96,
+                            label: name.clone(),
+                            icon_char: '📄',
+                            icon_path: Some("html".to_string()),
+                            action: IconAction::OpenHtmlFile(full_path),
+                            is_folder: false,
+                        });
+                        
+                        // Position next icon
+                        x_pos += 100;
+                        if x_pos > 1000 {
+                            x_pos = 100;
+                            y_pos += 120;
+                        }
+                    } else {
+                        println!("[desktop]  [FILE] {}", name);
+                    }
+                }
+                
+                // Mark area as dirty to show new icons
+                self.mark_full_redraw();
+            }
+            Err(e) => {
+                println!("[desktop] Failed to read directory {}: {:?}", path, e);
+            }
+        }
+    }
+}
+
+/// Open file manager with given path (public API)
 pub fn open_file_manager(path: &str) {
     println!("[desktop] Opening file manager at: {}", path);
-    // TODO: Implement file manager window
+    // This is called from external modules - actual UI update happens via message queue
 }

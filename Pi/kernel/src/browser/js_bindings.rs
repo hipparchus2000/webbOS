@@ -7,12 +7,18 @@
 use alloc::string::String;
 use alloc::format;
 use alloc::vec::Vec;
+use alloc::collections::BTreeMap;
 use core::sync::atomic::{AtomicUsize, AtomicU32, Ordering};
+
+use spin::Mutex;
 
 use crate::browser::dom_api::{ElementId, api as dom_api};
 use crate::browser::event::{EventType};
 use crate::browser::js::{Value, Object, Environment};
 use crate::println;
+
+/// In-memory localStorage (persists during the session)
+static LOCAL_STORAGE: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
 
 /// Current document pointer for DOM operations (atomic for thread safety)
 static CURRENT_DOCUMENT_PTR: AtomicUsize = AtomicUsize::new(0);
@@ -112,6 +118,41 @@ pub fn register_dom_bindings(env: &mut Environment) {
         js_console_log as crate::browser::js::NativeFn
     )));
     env.define("console", Value::Object(console));
+    
+    // Create localStorage object
+    let mut local_storage = Object::new();
+    local_storage.set("setItem", Value::Function(create_native_fn(
+        "setItem",
+        2,
+        js_local_storage_set_item as crate::browser::js::NativeFn
+    )));
+    local_storage.set("getItem", Value::Function(create_native_fn(
+        "getItem",
+        1,
+        js_local_storage_get_item as crate::browser::js::NativeFn
+    )));
+    local_storage.set("removeItem", Value::Function(create_native_fn(
+        "removeItem",
+        1,
+        js_local_storage_remove_item as crate::browser::js::NativeFn
+    )));
+    local_storage.set("clear", Value::Function(create_native_fn(
+        "clear",
+        0,
+        js_local_storage_clear as crate::browser::js::NativeFn
+    )));
+    local_storage.set("key", Value::Function(create_native_fn(
+        "key",
+        1,
+        js_local_storage_key as crate::browser::js::NativeFn
+    )));
+    // length property - return as a getter function since we don't have property getters
+    local_storage.set("length", Value::Function(create_native_fn(
+        "length",
+        0,
+        js_local_storage_length as crate::browser::js::NativeFn
+    )));
+    env.define("localStorage", Value::Object(local_storage));
 }
 
 /// Native function implementations
@@ -173,6 +214,60 @@ fn js_console_log(_env: &mut Environment, args: Vec<Value>) -> Value {
     let msg = args.get(0).map(|v| v.to_string()).unwrap_or_default();
     println!("[JS console.log] {}", msg);
     Value::Undefined
+}
+
+/// localStorage.setItem(key, value)
+fn js_local_storage_set_item(_env: &mut Environment, args: Vec<Value>) -> Value {
+    if args.len() >= 2 {
+        let key = args[0].to_string();
+        let value = args[1].to_string();
+        LOCAL_STORAGE.lock().insert(key, value);
+    }
+    Value::Undefined
+}
+
+/// localStorage.getItem(key) -> value or null
+fn js_local_storage_get_item(_env: &mut Environment, args: Vec<Value>) -> Value {
+    if let Some(key) = args.get(0) {
+        let key = key.to_string();
+        let storage = LOCAL_STORAGE.lock();
+        if let Some(value) = storage.get(&key) {
+            return Value::String(value.clone());
+        }
+    }
+    Value::Null
+}
+
+/// localStorage.removeItem(key)
+fn js_local_storage_remove_item(_env: &mut Environment, args: Vec<Value>) -> Value {
+    if let Some(key) = args.get(0) {
+        let key = key.to_string();
+        LOCAL_STORAGE.lock().remove(&key);
+    }
+    Value::Undefined
+}
+
+/// localStorage.clear()
+fn js_local_storage_clear(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    LOCAL_STORAGE.lock().clear();
+    Value::Undefined
+}
+
+/// localStorage.key(index) -> key or null
+fn js_local_storage_key(_env: &mut Environment, args: Vec<Value>) -> Value {
+    if let Some(Value::Number(index)) = args.get(0) {
+        let index = *index as usize;
+        let storage = LOCAL_STORAGE.lock();
+        if let Some((key, _)) = storage.iter().nth(index) {
+            return Value::String(key.clone());
+        }
+    }
+    Value::Null
+}
+
+/// localStorage.length() -> number of items
+fn js_local_storage_length(_env: &mut Environment, _args: Vec<Value>) -> Value {
+    Value::Number(LOCAL_STORAGE.lock().len() as f64)
 }
 
 /// Create an element proxy object
@@ -250,11 +345,15 @@ fn js_element_add_event_listener(_env: &mut Environment, args: Vec<Value>) -> Va
 
 /// Helper to create native function
 fn create_native_fn(name: &'static str, arity: usize, func: fn(&mut Environment, Vec<Value>) -> Value) -> crate::browser::js::Function {
+    use crate::browser::js::BindingPattern;
     crate::browser::js::Function {
         name: String::from(name),
-        params: (0..arity).map(|i| format!("arg{}", i)).collect(),
+        params: (0..arity).map(|i| BindingPattern::Identifier(format!("arg{}", i))).collect(),
         body: Vec::new(),
         native: Some(func),
+        is_arrow: false,
+        arrow_expr: None,
+        this_binding: None,
     }
 }
 

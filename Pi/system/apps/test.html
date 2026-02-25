@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebbOS Test App</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .card {
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 WebbOS Test Application</h1>
+    
+    <div class="card">
+        <h2>System Status</h2>
+        <p>This HTML file is loaded from the FAT32 filesystem!</p>
+        <p>Features working:</p>
+        <ul>
+            <li>✅ HTML5 parsing</li>
+            <li>✅ CSS3 styling</li>
+            <li>✅ FAT32 file reading</li>
+            <li>✅ Browser rendering</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>Interactive Test</h2>
+        <p>Click the button below:</p>
+        <button onclick="alert('Hello from WebbOS!')">Click Me</button>
+    </div>
+    
+    <div class="card">
+        <h2>About</h2>
+        <p>Running on: WebbOS Pi Port</p>
+        <p>Architecture: ARM64 (AArch64)</p>
+        <p>Browser: WebbOS Browser Engine</p>
+    </div>
+</body>
+</html>

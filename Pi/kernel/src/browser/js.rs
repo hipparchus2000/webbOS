@@ -9,12 +9,73 @@ use alloc::vec;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
+use alloc::format;
 
 use crate::browser::BrowserError;
 use crate::println;
 
+/// Binding pattern for destructuring
+#[derive(Debug, Clone, PartialEq)]
+pub enum BindingPattern {
+    Identifier(String),
+    Array(Vec<BindingPattern>),
+    Object(Vec<(String, BindingPattern)>),
+}
+
+impl BindingPattern {
+    /// Convert binding pattern to string (for simple identifier case)
+    pub fn to_string(&self) -> String {
+        match self {
+            BindingPattern::Identifier(s) => s.clone(),
+            _ => String::new(),
+        }
+    }
+}
+
+/// Promise state
+#[derive(Debug, Clone, PartialEq)]
+pub enum PromiseState {
+    Pending,
+    Fulfilled(Box<Value>),
+    Rejected(Box<Value>),
+}
+
+/// JavaScript Promise
+#[derive(Debug, Clone, PartialEq)]
+pub struct Promise {
+    pub state: Box<PromiseState>,
+    pub on_fulfilled: Vec<Function>,
+    pub on_rejected: Vec<Function>,
+}
+
+impl Promise {
+    pub fn new() -> Self {
+        Self {
+            state: Box::new(PromiseState::Pending),
+            on_fulfilled: Vec::new(),
+            on_rejected: Vec::new(),
+        }
+    }
+
+    pub fn resolve(value: Value) -> Self {
+        Self {
+            state: Box::new(PromiseState::Fulfilled(Box::new(value))),
+            on_fulfilled: Vec::new(),
+            on_rejected: Vec::new(),
+        }
+    }
+
+    pub fn reject(reason: Value) -> Self {
+        Self {
+            state: Box::new(PromiseState::Rejected(Box::new(reason))),
+            on_fulfilled: Vec::new(),
+            on_rejected: Vec::new(),
+        }
+    }
+}
+
 /// JavaScript value types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Undefined,
     Null,
@@ -24,6 +85,7 @@ pub enum Value {
     Object(Object),
     Array(Vec<Value>),
     Function(Function),
+    Promise(Box<Promise>),
 }
 
 /// Simple float truncation (since f64::trunc is not available in no_std)
@@ -81,6 +143,7 @@ impl Value {
             Value::Object(_) => String::from("[object Object]"),
             Value::Array(_) => String::from("[object Array]"),
             Value::Function(_) => String::from("[object Function]"),
+            Value::Promise(_) => String::from("[object Promise]"),
         }
     }
 
@@ -92,12 +155,36 @@ impl Value {
             Value::Number(n) => *n != 0.0 && !n.is_nan(),
             Value::String(s) => !s.is_empty(),
             Value::Object(_) | Value::Array(_) | Value::Function(_) => true,
+            Value::Promise(_) => true,
+        }
+    }
+
+    /// Get property (for objects)
+    pub fn get_property(&self, key: &str) -> Value {
+        match self {
+            Value::Object(obj) => obj.get(key),
+            Value::Array(arr) => {
+                // Handle array length property
+                if key == "length" {
+                    Value::Number(arr.len() as f64)
+                } else {
+                    Value::Undefined
+                }
+            }
+            _ => Value::Undefined,
+        }
+    }
+
+    /// Set property (for objects)
+    pub fn set_property(&mut self, key: &str, value: Value) {
+        if let Value::Object(obj) = self {
+            obj.set(key, value);
         }
     }
 }
 
 /// JavaScript object
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Object {
     pub properties: BTreeMap<String, Value>,
     pub prototype: Option<Box<Object>>,
@@ -125,12 +212,75 @@ impl Object {
 pub type NativeFn = fn(&mut Environment, Vec<Value>) -> Value;
 
 /// JavaScript function
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Function {
     pub name: String,
-    pub params: Vec<String>,
+    pub params: Vec<BindingPattern>,
     pub body: Vec<Statement>,
     pub native: Option<NativeFn>,
+    pub is_arrow: bool,
+    pub arrow_expr: Option<Box<Expr>>, // For arrow functions with expression body
+    pub this_binding: Option<Box<Value>>, // For arrow function `this` binding
+}
+
+impl core::fmt::Debug for Function {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Function")
+            .field("name", &self.name)
+            .field("params", &self.params)
+            .field("body", &self.body)
+            .field("native", &self.native.is_some())
+            .field("is_arrow", &self.is_arrow)
+            .finish()
+    }
+}
+
+impl PartialEq for Function {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.params == other.params
+            && self.body == other.body
+            && self.is_arrow == other.is_arrow
+        // Note: native functions are compared by name only
+    }
+}
+
+impl Function {
+    pub fn new(name: String, params: Vec<String>, body: Vec<Statement>) -> Self {
+        Self {
+            name,
+            params: params.into_iter().map(BindingPattern::Identifier).collect(),
+            body,
+            native: None,
+            is_arrow: false,
+            arrow_expr: None,
+            this_binding: None,
+        }
+    }
+
+    pub fn new_arrow(name: String, params: Vec<String>, body: Vec<Statement>) -> Self {
+        Self {
+            name,
+            params: params.into_iter().map(BindingPattern::Identifier).collect(),
+            body,
+            native: None,
+            is_arrow: true,
+            arrow_expr: None,
+            this_binding: None,
+        }
+    }
+
+    pub fn new_arrow_expr(name: String, params: Vec<String>, expr: Expr) -> Self {
+        Self {
+            name,
+            params: params.into_iter().map(BindingPattern::Identifier).collect(),
+            body: Vec::new(),
+            native: None,
+            is_arrow: true,
+            arrow_expr: Some(Box::new(expr)),
+            this_binding: None,
+        }
+    }
 }
 
 /// Environment for variable scoping
@@ -141,6 +291,8 @@ pub struct Environment {
     global: Object,
     /// Output buffer for console.log
     output: String,
+    /// Current `this` binding
+    this_binding: Value,
 }
 
 impl Environment {
@@ -149,6 +301,7 @@ impl Environment {
             scopes: vec![BTreeMap::new()],
             global: Object::new(),
             output: String::new(),
+            this_binding: Value::Undefined,
         };
 
         // Add built-in functions
@@ -206,6 +359,16 @@ impl Environment {
         }
     }
 
+    /// Get current `this` binding
+    pub fn get_this(&self) -> Value {
+        self.this_binding.clone()
+    }
+
+    /// Set `this` binding
+    pub fn set_this(&mut self, value: Value) {
+        self.this_binding = value;
+    }
+
     /// Log output
     pub fn log(&mut self, msg: &str) {
         self.output.push_str(msg);
@@ -220,11 +383,12 @@ impl Environment {
 }
 
 /// Token types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Token {
     Identifier(String),
     Number(f64),
     String(String),
+    Template(String), // Template literal part (backtick string without ${...})
     Keyword(String),
     Operator(String),
     LParen,
@@ -237,6 +401,9 @@ enum Token {
     Comma,
     Dot,
     Colon,
+    Arrow,      // =>
+    Backtick,   // `
+    Ellipsis,   // ...
     EOF,
 }
 
@@ -244,7 +411,8 @@ enum Token {
 const KEYWORDS: &[&str] = &[
     "var", "let", "const", "function", "return", "if", "else", "while",
     "for", "break", "continue", "true", "false", "null", "undefined",
-    "new", "this", "typeof", "instanceof", "in", "of",
+    "new", "this", "typeof", "instanceof", "in", "of", "class",
+    "constructor", "extends", "super", "static", "get", "set",
 ];
 
 /// Tokenizer
@@ -342,24 +510,107 @@ impl<'a> Tokenizer<'a> {
         s
     }
 
+    fn read_template(&mut self) -> (String, bool) {
+        let mut s = String::new();
+        let mut has_expr = false;
+
+        while let Some(ch) = self.peek() {
+            if ch == b'`' {
+                self.next(); // consume closing backtick
+                break;
+            }
+            if ch == b'$' {
+                self.next();
+                if let Some(b'{') = self.peek() {
+                    // Found ${ - end of template part
+                    self.next(); // consume {
+                    has_expr = true;
+                    break;
+                } else {
+                    // Just a $ character
+                    s.push('$');
+                }
+            } else if ch == b'\\' {
+                self.next();
+                if let Some(escaped) = self.next() {
+                    match escaped {
+                        b'n' => s.push('\n'),
+                        b't' => s.push('\t'),
+                        b'r' => s.push('\r'),
+                        b'\\' => s.push('\\'),
+                        b'`' => s.push('`'),
+                        b'$' => s.push('$'),
+                        _ => s.push(escaped as char),
+                    }
+                }
+            } else {
+                s.push(ch as char);
+                self.next();
+            }
+        }
+
+        (s, has_expr)
+    }
+
     fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
+        let mut in_template = false;
 
         loop {
             self.skip_whitespace();
+
+            if in_template {
+                // We're inside a template literal, read until ${ or `
+                let (s, has_expr) = self.read_template();
+                if !s.is_empty() {
+                    tokens.push(Token::Template(s));
+                }
+                if has_expr {
+                    // Continue to parse the expression
+                    in_template = true;
+                    tokens.push(Token::LBrace); // ${ was already consumed
+                    continue;
+                } else {
+                    // Template ended
+                    in_template = false;
+                    tokens.push(Token::Backtick);
+                    continue;
+                }
+            }
 
             match self.peek() {
                 None => break,
                 Some(b'(') => { tokens.push(Token::LParen); self.next(); }
                 Some(b')') => { tokens.push(Token::RParen); self.next(); }
                 Some(b'{') => { tokens.push(Token::LBrace); self.next(); }
-                Some(b'}') => { tokens.push(Token::RBrace); self.next(); }
+                Some(b'}') => { 
+                    tokens.push(Token::RBrace); 
+                    self.next();
+                    // Check if we're closing a template expression
+                    if in_template {
+                        // Continue reading the template
+                        let (s, has_expr) = self.read_template();
+                        if !s.is_empty() {
+                            tokens.push(Token::Template(s));
+                        }
+                        if has_expr {
+                            tokens.push(Token::LBrace);
+                        } else {
+                            in_template = false;
+                            tokens.push(Token::Backtick);
+                        }
+                    }
+                }
                 Some(b'[') => { tokens.push(Token::LBracket); self.next(); }
                 Some(b']') => { tokens.push(Token::RBracket); self.next(); }
                 Some(b';') => { tokens.push(Token::Semicolon); self.next(); }
                 Some(b',') => { tokens.push(Token::Comma); self.next(); }
-                Some(b'.') => { tokens.push(Token::Dot); self.next(); }
                 Some(b':') => { tokens.push(Token::Colon); self.next(); }
+                Some(b'`') => {
+                    self.next(); // consume opening backtick
+                    tokens.push(Token::Backtick);
+                    in_template = true;
+                }
                 Some(b'"') | Some(b'\'') => {
                     let quote = self.peek().unwrap();
                     let s = self.read_string(quote);
@@ -378,10 +629,34 @@ impl<'a> Tokenizer<'a> {
                     }
                 }
                 Some(ch) => {
-                    // Operators
+                    // Operators and special tokens
                     let mut op = String::new();
                     op.push(ch as char);
                     self.next();
+                    
+                    // Check for special tokens
+                    if ch == b'=' {
+                        if let Some(b'>') = self.peek() {
+                            self.next();
+                            tokens.push(Token::Arrow);
+                            continue;
+                        }
+                    } else if ch == b'.' {
+                        // Check for ellipsis (...)
+                        if self.peek() == Some(b'.') {
+                            self.next();
+                            if self.peek() == Some(b'.') {
+                                self.next();
+                                tokens.push(Token::Ellipsis);
+                                continue;
+                            } else {
+                                // Two dots - push first as dot, second will be handled next
+                                tokens.push(Token::Dot);
+                                tokens.push(Token::Dot);
+                                continue;
+                            }
+                        }
+                    }
                     
                     // Check for two-character operators
                     if let Some(next) = self.peek() {
@@ -404,7 +679,7 @@ impl<'a> Tokenizer<'a> {
 }
 
 /// Statement types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     VarDecl(String, Option<Expr>),
     LetDecl(String, Option<Expr>),
@@ -413,12 +688,23 @@ pub enum Statement {
     Return(Option<Expr>),
     If(Expr, Box<Statement>, Option<Box<Statement>>),
     While(Expr, Box<Statement>),
+    For(Box<Statement>, Option<Expr>, Option<Expr>, Box<Statement>),
     Block(Vec<Statement>),
     FunctionDecl(String, Vec<String>, Vec<Statement>),
+    ClassDecl(String, Option<String>, Vec<ClassMember>), // name, extends, members
+}
+
+/// Class member types
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClassMember {
+    Constructor(Vec<String>, Vec<Statement>),
+    Method(String, Vec<String>, Vec<Statement>),
+    StaticMethod(String, Vec<String>, Vec<Statement>),
+    Property(String, Expr),
 }
 
 /// Expression types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Identifier(String),
     Number(f64),
@@ -433,6 +719,18 @@ pub enum Expr {
     Array(Vec<Expr>),
     Object(Vec<(String, Expr)>),
     Assign(Box<Expr>, Box<Expr>),
+    ArrowFunction(Vec<String>, Box<Expr>), // params, body (expression or block)
+    ArrowFunctionBlock(Vec<String>, Vec<Statement>), // params, statements
+    TemplateLiteral(Vec<TemplatePart>),
+    Spread(Box<Expr>),
+    New(Box<Expr>, Vec<Expr>),
+}
+
+/// Template literal part
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplatePart {
+    String(String),
+    Expression(Expr),
 }
 
 /// Parser
@@ -486,6 +784,8 @@ impl Parser {
                     "return" => self.parse_return(),
                     "if" => self.parse_if(),
                     "while" => self.parse_while(),
+                    "for" => self.parse_for(),
+                    "class" => self.parse_class_decl(),
                     _ => Err(BrowserError::JsError),
                 }
             }
@@ -572,10 +872,81 @@ impl Parser {
         Ok(Statement::FunctionDecl(name, params, body))
     }
 
+    fn parse_class_decl(&mut self) -> Result<Statement, BrowserError> {
+        self.next(); // consume 'class'
+        
+        let name = match self.next() {
+            Token::Identifier(n) => n,
+            _ => return Err(BrowserError::JsError),
+        };
+
+        // Check for extends
+        let extends = if matches!(self.peek(), Token::Keyword(kw) if kw == "extends") {
+            self.next(); // consume 'extends'
+            match self.next() {
+                Token::Identifier(n) => Some(n),
+                _ => return Err(BrowserError::JsError),
+            }
+        } else {
+            None
+        };
+
+        self.expect(Token::LBrace)?;
+        
+        let mut members = Vec::new();
+        
+        while !matches!(self.peek(), Token::RBrace | Token::EOF) {
+            let is_static = if matches!(self.peek(), Token::Keyword(kw) if kw == "static") {
+                self.next();
+                true
+            } else {
+                false
+            };
+
+            let member_name = match self.next() {
+                Token::Identifier(n) | Token::Keyword(n) => n,
+                _ => return Err(BrowserError::JsError),
+            };
+
+            if member_name == "constructor" && !is_static {
+                self.expect(Token::LParen)?;
+                let params = self.parse_params()?;
+                self.expect(Token::RParen)?;
+                let body = self.parse_block_body()?;
+                members.push(ClassMember::Constructor(params, body));
+            } else {
+                self.expect(Token::LParen)?;
+                let params = self.parse_params()?;
+                self.expect(Token::RParen)?;
+                let body = self.parse_block_body()?;
+                if is_static {
+                    members.push(ClassMember::StaticMethod(member_name, params, body));
+                } else {
+                    members.push(ClassMember::Method(member_name, params, body));
+                }
+            }
+        }
+
+        self.expect(Token::RBrace)?;
+
+        Ok(Statement::ClassDecl(name, extends, members))
+    }
+
     fn parse_params(&mut self) -> Result<Vec<String>, BrowserError> {
         let mut params = Vec::new();
         
         while !matches!(self.peek(), Token::RParen) {
+            // Handle rest parameter
+            if matches!(self.peek(), Token::Ellipsis) {
+                self.next(); // consume ...
+                let name = match self.next() {
+                    Token::Identifier(n) => n,
+                    _ => return Err(BrowserError::JsError),
+                };
+                params.push(format!("...{}", name));
+                break;
+            }
+
             match self.next() {
                 Token::Identifier(n) => params.push(n),
                 _ => return Err(BrowserError::JsError),
@@ -634,6 +1005,58 @@ impl Parser {
         Ok(Statement::While(cond, body))
     }
 
+    fn parse_for(&mut self) -> Result<Statement, BrowserError> {
+        self.next(); // consume 'for'
+        self.expect(Token::LParen)?;
+        
+        // Parse init (can be var/let/const or expression)
+        let init = match self.peek() {
+            Token::Keyword(kw) if kw == "var" || kw == "let" || kw == "const" => {
+                match kw.as_str() {
+                    "var" => self.parse_var_decl()?,
+                    "let" => self.parse_let_decl()?,
+                    "const" => self.parse_const_decl()?,
+                    _ => return Err(BrowserError::JsError),
+                }
+            }
+            _ => {
+                let expr = self.parse_expr()?;
+                Statement::Expr(expr)
+            }
+        };
+
+        if matches!(self.peek(), Token::Keyword(kw) if kw == "in" || kw == "of") {
+            // For-in or for-of loop (simplified)
+            self.next(); // consume in/of
+            let _iterable = self.parse_expr()?;
+            self.expect(Token::RParen)?;
+            let body = Box::new(self.parse_statement()?);
+            // Return as regular while loop for now
+            return Ok(Statement::For(Box::new(init), None, None, body));
+        }
+
+        self.expect(Token::Semicolon)?;
+        
+        let cond = if matches!(self.peek(), Token::Semicolon) {
+            None
+        } else {
+            Some(self.parse_expr()?)
+        };
+        
+        self.expect(Token::Semicolon)?;
+        
+        let update = if matches!(self.peek(), Token::RParen) {
+            None
+        } else {
+            Some(self.parse_expr()?)
+        };
+        
+        self.expect(Token::RParen)?;
+        let body = Box::new(self.parse_statement()?);
+
+        Ok(Statement::For(Box::new(init), cond, update, body))
+    }
+
     fn parse_block(&mut self) -> Result<Statement, BrowserError> {
         self.expect(Token::LBrace)?;
         let body = self.parse_block_body()?;
@@ -656,12 +1079,99 @@ impl Parser {
     }
 
     fn parse_assignment(&mut self) -> Result<Expr, BrowserError> {
-        let left = self.parse_equality()?;
+        let left = self.parse_arrow_function()?;
 
         if matches!(self.peek(), Token::Operator(op) if op == "=") {
             self.next();
             let right = self.parse_assignment()?;
             return Ok(Expr::Assign(Box::new(left), Box::new(right)));
+        }
+
+        Ok(left)
+    }
+
+    fn parse_arrow_function(&mut self) -> Result<Expr, BrowserError> {
+        // Check for arrow function: (params) => expr or (params) => { body }
+        // Also: param => expr (single parameter without parens)
+        
+        let saved_pos = self.pos;
+        
+        // Try to parse params
+        let params = if matches!(self.peek(), Token::LParen) {
+            self.next(); // consume '('
+            let params = self.parse_params()?;
+            if !matches!(self.next(), Token::RParen) {
+                self.pos = saved_pos;
+                return self.parse_spread();
+            }
+            params
+        } else if let Token::Identifier(name) = self.peek() {
+            // Single parameter without parens
+            let name = name.clone();
+            self.next();
+            vec![name]
+        } else {
+            return self.parse_spread();
+        };
+
+        // Check for arrow
+        if matches!(self.peek(), Token::Arrow) {
+            self.next(); // consume '=>'
+            
+            // Check for block body
+            if matches!(self.peek(), Token::LBrace) {
+                let body = self.parse_block_body()?;
+                Ok(Expr::ArrowFunctionBlock(params, body))
+            } else {
+                // Expression body
+                let expr = self.parse_expr()?;
+                Ok(Expr::ArrowFunction(params, Box::new(expr)))
+            }
+        } else {
+            // Not an arrow function, restore position
+            self.pos = saved_pos;
+            self.parse_spread()
+        }
+    }
+
+    fn parse_spread(&mut self) -> Result<Expr, BrowserError> {
+        if matches!(self.peek(), Token::Ellipsis) {
+            self.next(); // consume ...
+            let expr = self.parse_unary()?;
+            return Ok(Expr::Spread(Box::new(expr)));
+        }
+        self.parse_or()
+    }
+
+    fn parse_or(&mut self) -> Result<Expr, BrowserError> {
+        let mut left = self.parse_and()?;
+
+        while let Token::Operator(op) = self.peek() {
+            if op == "||" {
+                let op = op.clone();
+                self.next();
+                let right = self.parse_and()?;
+                left = Expr::Binary(op, Box::new(left), Box::new(right));
+            } else {
+                break;
+            }
+        }
+
+        Ok(left)
+    }
+
+    fn parse_and(&mut self) -> Result<Expr, BrowserError> {
+        let mut left = self.parse_equality()?;
+
+        while let Token::Operator(op) = self.peek() {
+            if op == "&&" {
+                let op = op.clone();
+                self.next();
+                let right = self.parse_equality()?;
+                left = Expr::Binary(op, Box::new(left), Box::new(right));
+            } else {
+                break;
+            }
         }
 
         Ok(left)
@@ -737,12 +1247,26 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Result<Expr, BrowserError> {
         if let Token::Operator(op) = self.peek() {
-            if op == "-" || op == "!" {
+            if op == "-" || op == "!" || op == "typeof" {
                 let op = op.clone();
                 self.next();
                 let operand = self.parse_unary()?;
                 return Ok(Expr::Unary(op, Box::new(operand)));
             }
+        }
+
+        if matches!(self.peek(), Token::Keyword(kw) if kw == "new") {
+            self.next(); // consume 'new'
+            let ctor = self.parse_call()?;
+            let args = if matches!(self.peek(), Token::LParen) {
+                self.next();
+                let args = self.parse_args()?;
+                self.expect(Token::RParen)?;
+                args
+            } else {
+                Vec::new()
+            };
+            return Ok(Expr::New(Box::new(ctor), args));
         }
 
         self.parse_call()
@@ -767,6 +1291,17 @@ impl Parser {
                         }
                         _ => return Err(BrowserError::JsError),
                     }
+                }
+                Token::LBracket => {
+                    // Dynamic property access: obj[prop]
+                    self.next();
+                    let index = self.parse_expr()?;
+                    self.expect(Token::RBracket)?;
+                    // Represent as member with string conversion
+                    expr = Expr::Call(
+                        Box::new(Expr::Member(Box::new(expr), String::from("__get"))),
+                        vec![index]
+                    );
                 }
                 _ => break,
             }
@@ -800,6 +1335,7 @@ impl Parser {
                     "false" => Ok(Expr::Boolean(false)),
                     "null" => Ok(Expr::Null),
                     "undefined" => Ok(Expr::Undefined),
+                    "this" => Ok(Expr::Identifier(String::from("this"))),
                     _ => Err(BrowserError::JsError),
                 }
             }
@@ -827,6 +1363,7 @@ impl Parser {
                 while !matches!(self.peek(), Token::RBrace) {
                     let key = match self.next() {
                         Token::Identifier(n) | Token::String(n) => n,
+                        Token::Keyword(n) => n,
                         _ => return Err(BrowserError::JsError),
                     };
                     self.expect(Token::Colon)?;
@@ -841,8 +1378,54 @@ impl Parser {
                 self.expect(Token::RBrace)?;
                 Ok(Expr::Object(props))
             }
+            Token::Backtick => {
+                self.parse_template_literal()
+            }
             _ => Err(BrowserError::JsError),
         }
+    }
+
+    fn parse_template_literal(&mut self) -> Result<Expr, BrowserError> {
+        let mut parts = Vec::new();
+        
+        // First Backtick token was already consumed by parse_primary
+        // Now we should see either Template parts or expressions
+        
+        loop {
+            match self.peek() {
+                Token::Template(s) => {
+                    parts.push(TemplatePart::String(s.clone()));
+                    self.next();
+                }
+                Token::LBrace => {
+                    // This is ${...} expression - the LBrace represents the {
+                    self.next(); // consume {
+                    let expr = self.parse_expr()?;
+                    parts.push(TemplatePart::Expression(expr));
+                    // Expect the closing }
+                    if !matches!(self.peek(), Token::RBrace) {
+                        return Err(BrowserError::JsError);
+                    }
+                    self.next(); // consume }
+                }
+                Token::RBrace => {
+                    // Closing brace after template expression - just consume it
+                    self.next();
+                }
+                Token::Backtick => {
+                    // End of template
+                    self.next();
+                    break;
+                }
+                Token::EOF => break,
+                _ => {
+                    // Unexpected token, but try to continue
+                    self.next();
+                }
+            }
+        }
+        
+        Ok(Expr::TemplateLiteral(parts))
     }
 }
 
@@ -925,6 +1508,43 @@ fn evaluate_statement(env: &mut Environment, stmt: &Statement) -> Result<Value, 
             }
             Ok(Value::Undefined)
         }
+        Statement::For(init, cond, update, body) => {
+            env.push_scope();
+            
+            // Execute init
+            if let Statement::VarDecl(name, init_expr) = init.as_ref() {
+                let value = if let Some(expr) = init_expr {
+                    evaluate_expr(env, expr)?
+                } else {
+                    Value::Undefined
+                };
+                env.define(name, value);
+            } else {
+                evaluate_statement(env, init)?;
+            }
+            
+            // Loop
+            loop {
+                // Check condition
+                if let Some(cond_expr) = cond {
+                    let cond_value = evaluate_expr(env, cond_expr)?;
+                    if !cond_value.is_truthy() {
+                        break;
+                    }
+                }
+                
+                // Execute body
+                evaluate_statement(env, body)?;
+                
+                // Update
+                if let Some(update_expr) = update {
+                    evaluate_expr(env, update_expr)?;
+                }
+            }
+            
+            env.pop_scope();
+            Ok(Value::Undefined)
+        }
         Statement::Block(stmts) => {
             env.push_scope();
             let mut result = Value::Undefined;
@@ -935,13 +1555,38 @@ fn evaluate_statement(env: &mut Environment, stmt: &Statement) -> Result<Value, 
             Ok(result)
         }
         Statement::FunctionDecl(name, params, body) => {
-            let func = Value::Function(Function {
-                name: name.clone(),
-                params: params.clone(),
-                body: body.clone(),
-                native: None,
-            });
+            let func = Value::Function(Function::new(name.clone(), params.clone(), body.clone()));
             env.define(name, func);
+            Ok(Value::Undefined)
+        }
+        Statement::ClassDecl(name, _extends, members) => {
+            // Create constructor function
+            let mut constructor_params = Vec::new();
+            let mut constructor_body = Vec::new();
+            
+            for member in members {
+                match member {
+                    ClassMember::Constructor(params, body) => {
+                        constructor_params = params.clone();
+                        constructor_body = body.clone();
+                    }
+                    ClassMember::Method(_, _, _) => {}
+                    ClassMember::StaticMethod(_, _, _) => {}
+                    ClassMember::Property(_, _) => {}
+                }
+            }
+            
+            // Create the constructor function
+            let _ = _extends;
+            let constructor = Value::Function(Function::new(
+                name.clone(),
+                constructor_params,
+                constructor_body,
+            ));
+            
+            // Store class
+            env.define(name, constructor);
+            
             Ok(Value::Undefined)
         }
     }
@@ -950,7 +1595,13 @@ fn evaluate_statement(env: &mut Environment, stmt: &Statement) -> Result<Value, 
 /// Evaluate expression
 fn evaluate_expr(env: &mut Environment, expr: &Expr) -> Result<Value, BrowserError> {
     match expr {
-        Expr::Identifier(name) => Ok(env.get(name)),
+        Expr::Identifier(name) => {
+            if name == "this" {
+                Ok(env.get_this())
+            } else {
+                Ok(env.get(name))
+            }
+        }
         Expr::Number(n) => Ok(Value::Number(*n)),
         Expr::String(s) => Ok(Value::String(s.clone())),
         Expr::Boolean(b) => Ok(Value::Boolean(*b)),
@@ -1022,28 +1673,103 @@ fn evaluate_expr(env: &mut Environment, expr: &Expr) -> Result<Value, BrowserErr
                     _ => Ok(Value::Number(f64::NAN)),
                 }
                 "!" => Ok(Value::Boolean(!val.is_truthy())),
+                "typeof" => {
+                    let type_str = match val {
+                        Value::Undefined => "undefined",
+                        Value::Null => "object",
+                        Value::Boolean(_) => "boolean",
+                        Value::Number(_) => "number",
+                        Value::String(_) => "string",
+                        Value::Object(_) => "object",
+                        Value::Array(_) => "object",
+                        Value::Function(_) => "function",
+                        Value::Promise(_) => "object",
+                    };
+                    Ok(Value::String(String::from(type_str)))
+                }
                 _ => Ok(Value::Undefined),
             }
         }
         Expr::Call(callee, args) => {
             let func_val = evaluate_expr(env, callee)?;
             
-            let arg_values: Vec<Value> = args.iter()
-                .map(|arg| evaluate_expr(env, arg).unwrap_or(Value::Undefined))
-                .collect();
+            // Handle spread operator in arguments
+            let mut arg_values: Vec<Value> = Vec::new();
+            for arg in args {
+                match arg {
+                    Expr::Spread(expr) => {
+                        let spread_val = evaluate_expr(env, expr)?;
+                        if let Value::Array(arr) = spread_val {
+                            arg_values.extend(arr);
+                        }
+                    }
+                    _ => {
+                        arg_values.push(evaluate_expr(env, arg)?);
+                    }
+                }
+            }
 
             match func_val {
                 Value::Function(func) => {
                     if let Some(native) = func.native {
                         Ok(native(env, arg_values))
-                    } else {
-                        // User-defined function
+                    } else if func.is_arrow {
+                        // Arrow function - capture `this` at definition time
+                        let saved_this = env.get_this();
+                        
                         env.push_scope();
                         
                         // Bind parameters
                         for (i, param) in func.params.iter().enumerate() {
-                            let value = arg_values.get(i).cloned().unwrap_or(Value::Undefined);
-                            env.define(param, value);
+                            let param_name = param.to_string();
+                            if param_name.starts_with("...") {
+                                // Rest parameter
+                                let rest_name = &param_name[3..];
+                                let rest_values: Vec<Value> = arg_values[i..].to_vec();
+                                env.define(rest_name, Value::Array(rest_values));
+                                break;
+                            } else {
+                                let value = arg_values.get(i).cloned().unwrap_or(Value::Undefined);
+                                env.define(&param_name, value);
+                            }
+                        }
+
+                        // Execute body
+                        let result = if let Some(arrow_expr) = &func.arrow_expr {
+                            // Expression body
+                            evaluate_expr(env, arrow_expr)?
+                        } else {
+                            // Block body
+                            let mut result = Value::Undefined;
+                            for stmt in &func.body {
+                                result = evaluate_statement(env, stmt)?;
+                            }
+                            result
+                        };
+
+                        env.pop_scope();
+                        
+                        // Restore `this` binding
+                        env.set_this(saved_this);
+                        
+                        Ok(result)
+                    } else {
+                        // Regular function
+                        env.push_scope();
+                        
+                        // Bind parameters
+                        for (i, param) in func.params.iter().enumerate() {
+                            let param_name = param.to_string();
+                            if param_name.starts_with("...") {
+                                // Rest parameter
+                                let rest_name = &param_name[3..];
+                                let rest_values: Vec<Value> = arg_values[i..].to_vec();
+                                env.define(rest_name, Value::Array(rest_values));
+                                break;
+                            } else {
+                                let value = arg_values.get(i).cloned().unwrap_or(Value::Undefined);
+                                env.define(&param_name, value);
+                            }
                         }
 
                         // Execute body
@@ -1063,13 +1789,31 @@ fn evaluate_expr(env: &mut Environment, expr: &Expr) -> Result<Value, BrowserErr
             let obj_val = evaluate_expr(env, obj)?;
             match obj_val {
                 Value::Object(o) => Ok(o.get(prop)),
+                Value::Array(arr) => {
+                    if prop == "length" {
+                        Ok(Value::Number(arr.len() as f64))
+                    } else {
+                        Ok(Value::Undefined)
+                    }
+                }
                 _ => Ok(Value::Undefined),
             }
         }
         Expr::Array(elements) => {
-            let values: Vec<Value> = elements.iter()
-                .map(|e| evaluate_expr(env, e).unwrap_or(Value::Undefined))
-                .collect();
+            let mut values: Vec<Value> = Vec::new();
+            for e in elements {
+                match e {
+                    Expr::Spread(expr) => {
+                        let spread_val = evaluate_expr(env, expr)?;
+                        if let Value::Array(arr) = spread_val {
+                            values.extend(arr);
+                        }
+                    }
+                    _ => {
+                        values.push(evaluate_expr(env, e).unwrap_or(Value::Undefined));
+                    }
+                }
+            }
             Ok(Value::Array(values))
         }
         Expr::Object(props) => {
@@ -1087,10 +1831,114 @@ fn evaluate_expr(env: &mut Environment, expr: &Expr) -> Result<Value, BrowserErr
             }
             Ok(value)
         }
+        Expr::ArrowFunction(params, body) => {
+            // Expression arrow function: (a, b) => a + b
+            let func = Function::new_arrow_expr(
+                String::from(""),
+                params.clone(),
+                *body.clone(),
+            );
+            Ok(Value::Function(func))
+        }
+        Expr::ArrowFunctionBlock(params, body) => {
+            // Block arrow function: (a, b) => { return a + b; }
+            let func = Function::new_arrow(
+                String::from(""),
+                params.clone(),
+                body.clone(),
+            );
+            Ok(Value::Function(func))
+        }
+        Expr::TemplateLiteral(parts) => {
+            let mut result = String::new();
+            for part in parts {
+                match part {
+                    TemplatePart::String(s) => result.push_str(s),
+                    TemplatePart::Expression(expr) => {
+                        let val = evaluate_expr(env, expr)?;
+                        result.push_str(&val.to_string());
+                    }
+                }
+            }
+            Ok(Value::String(result))
+        }
+        Expr::Spread(expr) => {
+            // Spread in expression context returns an array
+            evaluate_expr(env, expr)
+        }
+        Expr::New(ctor, args) => {
+            let ctor_val = evaluate_expr(env, ctor)?;
+            let arg_values: Vec<Value> = args.iter()
+                .map(|arg| evaluate_expr(env, arg).unwrap_or(Value::Undefined))
+                .collect();
+            
+            match ctor_val {
+                Value::Function(func) => {
+                    // Create new object
+                    let new_obj = Object::new();
+                    
+                    env.push_scope();
+                    
+                    // Bind `this`
+                    env.set_this(Value::Object(new_obj.clone()));
+                    
+                    // Bind parameters and execute constructor
+                    for (i, param) in func.params.iter().enumerate() {
+                        let value = arg_values.get(i).cloned().unwrap_or(Value::Undefined);
+                        let param_name = param.to_string();
+                        env.define(&param_name, value);
+                    }
+                    
+                    for stmt in &func.body {
+                        evaluate_statement(env, stmt)?;
+                    }
+                    
+                    env.pop_scope();
+                    
+                    Ok(Value::Object(new_obj))
+                }
+                _ => Ok(Value::Undefined),
+            }
+        }
     }
 }
 
 /// Initialize JavaScript engine
 pub fn init() {
     println!("[js] JavaScript engine initialized");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arrow_function_expression() {
+        let code = b"const add = (a, b) => a + b; add(1, 2);";
+        assert!(execute(code).is_ok());
+    }
+
+    #[test]
+    fn test_arrow_function_block() {
+        let code = b"const add = (a, b) => { return a + b; }; add(1, 2);";
+        assert!(execute(code).is_ok());
+    }
+
+    #[test]
+    fn test_class_declaration() {
+        let code = b"class Person { constructor(name) { this.name = name; } greet() { return \"Hello \" + this.name; } } new Person(\"World\");";
+        assert!(execute(code).is_ok());
+    }
+
+    #[test]
+    fn test_template_literal() {
+        let code = b"const name = \"World\"; const msg = `Hello ${name}!`;";
+        assert!(execute(code).is_ok());
+    }
+
+    #[test]
+    fn test_spread_array() {
+        let code = b"const arr1 = [1, 2]; const arr2 = [...arr1, 3];";
+        assert!(execute(code).is_ok());
+    }
 }

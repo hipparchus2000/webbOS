@@ -9,6 +9,12 @@ A web browser operating system that boots directly into a desktop environment wi
 
 - **🖥️ Desktop Environment** - Modern HTML/CSS-based desktop with windows, taskbar, and start menu
 - **🎨 Built-in Apps** - Notepad, Paint, File Manager, Task Manager, User Manager, Terminal, Web Browser
+- **🌐 Browser Engine** - HTML5/CSS3/JS engine with:
+  - HTML5 parsing and DOM
+  - CSS3: gradients, shadows, transforms, flexbox, grid, animations
+  - JavaScript ES6+ interpreter
+  - WebAssembly parser
+  - Canvas 2D rendering
 - **👤 User Management** - Multi-user support with SHA-256 authentication and sessions
 - **🌐 Full Networking** - TCP/IP, HTTP/HTTPS, TLS 1.3, DNS resolver, DHCP
 - **💾 File Systems** - EXT2, FAT32 with SD card storage
@@ -208,6 +214,45 @@ python make-raw-image.py target/aarch64-unknown-none/release/bootloader target/a
 
 # Create SD card image (for real Pi)
 python scripts/create-sdcard.py target/aarch64-unknown-none/release/bootloader -o webbos-pi.img
+```
+
+## 🚀 Running HTML Apps from FAT32
+
+WebbOS can run HTML applications directly from the SD card's FAT32 filesystem:
+
+1. **Copy HTML files** to the SD card's root directory or `/Apps` folder
+2. **Boot WebbOS** on your Raspberry Pi
+3. **Login** to the desktop
+4. **Click the Files icon** in the dock to open File Manager
+5. **HTML files** will appear as icons on the desktop
+6. **Click an HTML file** to open it in the browser
+
+### Example App
+
+See `system/apps/test.html` for a sample application that demonstrates:
+- HTML5 rendering
+- CSS3 styling (gradients, shadows, blur effects)
+- JavaScript interactivity
+- FAT32 file system access
+
+### Creating Apps
+
+Any valid HTML file can be an app:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My App</title>
+    <style>
+        body { background: #333; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Hello from FAT32!</h1>
+    <button onclick="alert('Works!')">Click</button>
+</body>
+</html>
 ```
 
 ## 📚 Documentation

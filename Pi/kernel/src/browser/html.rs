@@ -8,6 +8,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::browser::BrowserError;
+use crate::browser::css::Stylesheet;
 use crate::println;
 
 /// HTML Document
@@ -20,6 +21,8 @@ pub struct Document {
     pub scripts: Vec<Script>,
     /// Document stylesheets
     pub stylesheets: Vec<StylesheetRef>,
+    /// Computed stylesheet (filled after CSS parsing, includes keyframes)
+    pub computed_stylesheet: Option<Stylesheet>,
 }
 
 impl Document {
@@ -429,6 +432,7 @@ impl DomBuilder {
             root,
             scripts: self.scripts,
             stylesheets: self.stylesheets,
+            computed_stylesheet: None,
         })
     }
 }
@@ -476,5 +480,6 @@ pub fn create_test_document() -> Document {
         root: html,
         scripts: Vec::new(),
         stylesheets: Vec::new(),
+        computed_stylesheet: None,
     }
 }

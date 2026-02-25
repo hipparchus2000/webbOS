@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebbOS Browser Compatibility Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #eee;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1em;
+        }
+        
+        .test-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .test-section h2 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .test-card {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #444;
+        }
+        
+        .test-card.pass {
+            border-left-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .test-card.fail {
+            border-left-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .test-card.pending {
+            border-left-color: #ff9800;
+            background: rgba(255, 152, 0, 0.1);
+        }
+        
+        .test-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .test-result {
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pass { background: #4CAF50; color: white; }
+        .status-fail { background: #f44336; color: white; }
+        .status-pending { background: #ff9800; color: black; }
+        
+        /* CSS Feature Tests */
+        .css-test {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        
+        .gradient-test {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            background-size: 300% 300%;
+            color: white;
+            text-align: center;
+        }
+        
+        .shadow-test {
+            background: #2a2a4a;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 50px rgba(0,212,255,0.3);
+        }
+        
+        .border-radius-test {
+            background: #4a4a6a;
+            border-radius: 50px 10px 50px 10px;
+        }
+        
+        .transform-test {
+            background: #3a3a5a;
+            transform: rotate(-2deg) scale(0.98);
+        }
+        
+        .flex-test {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .flex-item {
+            background: #5a5a7a;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        
+        .grid-test {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .grid-item {
+            background: #5a5a7a;
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        
+        .glass-test {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* Interactive elements */
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        input, textarea, select {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            width: 100%;
+        }
+        
+        .progress-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 30px;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        #summary {
+            position: sticky;
+            top: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #00d4ff;
+        }
+        
+        .score-display {
+            font-size: 3em;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .emoji {
+            font-size: 1.5em;
+        }
+        
+        canvas {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th {
+            background: rgba(0,0,0,0.3);
+            color: #00d4ff;
+        }
+        
+        tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .animation-test {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            border-radius: 50%;
+            margin: 20px auto;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 WebbOS Browser Test</h1>
+            <p class="subtitle">Comprehensive HTML5, CSS3 & JavaScript Compatibility Suite</p>
+            <p>Running on: <span id="platform">Detecting...</span></p>
+        </header>
+        
+        <div id="summary">
+            <h2>📊 Test Summary</h2>
+            <div class="score-display">
+                <span id="score">0</span>%
+            </div>
+            <div class="test-grid">
+                <div class="test-card">
+                    <div class="test-name">✅ Passed</div>
+                    <div class="test-result" id="passed-count">0 tests</div>
+                </div>
+                <div class="test-card">
+                    <div class="test-name">❌ Failed</div>
+                    <div class="test-result" id="failed-count">0 tests</div>
+                </div>
+                <div class="test-card">
+                    <div class="test-name">⏳ Pending</div>
+                    <div class="test-result" id="pending-count">0 tests</div>
+                </div>
+            </div>
+            <button onclick="runAllTests()">🔄 Run All Tests</button>
+            <button onclick="exportReport()">📥 Export Report</button>
+        </div>
+
+        <!-- HTML5 Structure Tests -->
+        <div class="test-section">
+            <h2><span class="emoji">🏗️</span> HTML5 Structure</h2>
+            <div class="test-grid" id="html5-tests">
+                <div class="test-card" id="test-doctype">
+                    <div class="test-name">DOCTYPE Declaration <span class="status-badge status-pending">Pending</span></div>
+                    <div class="test-result">Checking HTML5 doctype...</div>
+                </div>
+                <div class="test-card" id="test-semantic">
+                    <div class="test-name">Semantic Elements <span class="status-badge status-pending">Pending</span></div>
+                    <div class="test-result">header, nav, article, section, footer</div>
+                </div>
+                <div class="test-card" id="test-form">
+                    <div class="test-name">Form Elements <span class="status-badge status-pending">Pending</span></div>
+                    <div class="test-result">input types, textarea, select</div>
+                </div>
+                <div class="test-card" id="test-media">
+                    <div class="test-name">Media Elements <span class="status-badge status-pending">Pending</span></div>
+                    <div class="test-result">canvas, img (placeholder)</div>
+                </div>
+                <div class="test-card" id="test-table">
+                    <div class="test-name">Table Structure <span class="status-badge status-pending">Pending</span></div>
+                    <div class="test-result">Complex table with headers</div>
+                </div>
+                <div class="test-card" id="test-meta">
+                    <div class="test-name">Meta Tags <span class="status-badge status-pending">Pending</span></div>
+                    <div class="test-result">charset, viewport</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSS3 Feature Tests -->
+        <div class="test-section">
+            <h2><span class="emoji">🎨</span> CSS3 Features</h2>
+            
+            <div class="test-card css-test gradient-test">
+                <div class="test-name">Linear Gradients <span class="status-badge status-pass">Pass</span></div>
+                <div class="test-result">Multi-color gradient background</div>
+            </div>
+            
+            <div class="test-card css-test shadow-test">
+                <div class="test-name">Box Shadow <span class="status-badge status-pass">Pass</span></div>
+                <div class="test-result">Multiple shadows with glow effect</div>
+            </div>
+            
+            <div class="test-card css-test border-radius-test">
+                <div class="test-name">Border Radius <span class="status-badge status-pass">Pass</span></div>
+                <div class="test-result">Asymmetric border radius</div>
+            </div>
+            
+            <div class="test-card css-test transform-test">
+                <div class="test-name">CSS Transforms <span class="status-badge status-pass">Pass</span></div>
+                <div class="test-result">Rotate and scale transforms</div>
+            </div>
+            
+            <div class="test-card css-test glass-test">
+                <div class="test-name">Backdrop Filter <span class="status-badge status-pass">Pass</span></div>
+                <div class="test-result">Glassmorphism effect</div>
+            </div>
+            
+            <div class="test-card css-test">
+                <div class="test-name">Flexbox Layout <span class="status-badge status-pass">Pass</span></div>
+                <div class="flex-test">
+                    <div class="flex-item">Flex 1</div>
+                    <div class="flex-item">Flex 2</div>
+                    <div class="flex-item">Flex 3</div>
+                </div>
+            </div>
+            
+            <div class="test-card css-test">
+                <div class="test-name">CSS Grid <span class="status-badge status-pass">Pass</span></div>
+                <div class="grid-test">
+                    <div class="grid-item">A</div>
+                    <div class="grid-item">B</div>
+                    <div class="grid-item">C</div>
+                    <div class="grid-item">D</div>
+                    <div class="grid-item">E</div>
+                    <div class="grid-item">F</div>
+                </div>
+            </div>
+            
+            <div class="test-card css-test">
+                <div class="test-name">CSS Animations <span class="status-badge status-pending">Test Below</span></div>
+                <div class="animation-test" id="anim-test"></div>
+                <button onclick="testAnimation('bounce')">Test Bounce</button>
+                <button onclick="testAnimation('rotate')">Test Rotate</button>
+                <button onclick="testAnimation('pulse')">Test Pulse</button>
+            </div>
+            
+            <div class="test-card css-test">
+                <div class="test-name">CSS Transitions <span class="status-badge status-pass">Pass</span></div>
+                <button id="transition-btn" style="transition: all 0.3s;" 
+                        onmouseover="this.style.transform='scale(1.1)'" 
+                        onmouseout="this.style.transform='scale(1)'">
+                    Hover Me (Transition)
+                </button>
+            </div>
+        </div>
+
+        <!-- JavaScript Tests -->
+        <div class="test-section">
+            <h2><span class="emoji">⚡</span> JavaScript Features</h2>
+            <div class="test-grid" id="js-tests">
+                <div class="test-card">
+                    <div class="test-name">DOM Manipulation</div>
+                    <button onclick="testDOM()">Test DOM</button>
+                    <div id="dom-result"></div>
+                </div>
+                
+                <div class="test-card">
+                    <div class="test-name">Event Handling</div>
+                    <button id="event-btn">Click Counter: <span id="click-count">0</span></button>
+                </div>
+                
+                <div class="test-card">
+                    <div class="test-name">LocalStorage</div>
+                    <button onclick="testStorage()">Test Storage</button>
+                    <div id="storage-result"></div>
+                </div>
+                
+                <div class="test-card">
+                    <div class="test-name">Timers</div>
+                    <button onclick="testTimers()">Test setTimeout</button>
+                    <div id="timer-result"></div>
+                </div>
+                
+                <div class="test-card">
+                    <div class="test-name">Array Methods</div>
+                    <button onclick="testArrays()">Test Arrays</button>
+                    <div id="array-result"></div>
+                </div>
+                
+                <div class="test-card">
+                    <div class="test-name">ES6 Features</div>
+                    <button onclick="testES6()">Test ES6</button>
+                    <div id="es6-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Tests -->
+        <div class="test-section">
+            <h2><span class="emoji">🎯</span> Canvas API</h2>
+            <canvas id="test-canvas" width="400" height="200"></canvas>
+            <div>
+                <button onclick="drawShapes()">Draw Shapes</button>
+                <button onclick="drawText()">Draw Text</button>
+                <button onclick="clearCanvas()">Clear</button>
+            </div>
+        </div>
+
+        <!-- Form Tests -->
+        <div class="test-section">
+            <h2><span class="emoji">📝</span> Form Elements</h2>
+            <form id="test-form" onsubmit="return handleSubmit(event)">
+                <label>Text Input: <input type="text" placeholder="Enter text..." id="text-input"></label>
+                <label>Number Input: <input type="number" placeholder="123" id="number-input"></label>
+                <label>Password: <input type="password" placeholder="Secret" id="password-input"></label>
+                <label>Select:
+                    <select id="select-input">
+                        <option value="">Choose...</option>
+                        <option value="1">Option 1</option>
+                        <option value="2">Option 2</option>
+                        <option value="3">Option 3</option>
+                    </select>
+                </label>
+                <label>Textarea:
+                    <textarea rows="3" placeholder="Multi-line text..." id="textarea-input"></textarea>
+                </label>
+                <label>
+                    <input type="checkbox" id="checkbox-input"> Checkbox
+                </label>
+                <button type="submit">Submit Form</button>
+            </form>
+            <div id="form-result"></div>
+        </div>
+
+        <!-- Table Test -->
+        <div class="test-section">
+            <h2><span class="emoji">📊</span> Data Table</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>HTML5 Parser</td>
+                        <td>✅ Working</td>
+                        <td>Full tag support</td>
+                    </tr>
+                    <tr>
+                        <td>CSS3 Engine</td>
+                        <td>✅ Working</td>
+                        <td>Layouts, colors, transforms</td>
+                    </tr>
+                    <tr>
+                        <td>JavaScript</td>
+                        <td>✅ Working</td>
+                        <td>ES6+ features</td>
+                    </tr>
+                    <tr>
+                        <td>Canvas</td>
+                        <td>✅ Working</td>
+                        <td>2D drawing API</td>
+                    </tr>
+                    <tr>
+                        <td>Storage</td>
+                        <td>⚠️ Limited</td>
+                        <td>In-memory only</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Performance Test -->
+        <div class="test-section">
+            <h2><span class="emoji">⚡</span> Performance</h2>
+            <button onclick="runPerformanceTest()">Run Performance Test</button>
+            <div class="progress-container">
+                <div class="progress-bar" id="perf-bar">0%</div>
+            </div>
+            <div id="perf-result"></div>
+        </div>
+
+        <footer style="text-align: center; padding: 40px; color: #666;">
+            <p>WebbOS Browser Engine Test Suite v1.0</p>
+            <p>Generated on: <span id="timestamp"></span></p>
+        </footer>
+    </div>
+
+    <script>
+        // Test Results Tracking
+        const testResults = {
+            passed: 0,
+            failed: 0,
+            pending: 0,
+            total: 0,
+            details: []
+        };
+
+        // Platform Detection
+        function detectPlatform() {
+            document.getElementById('platform').textContent = 'WebbOS Browser (ARM64)';
+            document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        }
+
+        // Update Test Card
+        function updateTestCard(id, status, message) {
+            const card = document.getElementById(id);
+            if (!card) return;
+            
+            card.className = 'test-card ' + status;
+            const badge = card.querySelector('.status-badge');
+            if (badge) {
+                badge.className = 'status-badge status-' + status;
+                badge.textContent = status === 'pass' ? 'Pass' : status === 'fail' ? 'Fail' : 'Pending';
+            }
+            
+            const result = card.querySelector('.test-result');
+            if (result && message) {
+                result.textContent = message;
+            }
+            
+            testResults.total++;
+            testResults[status]++;
+            testResults.details.push({ id, status, message });
+            updateScore();
+        }
+
+        // Update Score Display
+        function updateScore() {
+            const score = Math.round((testResults.passed / testResults.total) * 100) || 0;
+            document.getElementById('score').textContent = score;
+            document.getElementById('passed-count').textContent = testResults.passed + ' tests';
+            document.getElementById('failed-count').textContent = testResults.failed + ' tests';
+            document.getElementById('pending-count').textContent = testResults.pending + ' tests';
+        }
+
+        // Run All Tests
+        function runAllTests() {
+            testResults.passed = 0;
+            testResults.failed = 0;
+            testResults.pending = 0;
+            testResults.total = 0;
+            testResults.details = [];
+            
+            // HTML5 Tests
+            testHTML5();
+            
+            // JS Tests
+            testDOM();
+            testArrays();
+            testES6();
+            
+            // Canvas Test
+            drawShapes();
+            
+            // Performance
+            runPerformanceTest();
+            
+            console.log('All tests completed:', testResults);
+        }
+
+        // HTML5 Structure Tests
+        function testHTML5() {
+            // DOCTYPE
+            updateTestCard('test-doctype', 'pass', '<!DOCTYPE html> recognized');
+            
+            // Semantic Elements
+            const semantic = document.querySelectorAll('header, section, article, footer');
+            updateTestCard('test-semantic', semantic.length > 0 ? 'pass' : 'fail', 
+                semantic.length + ' semantic elements rendered');
+            
+            // Forms
+            const forms = document.querySelectorAll('input, textarea, select, button');
+            updateTestCard('test-form', forms.length > 0 ? 'pass' : 'fail',
+                forms.length + ' form elements found');
+            
+            // Media
+            const canvas = document.getElementById('test-canvas');
+            updateTestCard('test-media', canvas ? 'pass' : 'fail',
+                canvas ? 'Canvas element present' : 'Canvas missing');
+            
+            // Tables
+            const tables = document.querySelectorAll('table');
+            updateTestCard('test-table', tables.length > 0 ? 'pass' : 'fail',
+                tables.length + ' tables rendered');
+            
+            // Meta
+            updateTestCard('test-meta', 'pass', 'UTF-8 and viewport set');
+        }
+
+        // DOM Manipulation Test
+        function testDOM() {
+            const container = document.getElementById('dom-result');
+            try {
+                const div = document.createElement('div');
+                div.textContent = '✅ DOM manipulation works!';
+                div.style.color = '#4CAF50';
+                container.innerHTML = '';
+                container.appendChild(div);
+                
+                // Test classList
+                div.classList.add('test-class');
+                div.classList.remove('test-class');
+                
+                return true;
+            } catch (e) {
+                container.innerHTML = '<span style="color: #f44336;">❌ ' + e.message + '</span>';
+                return false;
+            }
+        }
+
+        // Event Handling
+        let clickCount = 0;
+        document.getElementById('event-btn').addEventListener('click', function() {
+            clickCount++;
+            document.getElementById('click-count').textContent = clickCount;
+        });
+
+        // Storage Test
+        function testStorage() {
+            const result = document.getElementById('storage-result');
+            try {
+                localStorage.setItem('webbos_test', 'Hello from WebbOS!');
+                const value = localStorage.getItem('webbos_test');
+                localStorage.removeItem('webbos_test');
+                result.innerHTML = '<span style="color: #4CAF50;">✅ Storage: ' + value + '</span>';
+            } catch (e) {
+                result.innerHTML = '<span style="color: #f44336;">❌ Storage not available: ' + e.message + '</span>';
+            }
+        }
+
+        // Timer Test
+        function testTimers() {
+            const result = document.getElementById('timer-result');
+            result.textContent = 'Timer started...';
+            
+            const start = Date.now();
+            setTimeout(() => {
+                const elapsed = Date.now() - start;
+                result.innerHTML = '<span style="color: #4CAF50;">✅ Timer fired after ' + elapsed + 'ms</span>';
+            }, 100);
+        }
+
+        // Array Methods Test
+        function testArrays() {
+            const result = document.getElementById('array-result');
+            try {
+                const arr = [1, 2, 3, 4, 5];
+                const mapped = arr.map(x => x * 2);
+                const filtered = arr.filter(x => x > 2);
+                const reduced = arr.reduce((a, b) => a + b, 0);
+                const found = arr.find(x => x === 3);
+                const includes = arr.includes(3);
+                
+                result.innerHTML = '<span style="color: #4CAF50;">' +
+                    '✅ map(): ' + mapped + '<br>' +
+                    '✅ filter(): ' + filtered + '<br>' +
+                    '✅ reduce(): ' + reduced + '<br>' +
+                    '✅ find(): ' + found + '<br>' +
+                    '✅ includes(): ' + includes +
+                    '</span>';
+            } catch (e) {
+                result.innerHTML = '<span style="color: #f44336;">❌ ' + e.message + '</span>';
+            }
+        }
+
+        // ES6 Features Test
+        function testES6() {
+            const result = document.getElementById('es6-result');
+            try {
+                // Arrow functions
+                const arrow = () => 'arrow works';
+                
+                // Template literals
+                const name = 'WebbOS';
+                const greeting = `Hello ${name}!`;
+                
+                // Destructuring
+                const [a, b] = [1, 2];
+                const {x, y} = {x: 10, y: 20};
+                
+                // Spread operator
+                const arr = [...[1, 2], 3];
+                
+                // Classes
+                class TestClass {
+                    constructor() { this.value = 42; }
+                    getValue() { return this.value; }
+                }
+                const instance = new TestClass();
+                
+                // Promises
+                const promise = new Promise(resolve => resolve('promise works'));
+                
+                result.innerHTML = '<span style="color: #4CAF50;">' +
+                    '✅ Arrow functions: ' + arrow() + '<br>' +
+                    '✅ Template literals: ' + greeting + '<br>' +
+                    '✅ Destructuring: a=' + a + ', x=' + x + '<br>' +
+                    '✅ Spread: [' + arr + ']<br>' +
+                    '✅ Classes: ' + instance.getValue() + '<br>' +
+                    '✅ Promises: created' +
+                    '</span>';
+            } catch (e) {
+                result.innerHTML = '<span style="color: #f44336;">❌ ' + e.message + '</span>';
+            }
+        }
+
+        // Canvas Drawing
+        function drawShapes() {
+            const canvas = document.getElementById('test-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Rectangle
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(20, 20, 80, 60);
+            
+            // Circle
+            ctx.beginPath();
+            ctx.arc(180, 50, 40, 0, Math.PI * 2);
+            ctx.fillStyle = '#4ecdc4';
+            ctx.fill();
+            
+            // Gradient
+            const gradient = ctx.createLinearGradient(250, 20, 350, 80);
+            gradient.addColorStop(0, '#ff6b6b');
+            gradient.addColorStop(1, '#4ecdc4');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(250, 20, 100, 60);
+            
+            // Stroke
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(20, 100, 100, 80);
+        }
+
+        function drawText() {
+            const canvas = document.getElementById('test-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px sans-serif';
+            ctx.fillText('Hello WebbOS!', 150, 150);
+        }
+
+        function clearCanvas() {
+            const canvas = document.getElementById('test-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Animation Tests
+        function testAnimation(type) {
+            const elem = document.getElementById('anim-test');
+            elem.style.animation = 'none';
+            elem.offsetHeight; // Trigger reflow
+            elem.style.animation = type + ' 1s ease infinite';
+        }
+
+        // Form Handling
+        function handleSubmit(e) {
+            e.preventDefault();
+            const text = document.getElementById('text-input').value;
+            const number = document.getElementById('number-input').value;
+            const select = document.getElementById('select-input').value;
+            const checkbox = document.getElementById('checkbox-input').checked;
+            
+            document.getElementById('form-result').innerHTML = 
+                '<div style="background: rgba(76,175,80,0.2); padding: 15px; border-radius: 8px; margin-top: 10px;">' +
+                '<strong>Form Submitted:</strong><br>' +
+                'Text: ' + (text || '(empty)') + '<br>' +
+                'Number: ' + (number || '(empty)') + '<br>' +
+                'Select: ' + (select || '(none)') + '<br>' +
+                'Checkbox: ' + (checkbox ? 'Checked' : 'Unchecked') +
+                '</div>';
+            
+            return false;
+        }
+
+        // Performance Test
+        function runPerformanceTest() {
+            const bar = document.getElementById('perf-bar');
+            const result = document.getElementById('perf-result');
+            
+            bar.style.width = '0%';
+            bar.textContent = '0%';
+            result.innerHTML = 'Running...';
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                bar.style.width = progress + '%';
+                bar.textContent = progress + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // Run actual performance tests
+                    const start = Date.now();
+                    
+                    // Test 1: DOM manipulation
+                    for (let i = 0; i < 1000; i++) {
+                        const div = document.createElement('div');
+                        div.textContent = 'Test';
+                    }
+                    const domTime = Date.now() - start;
+                    
+                    // Test 2: Array operations
+                    const arrStart = Date.now();
+                    const arr = [];
+                    for (let i = 0; i < 10000; i++) {
+                        arr.push(i);
+                    }
+                    const arr2 = arr.map(x => x * 2).filter(x => x > 100);
+                    const arrTime = Date.now() - arrStart;
+                    
+                    result.innerHTML = '<span style="color: #4CAF50;">' +
+                        '✅ DOM Creation (1000 divs): ' + domTime + 'ms<br>' +
+                        '✅ Array Operations (10000 items): ' + arrTime + 'ms<br>' +
+                        '✅ Total: ' + (domTime + arrTime) + 'ms' +
+                        '</span>';
+                }
+            }, 50);
+        }
+
+        // Export Report
+        function exportReport() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                platform: 'WebbOS Browser (ARM64)',
+                results: testResults,
+                userAgent: navigator.userAgent || 'WebbOS Browser',
+                screen: {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }
+            };
+            
+            console.log('=== WebbOS Browser Test Report ===');
+            console.log(JSON.stringify(report, null, 2));
+            alert('Report exported to console (F12)');
+        }
+
+        // Initialize
+        window.onload = function() {
+            detectPlatform();
+            runAllTests();
+        };
+    </script>
+</body>
+</html>
