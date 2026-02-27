@@ -20,6 +20,16 @@ global_asm!(
     .balign 8
 
 _start:
+    // Very early UART output for debugging
+    // UART base for Pi 3: 0x3F201000
+    mov x20, #0x3F20
+    lsl x20, x20, #16
+    mov x21, #0x1000
+    add x20, x20, x21
+    // Send 'B' (0x42) to indicate boot start
+    mov x21, #0x42
+    str w21, [x20]
+    
     // Save DTB pointer (x0) across initialization
     mov x19, x0
 

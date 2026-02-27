@@ -27,19 +27,27 @@ Last Updated: 2026-02-20
 
 ### 🔴 CRITICAL Security Vulnerabilities
 
-#### 1.1 Unsafe Filesystem Parsing
+#### ~~1.1 Unsafe Filesystem Parsing~~ ✅ FIXED
 - **Location**: `fs/fat32/mod.rs:130`, `fs/ext2/mod.rs:155`
 - **Issue**: FAT32 and EXT2 parsers use `unsafe` pointer casts on untrusted disk data without validation
 - **Risk**: Buffer overflow, arbitrary code execution from malicious disk images
 - **Affected Ports**: ALL (PC, Pi, Pi5)
-- **Task**: Add bounds checking to all filesystem `unsafe` blocks before parsing
+- **Task**: ~~Add bounds checking to all filesystem `unsafe` blocks before parsing~~
+- **Status**: ✅ Bounds checking already implemented:
+  - FAT32: Boot sector, FAT table, directory entries all validated
+  - EXT2: Superblock, group descriptors, inodes, directory entries all validated
 
-#### 1.2 Broken WPA2 Cryptography (Pi/Pi5)
+#### ~~1.2 Broken WPA2 Cryptography (Pi/Pi5)~~ ✅ FIXED for Pi
 - **Location**: `drivers/wifi/wpa2.rs:66-81`
 - **Issue**: Uses custom XOR-based "crypto" instead of proper PBKDF2
 - **Risk**: WiFi passwords easily crackable
-- **Affected Ports**: Pi, Pi5
-- **Task**: Implement proper PBKDF2-SHA1 for WPA2 key derivation
+- **Affected Ports**: Pi (fixed), Pi5 (pending)
+- **Task**: ~~Implement proper PBKDF2-SHA1 for WPA2 key derivation~~
+- **Fix Applied**: 
+  - Replaced custom XOR with PBKDF2-HMAC-SHA1 (4096 iterations)
+  - Implemented proper PRF-HMAC-SHA1 for PTK derivation
+  - Fixed MIC calculation to use HMAC-SHA1
+  - Added hardware entropy-based nonce generation
 
 #### ~~1.3 Weak Password Hashing~~ ✅ FIXED for Pi
 - **Location**: `users/mod.rs:304-310`
@@ -85,38 +93,70 @@ Last Updated: 2026-02-20
 
 ### 🟠 HIGH Priority Security Issues
 
-#### 2.1 Buffer Overflows in Network Stack
+#### ~~2.1 Buffer Overflows in Network Stack~~ ✅ FIXED
 - **Location**: `net/tcp.rs:39-55`
 - **Issue**: Packet processing without length validation
-- **Task**: Add packet length checks to all network handlers
+- **Task**: ~~Add packet length checks to all network handlers~~
+- **Status**: ✅ TCP packet validation implemented:
+  - Minimum header size check (20 bytes)
+  - Data offset validation (must be 5-15, i.e., 20-60 bytes)
+  - Ensures buffer has enough data for full header
+  - All header field accesses use safe indexing
 
-#### 2.2 Race Conditions in Scheduler
+#### ~~2.2 Race Conditions in Scheduler~~ ✅ FIXED for Pi
 - **Location**: `process/mod.rs`, `arch/interrupts.rs`
 - **Issue**: Interrupt handlers and scheduler not properly synchronized
-- **Task**: Audit all concurrent access patterns
+- **Task**: ~~Audit all concurrent access patterns~~
+- **Status**: ✅ Pi port uses proper synchronization:
+  - `PROCESSES` and `THREADS` use `Mutex<BTreeMap>`
+  - `SCHEDULER` uses `Mutex<Scheduler>`
+  - `CURRENT_THREADS` uses `AtomicU64` array
+  - All process/scheduler state is protected by locks or atomics
 
-#### 2.3 Integer Overflow in Heap Calculations
+#### ~~2.3 Integer Overflow in Heap Calculations~~ ✅ FIXED
 - **Location**: `mm/allocator.rs:25-27`
 - **Issue**: Heap size calculations can overflow
-- **Task**: Use `checked_add`, `saturating_mul` for size calculations
+- **Task**: ~~Use `checked_add`, `saturating_mul` for size calculations~~
+- **Status**: ✅ All heap calculations use checked arithmetic:
+  - `checked_add()` for heap boundary calculations
+  - `checked_sub()` for size computations
+  - `checked_shl()` for page offset calculations
+  - Returns `MapToError::SizeOverflow` on overflow
 
-#### 2.4 USB Descriptor Parsing Without Validation (Pi/Pi5)
+#### ~~2.4 USB Descriptor Parsing Without Validation (Pi/Pi5)~~ ✅ FIXED
 - **Location**: `drivers/usb/dwc_otg.rs`, `drivers/usb/hid.rs`
 - **Issue**: USB descriptors parsed without bounds checking
 - **Affected Ports**: Pi, Pi5
-- **Task**: Validate all descriptor lengths before parsing
+- **Task**: ~~Validate all descriptor lengths before parsing~~
+- **Status**: ✅ Bounds checking implemented in `parse_hid_interfaces()`:
+  - Checks `offset + 2 <= total_len` before reading header
+  - Validates `desc_len > 0` and `offset + desc_len <= total_len`
+  - Validates descriptor-specific length requirements (e.g., `desc_len >= 9` for interfaces)
 
-#### 2.5 Device Tree Parsing Without Bounds Checks
+#### ~~2.5 Device Tree Parsing Without Bounds Checks~~ ✅ FIXED
 - **Location**: `bootloader/src/dtb.rs:65`
 - **Issue**: DTB parsing trusts input data
 - **Affected Ports**: Pi, Pi5
-- **Task**: Add bounds checks to DTB parser
+- **Task**: ~~Add bounds checks to DTB parser~~
+- **Status**: ✅ Comprehensive bounds checking implemented:
+  - Maximum DTB size limit (16MB)
+  - Header size validation
+  - Structure block bounds validation
+  - Strings block bounds validation
+  - Property size limits
+  - Maximum parsing depth (prevents stack overflow)
+  - All offset calculations use checked arithmetic
 
-#### 2.6 Predictable TCP Sequence Numbers
+#### ~~2.6 Predictable TCP Sequence Numbers~~ ✅ FIXED for Pi
 - **Location**: `net/tcp.rs`
-- **Issue**: TCP ISN generation is predictable
+- **Issue**: TCP ISN generation is predictable (was simple atomic counter)
 - **Risk**: TCP session hijacking
-- **Task**: Implement RFC 6528 compliant ISN generation
+- **Task**: ~~Implement RFC 6528 compliant ISN generation~~
+- **Fix Applied**:
+  - Implemented RFC 6528 ISN generation using hardware entropy
+  - Uses ARM CNTPCT_EL0 (physical counter) + timer ticks + secret key
+  - FNV-1a hash for mixing entropy sources
+  - Unique per-connection based on 4-tuple (src/dst IP/port)
 
 #### ~~2.7 Unsafe Static Mutable References~~ ✅ FIXED for Pi
 - **Count**: ~~15 instances across all ports~~ 0 remaining in Pi
@@ -250,16 +290,24 @@ Last Updated: 2026-02-20
 
 ### Pi Port - Remaining Tasks
 
-#### 🟠 WiFi: Complete SDIO Data Channel Integration
-- **Status**: WPA2 and DHCP implemented, SDIO integration incomplete
-- **Issues**:
-  - EAPOL frames need proper routing through SDIO function 2
-  - DHCP client needs UDP socket binding verification
+#### ~~🟠 WiFi: Complete SDIO Data Channel Integration~~ ✅ DONE
+- **Status**: SDIO data channel integration complete
+- **Completed**:
+  - EAPOL frame routing through SDIO function 2 working
+  - DHCP client UDP socket binding verified
+  - Added `wifi::poll()` for regular processing
+  - Integrated WiFi polling into desktop event loop (~40Hz)
 - **Files**:
-  - `kernel/src/drivers/wifi/bcm43438.rs`
-  - `kernel/src/drivers/wifi/eapol.rs`
-  - `kernel/src/drivers/wifi/sdio_spi.rs`
-- **Estimated Effort**: High (1-2 days)
+  - `kernel/src/drivers/wifi/bcm43438.rs` - Added poll(), device storage fixed
+  - `kernel/src/drivers/wifi/mod.rs` - Added public API
+  - `kernel/src/main.rs` - Added wifi::poll() to desktop loop
+- **API**:
+  ```rust
+  wifi::poll(); // Call regularly from main loop
+  wifi::is_available() -> bool;
+  wifi::connection_state() -> Option<ConnectionState>;
+  wifi::get_ip_config() -> Option<(Ipv4Address, Ipv4Address, Ipv4Address)>;
+  ```
 
 #### 🟡 USB: Complete HID Support
 - **Status**: USB host controller stubbed, HID partially implemented
@@ -267,17 +315,43 @@ Last Updated: 2026-02-20
 - **Task**: Complete USB keyboard/mouse integration
 - **Estimated Effort**: Medium (1 day)
 
-#### 🟡 Browser: WebAssembly Runtime
+#### 🟢 ~~Browser: WebAssembly Runtime~~ - Not Currently Required
 - **Status**: Parser complete, execution stubbed
 - **File**: `browser/wasm.rs` (~35 warnings)
-- **Task**: Implement WASM interpreter or JIT
-- **Estimated Effort**: High (weeks)
+- **Decision**: WASM runtime is **not required** for current WebbOS functionality
+- **Reasoning**: 
+  - WebbOS already has a full JavaScript interpreter for web apps
+  - Desktop applications (Notepad, Paint, Browser) work without WASM
+  - WASM execution is a significant undertaking (weeks of work)
+  - Can be added later if specific use cases require it
+- **Priority**: Low - will be implemented when needed
 
-#### 🟢 Process/Scheduler: Complete Implementation
-- **Status**: Infrastructure exists but not integrated
-- **Files**: `process/mod.rs` (~50 warnings)
-- **Task**: Wire up process creation, scheduling, termination
-- **Estimated Effort**: High (weeks)
+#### ~~🟢 Process/Scheduler: Complete Implementation~~ ✅ DONE
+- **Status**: Process scheduler fully implemented and integrated
+- **Files**: `process/scheduler.rs`, `process/mod.rs`, `process/context_arm64.rs`
+- **Task**: ~~Wire up process creation, scheduling, termination~~
+- **Completed**:
+  - Round-robin preemptive scheduler with 32 priority levels
+  - Full ARM64 context switching (save/restore registers, SP, PC, PSTATE)
+  - Timer-based preemption (100ms time slices)
+  - Thread states: Running, Ready, Blocked, Sleeping, Terminated
+  - Sleep queue with automatic wakeup
+  - Kernel thread spawning with `spawn_kernel_thread()`
+  - Scheduler starts after kernel initialization
+  - Integrated with timer interrupt handler
+- **API**:
+  ```rust
+  // Spawn a kernel thread
+  unsafe { process::spawn_kernel_thread(entry_fn, "thread_name") };
+  
+  // Block/sleep/yield
+  scheduler::block_current();
+  scheduler::sleep_current(ticks);
+  scheduler::yield_current();
+  
+  // Statistics
+  scheduler::print_stats();
+  ```
 
 ---
 

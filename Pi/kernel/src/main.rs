@@ -311,6 +311,11 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     exceptions::enable();
     println!("[exceptions] Interrupts enabled");
 
+    // Start the scheduler
+    println!("\n[scheduler] Starting scheduler...");
+    process::scheduler::start_scheduling();
+    println!("[scheduler] Scheduler running");
+
     println!("\n✓ WebbOS kernel initialized successfully!");
     println!("\nSystem is ready. Type 'help' for available commands.");
 
@@ -409,6 +414,9 @@ fn desktop_event_loop() {
             
             // Process messages from HTML frontend
             desktop::process_messages();
+            
+            // Poll WiFi for incoming packets and EAPOL/DHCP events
+            drivers::wifi::poll();
             
             // Poll mouse from timer
             if let Some(event) = drivers::input::poll_mouse_from_timer() {

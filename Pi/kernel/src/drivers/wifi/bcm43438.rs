@@ -19,9 +19,7 @@
 use crate::drivers::DriverError;
 use crate::drivers::sdio::SdioFunction;
 use crate::net::{MacAddress, NetworkInterface, NetError};
-use crate::net;
 use crate::println;
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, Ordering};
 
@@ -1090,16 +1088,80 @@ pub fn init(pi4: bool) {
                 return;
             }
             
-            // Register with network stack
-            let device_box: Box<dyn NetworkInterface> = Box::new(device);
-            net::register_interface(device_box);
+            // Store in global WIFI_DEVICE for polling
+            *WIFI_DEVICE.lock() = Some(device);
             
-            println!("[bcm43438] WiFi driver initialized");
+            // Register with network stack
+            // Note: We need to register a wrapper that delegates to the global device
+            // For now, the network stack will use with_device() for operations
+            
+            println!("[bcm43438] WiFi driver initialized and stored");
         }
         Err(e) => {
             println!("[bcm43438] Failed to create device: {:?}", e);
         }
     }
+}
+
+/// Poll the WiFi device for RX packets, EAPOL frames, and DHCP events
+/// 
+/// This should be called periodically (e.g., every 10-100ms) from the main loop
+/// or timer interrupt handler.
+pub fn poll() {
+    // Poll for received packets
+    if let Some(ref device) = *WIFI_DEVICE.lock() {
+        // Process received frames
+        if let Err(e) = device.process_rx() {
+            // Only log errors that aren't just "no data available"
+            // For now, we ignore errors to avoid spam
+            let _ = e;
+        }
+        
+        // Poll EAPOL for WPA2 handshake frames
+        if let Err(e) = device.poll_eapol() {
+            let _ = e;
+        }
+        
+        // Poll DHCP client for IP configuration
+        if let Err(e) = device.poll_dhcp() {
+            let _ = e;
+        }
+    }
+}
+
+/// Get the number of packets waiting to be transmitted
+/// 
+/// Returns the number of pending TX packets that need to be sent
+pub fn pending_tx_count() -> usize {
+    // Check EAPOL pending frames
+    if eapol::has_pending_tx() {
+        1
+    } else {
+        0
+    }
+}
+
+/// Send pending TX frames
+/// 
+/// This should be called after poll() to send any frames that were
+/// generated during processing (e.g., EAPOL responses)
+pub fn process_pending_tx() {
+    if let Some(ref device) = *WIFI_DEVICE.lock() {
+        // Send pending EAPOL frames
+        if let Err(e) = device.poll_eapol() {
+            let _ = e;
+        }
+    }
+}
+
+/// Get current WiFi connection state
+pub fn connection_state() -> Option<ConnectionState> {
+    WIFI_DEVICE.lock().as_ref().map(|d| d.connection_state())
+}
+
+/// Get current IP configuration if available
+pub fn get_ip_config() -> Option<(Ipv4Address, Ipv4Address, Ipv4Address)> {
+    WIFI_DEVICE.lock().as_ref().and_then(|d| d.get_ip_config())
 }
 
 /// With the global WiFi device

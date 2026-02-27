@@ -54,6 +54,32 @@ pub fn init(pi4: bool) {
     println!("[drivers/wifi] WiFi subsystem initialization complete");
 }
 
+/// Poll the WiFi driver for incoming packets and events
+/// 
+/// This should be called periodically (e.g., every 10-100ms) from the main loop
+/// or a timer interrupt handler to:
+/// - Process received packets
+/// - Handle EAPOL frames for WPA2 handshake
+/// - Poll DHCP client for IP configuration
+pub fn poll() {
+    bcm43438::poll();
+}
+
+/// Check if WiFi is available and initialized
+pub fn is_available() -> bool {
+    bcm43438::is_available()
+}
+
+/// Get current WiFi connection state
+pub fn connection_state() -> Option<bcm43438::ConnectionState> {
+    bcm43438::connection_state()
+}
+
+/// Get current IP configuration if available
+pub fn get_ip_config() -> Option<(crate::net::Ipv4Address, crate::net::Ipv4Address, crate::net::Ipv4Address)> {
+    bcm43438::get_ip_config()
+}
+
 /// WiFi driver error types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WiFiError {

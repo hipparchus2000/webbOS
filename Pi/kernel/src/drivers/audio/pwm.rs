@@ -273,7 +273,7 @@ pub fn push_sample(sample: i16) -> Result<(), super::AudioError> {
 
 /// Pop sample from buffer
 pub fn pop_sample() -> Option<i16> {
-    let mut buffer = SAMPLE_BUFFER.lock();
+    let buffer = SAMPLE_BUFFER.lock();
     let head = *BUFFER_HEAD.lock();
     let mut tail = BUFFER_TAIL.lock();
     

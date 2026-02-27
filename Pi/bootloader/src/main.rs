@@ -17,8 +17,8 @@ mod pi_start;
 mod mmu;
 mod dtb;
 mod memory;
-
-// UART module removed - using framebuffer only
+mod uart;      // UART for serial debug output
+mod fb_debug;  // Framebuffer for on-screen debug output
 
 use webbos_shared::bootinfo::{BootInfo, FramebufferInfo, PixelFormat, BOOTINFO_MAGIC, BOOTINFO_VERSION};
 use core::arch::asm;
@@ -93,11 +93,31 @@ pub unsafe fn alloc_pages(count: usize) -> Option<PhysAddr> {
 /// x0 = Device tree blob physical address
 #[no_mangle]
 pub extern "C" fn rust_main(dtb_addr: u64) -> ! {
+    // Initialize UART for serial debug output (works even without framebuffer)
+    uart::init();
+    uart::puts("\n\n[bootloader] Starting WebbOS...\n");
+    
     // Parse device tree to get memory info and framebuffer
+    uart::puts("[bootloader] Parsing DTB...\n");
     let dtb_info = match unsafe { dtb::parse_dtb(dtb_addr) } {
-        Some(info) => info,
+        Some(info) => {
+            // Initialize framebuffer debug output
+            fb_debug::init(&info.framebuffer);
+            if fb_debug::is_initialized() {
+                fb_debug::puts("WebbOS Bootloader\n");
+                fb_debug::puts("=================\n\n");
+                fb_debug::puts("Framebuffer initialized!\n");
+                fb_debug::puts("Screen: ");
+                fb_debug::putdec(info.framebuffer.width as u64);
+                fb_debug::puts("x");
+                fb_debug::putdec(info.framebuffer.height as u64);
+                fb_debug::puts("\n\n");
+            }
+            info
+        },
         None => {
             // Default values for Raspberry Pi 3 with 1GB RAM
+            uart::puts("[bootloader] Warning: DTB parsing failed, using defaults\n");
             dtb::DtbInfo {
                 memory_base: 0,
                 memory_size: 0x40000000, // 1GB
@@ -115,15 +135,38 @@ pub extern "C" fn rust_main(dtb_addr: u64) -> ! {
     };
 
     // Load kernel from memory
+    uart::puts("[bootloader] Loading kernel...\n");
+    fb_debug::puts("Loading kernel... ");
     let kernel_size = match load_kernel() {
-        Ok(size) => size,
-        Err(_) => boot_fail(),
+        Ok(size) => {
+            uart::puts("[bootloader] Kernel loaded, size: ");
+            uart::putdec(size as u64);
+            uart::puts(" bytes\n");
+            fb_debug::putdec(size as u64);
+            fb_debug::puts(" bytes OK\n");
+            size
+        },
+        Err(_) => {
+            uart::puts("[bootloader] ERROR: Failed to load kernel\n");
+            fb_debug::puts("FAILED\n");
+            boot_fail()
+        },
     };
 
     // Set up initial page tables
+    uart::puts("[bootloader] Setting up page tables...\n");
+    fb_debug::puts("Setting up MMU... ");
     let page_tables = match mmu::setup_page_tables(kernel_size) {
-        Ok(pt) => pt,
-        Err(_) => boot_fail(),
+        Ok(pt) => {
+            uart::puts("[bootloader] Page tables ready\n");
+            fb_debug::puts("OK\n");
+            pt
+        },
+        Err(_) => {
+            uart::puts("[bootloader] ERROR: Failed to setup page tables\n");
+            fb_debug::puts("FAILED\n");
+            boot_fail()
+        },
     };
 
     // Allocate and set up boot info
@@ -152,6 +195,12 @@ pub extern "C" fn rust_main(dtb_addr: u64) -> ! {
     }
 
     // Enable MMU and jump to kernel
+    uart::puts("[bootloader] Enabling MMU and jumping to kernel at 0x");
+    uart::puthex(KERNEL_VIRT_BASE + 0x100000);
+    uart::puts("\n[bootloader] Goodbye!\n\n");
+    
+    fb_debug::puts("\nBooting kernel...\n");
+    
     unsafe {
         mmu::enable_mmu_and_jump(page_tables, boot_info_addr, KERNEL_VIRT_BASE + 0x100000);
     }
@@ -187,8 +236,11 @@ fn create_memory_map(dtb_info: &dtb::DtbInfo, dest: *mut MemoryRegion) -> usize 
     regions.len()
 }
 
-/// Boot failure - just halt
+/// Boot failure - print error and halt
 fn boot_fail() -> ! {
+    uart::puts("\n[bootloader] FATAL: Boot failed, halting\n");
+    fb_debug::puts("\n*** BOOT FAILED ***\n");
+    fb_debug::puts("System halted\n");
     loop {
         unsafe { asm!("wfe") };
     }
