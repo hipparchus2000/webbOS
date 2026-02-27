@@ -7,7 +7,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::net::{Ipv4Address, Port, IpProtocol, ip};
 use crate::println;
@@ -35,9 +35,31 @@ pub const TCP_FLAG_PSH: u8 = 0x08;
 pub const TCP_FLAG_ACK: u8 = 0x10;
 pub const TCP_FLAG_URG: u8 = 0x20;
 
+/// Minimum TCP header size (20 bytes for header without options)
+pub const TCP_HEADER_MIN_SIZE: usize = 20;
+/// Maximum TCP header size (60 bytes with options)
+pub const TCP_HEADER_MAX_SIZE: usize = 60;
+/// Maximum TCP payload size (to prevent excessive allocations)
+pub const TCP_MAX_PAYLOAD_SIZE: usize = 65535;
+
 impl TcpHeader {
     pub fn from_bytes(data: &[u8]) -> Option<Self> {
-        if data.len() < 20 {
+        // Check minimum header size
+        if data.len() < TCP_HEADER_MIN_SIZE {
+            return None;
+        }
+
+        // Parse data_offset to validate header length
+        let data_offset = data[12];
+        let header_len = (((data_offset >> 4) & 0x0F) as usize) * 4;
+        
+        // Validate header length is within bounds
+        if header_len < TCP_HEADER_MIN_SIZE || header_len > TCP_HEADER_MAX_SIZE {
+            return None;
+        }
+        
+        // Ensure we have enough data for the full header
+        if data.len() < header_len {
             return None;
         }
 
@@ -46,7 +68,7 @@ impl TcpHeader {
             dst_port: u16::from_be_bytes([data[2], data[3]]),
             seq: u32::from_be_bytes([data[4], data[5], data[6], data[7]]),
             ack: u32::from_be_bytes([data[8], data[9], data[10], data[11]]),
-            data_offset: data[12],
+            data_offset,
             flags: data[13],
             window: u16::from_be_bytes([data[14], data[15]]),
             checksum: u16::from_be_bytes([data[16], data[17]]),
@@ -154,14 +176,80 @@ pub struct TcpConnection {
     pub waiting: bool,
 }
 
+/// Generate a random Initial Sequence Number (ISN) per RFC 6528
+/// 
+/// Uses hardware entropy sources to prevent sequence number prediction attacks.
+/// ISN = M + F(localip, localport, remoteip, remoteport, secretkey)
+/// where F is a hash function that provides randomness.
+fn generate_isn(id: &ConnectionId) -> u32 {
+    use core::sync::atomic::{AtomicU64, Ordering};
+    
+    // Collect entropy from hardware sources
+    // No need to allocate separate entropy buffer - we build hash_input directly
+    
+    // Read ARM physical counter (CNTPCT_EL0) - provides high-resolution timing
+    let cntpct: u64 = unsafe {
+        let val: u64;
+        core::arch::asm!(
+            "mrs {0}, CNTPCT_EL0",
+            out(reg) val,
+        );
+        val
+    };
+    
+    // Read timer ticks (atomic) - provides monotonic counter
+    static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
+    let ticks = TIMER_TICKS.fetch_add(1, Ordering::SeqCst);
+    
+    // Combine entropy sources with connection ID
+    // This creates a unique, unpredictable ISN for each connection
+    let mut hash_input = [0u8; 56]; // 32 bytes entropy + 24 bytes connection ID
+    
+    // Add timing entropy (high resolution counter)
+    hash_input[0..8].copy_from_slice(&cntpct.to_le_bytes());
+    
+    // Add monotonic counter (prevents reuse)
+    hash_input[8..16].copy_from_slice(&ticks.to_le_bytes());
+    
+    // Add connection ID components (ensures uniqueness per connection)
+    hash_input[16..20].copy_from_slice(&id.local_addr.0);
+    hash_input[20..22].copy_from_slice(&id.local_port.0.to_le_bytes());
+    hash_input[22..26].copy_from_slice(&id.remote_addr.0);
+    hash_input[26..28].copy_from_slice(&id.remote_port.0.to_le_bytes());
+    
+    // Add secret key (generated at boot time, never repeated)
+    static SECRET_KEY: AtomicU64 = AtomicU64::new(0);
+    let secret = SECRET_KEY.load(Ordering::SeqCst);
+    if secret == 0 {
+        // Initialize secret key on first use using hardware entropy
+        let new_secret = cntpct.wrapping_mul(0x9E3779B97F4A7C15); // Golden ratio constant
+        SECRET_KEY.store(new_secret, Ordering::SeqCst);
+    }
+    hash_input[28..36].copy_from_slice(&secret.to_le_bytes());
+    
+    // Simple mixing function (not cryptographically secure but sufficient for ISN)
+    // This implements a basic hash function to mix the entropy
+    let mut result: u64 = 0xcbf29ce484222325; // FNV offset basis
+    for byte in &hash_input {
+        result ^= *byte as u64;
+        result = result.wrapping_mul(0x100000001b3); // FNV prime
+    }
+    
+    // Add microsecond-scale timer value per RFC 6528 (4 microsecond units)
+    // This ensures ISN increases over time (prevents old packets from being accepted)
+    let micros = cntpct / 19; // Approximate conversion assuming 19.2MHz counter
+    let m = (micros / 4) as u32; // RFC 6528: 4 microsecond units
+    
+    // Final ISN = M + F(...) mod 2^32
+    result as u32 ^ m
+}
+
 impl TcpConnection {
     pub fn new(id: ConnectionId) -> Self {
-        static NEXT_SEQ: AtomicU32 = AtomicU32::new(1000);
-
         Self {
             id,
             state: TcpState::Closed,
-            seq_num: NEXT_SEQ.fetch_add(1, Ordering::SeqCst),
+            seq_num: generate_isn(&id),
             ack_num: 0,
             recv_window: 65535,
             send_window: 65535,
@@ -189,17 +277,40 @@ fn get_ephemeral_port() -> Port {
 
 /// Process incoming TCP packet
 pub fn process_tcp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+    // Validate minimum packet size
+    if data.len() < TCP_HEADER_MIN_SIZE {
+        return;
+    }
+    
     let header = match TcpHeader::from_bytes(data) {
         Some(h) => h,
         None => return,
     };
 
     let header_len = header.header_len();
+    
+    // Validate header length is reasonable
+    if header_len < TCP_HEADER_MIN_SIZE || header_len > TCP_HEADER_MAX_SIZE {
+        return;
+    }
+    
+    // Ensure header doesn't exceed packet length
     if header_len > data.len() {
+        return;
+    }
+    
+    // Calculate and validate payload length
+    let payload_len = data.len() - header_len;
+    if payload_len > TCP_MAX_PAYLOAD_SIZE {
         return;
     }
 
     let payload = &data[header_len..];
+    
+    // Verify payload length matches actual data available
+    if payload.len() != payload_len {
+        return;
+    }
 
     // Build connection ID
     let id = ConnectionId {

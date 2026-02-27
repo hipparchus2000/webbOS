@@ -15,6 +15,8 @@
 use crate::drivers::DriverError;
 use crate::println;
 use core::sync::atomic::{fence, Ordering};
+use spin::Mutex;
+use lazy_static::lazy_static;
 
 // BCM2835/2836/2837/2711 GPIO registers
 const GPIO_BASE_PI3: usize = 0x3F200000;
@@ -635,34 +637,38 @@ unsafe impl Send for SdioSpiDevice {}
 unsafe impl Sync for SdioSpiDevice {}
 
 /// Global SDIO SPI controller instance
-static mut SDIO_SPI_CONTROLLER: Option<SdioSpiController> = None;
+lazy_static! {
+    static ref SDIO_SPI_CONTROLLER: Mutex<Option<SdioSpiController>> = Mutex::new(None);
+}
 
 /// Initialize SDIO-over-SPI subsystem
 pub fn init(pi4: bool) {
     println!("[sdio_spi] Initializing SDIO-over-SPI fallback...");
     
-    unsafe {
-        let mut controller = SdioSpiController::new(pi4, false);
-        
-        if let Err(e) = controller.init() {
-            println!("[sdio_spi] Failed to initialize controller: {:?}", e);
-            return;
-        }
-        
-        SDIO_SPI_CONTROLLER = Some(controller);
+    let mut controller = unsafe { SdioSpiController::new(pi4, false) };
+    
+    if let Err(e) = controller.init() {
+        println!("[sdio_spi] Failed to initialize controller: {:?}", e);
+        return;
     }
+    
+    *SDIO_SPI_CONTROLLER.lock() = Some(controller);
     
     println!("[sdio_spi] SDIO-over-SPI initialized");
 }
 
 /// Check if SDIO SPI is available
 pub fn is_available() -> bool {
-    unsafe { SDIO_SPI_CONTROLLER.is_some() }
+    SDIO_SPI_CONTROLLER.lock().is_some()
 }
 
-/// Get the global SDIO SPI controller
-pub fn controller() -> Option<&'static mut SdioSpiController> {
-    unsafe { SDIO_SPI_CONTROLLER.as_mut() }
+/// With the global SDIO SPI controller
+pub fn with_controller<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&mut SdioSpiController) -> R,
+{
+    let mut guard = SDIO_SPI_CONTROLLER.lock();
+    guard.as_mut().map(f)
 }
 
 /// SDIO I/O function abstraction for SPI mode
@@ -680,25 +686,29 @@ impl SdioSpiFunction {
 
     /// Read a byte from this function
     pub fn read_byte(&self, address: u32) -> Result<u8, DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.read_byte(self.function_number, address)
+        with_controller(|controller| {
+            controller.read_byte(self.function_number, address)
+        }).ok_or(DriverError::NotFound)?
     }
 
     /// Write a byte to this function
     pub fn write_byte(&self, address: u32, data: u8) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.write_byte(self.function_number, address, data)
+        with_controller(|controller| {
+            controller.write_byte(self.function_number, address, data)
+        }).ok_or(DriverError::NotFound)?
     }
 
     /// Read multiple bytes from this function
     pub fn read(&self, address: u32, buffer: &mut [u8]) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.cmd53(false, self.function_number, address, false, true, buffer.len() as u16, buffer.as_mut_ptr())
+        with_controller(|controller| {
+            controller.cmd53(false, self.function_number, address, false, true, buffer.len() as u16, buffer.as_mut_ptr())
+        }).ok_or(DriverError::NotFound)?
     }
 
     /// Write multiple bytes to this function
     pub fn write(&self, address: u32, buffer: &[u8]) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.cmd53(true, self.function_number, address, false, true, buffer.len() as u16, buffer.as_ptr() as *mut u8)
+        with_controller(|controller| {
+            controller.cmd53(true, self.function_number, address, false, true, buffer.len() as u16, buffer.as_ptr() as *mut u8)
+        }).ok_or(DriverError::NotFound)?
     }
 }

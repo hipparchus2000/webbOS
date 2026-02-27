@@ -1,17 +1,20 @@
 //! Cryptographic primitives
 //!
-//! Implements cryptographic algorithms needed for TLS 1.3:
-//! - SHA-256, SHA-384 hash functions
+//! Implements cryptographic algorithms needed for TLS 1.3 and WPA2:
+//! - SHA-1, SHA-256, SHA-384 hash functions
 //! - AES-GCM AEAD cipher
 //! - ChaCha20-Poly1305 AEAD cipher
 //! - HKDF key derivation
+//! - PBKDF2 key derivation (for WPA2-PSK)
 //! - X25519 key exchange
 
+pub mod sha1;
 pub mod sha256;
 pub mod sha384;
 pub mod aes;
 pub mod chacha20;
 pub mod hkdf;
+pub mod pbkdf2;
 pub mod x25519;
 
 use crate::println;
@@ -20,11 +23,13 @@ use crate::println;
 pub fn init() {
     println!("[crypto] Initializing cryptographic subsystem...");
     
+    sha1::init();
     sha256::init();
     sha384::init();
     aes::init();
     chacha20::init();
     hkdf::init();
+    pbkdf2::init();
     x25519::init();
     
     println!("[crypto] Cryptographic subsystem initialized");

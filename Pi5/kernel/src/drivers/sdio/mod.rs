@@ -698,79 +698,84 @@ unsafe impl Send for SdhciController {}
 unsafe impl Sync for SdhciController {}
 
 /// Global SDIO controller instance
-static mut SDHCI_CONTROLLER: Option<SdhciController> = None;
+use spin::Mutex;
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref SDHCI_CONTROLLER: Mutex<Option<SdhciController>> = Mutex::new(None);
+}
 
 /// Initialize the SDIO subsystem
 pub fn init(pi4: bool) {
     println!("[sdio] Initializing SDIO subsystem...");
     
-    unsafe {
-        SDHCI_CONTROLLER = Some(SdhciController::new(pi4));
-        
-        if let Some(ref mut controller) = SDHCI_CONTROLLER {
-            if let Err(e) = controller.init() {
-                println!("[sdio] Failed to initialize controller: {:?}", e);
-                SDHCI_CONTROLLER = None;
-                return;
-            }
-        }
+    let mut controller = unsafe { SdhciController::new(pi4) };
+    
+    if let Err(e) = controller.init() {
+        println!("[sdio] Failed to initialize controller: {:?}", e);
+        return;
     }
+    
+    *SDHCI_CONTROLLER.lock() = Some(controller);
     
     println!("[sdio] SDIO subsystem initialized");
 }
 
-/// Get the global SDHCI controller
-pub fn controller() -> Option<&'static mut SdhciController> {
-    unsafe { SDHCI_CONTROLLER.as_mut() }
+/// With the global SDHCI controller
+pub fn with_controller<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&mut SdhciController) -> R,
+{
+    let mut guard = SDHCI_CONTROLLER.lock();
+    guard.as_mut().map(f)
 }
 
 /// Check if SDIO is initialized
 pub fn is_initialized() -> bool {
-    unsafe { SDHCI_CONTROLLER.is_some() }
+    SDHCI_CONTROLLER.lock().is_some()
 }
 
 /// Probe for SDIO card
 pub fn probe_card() -> Result<(), DriverError> {
-    let controller = controller().ok_or(DriverError::NotFound)?;
-    
-    // Check if card is present
-    if !controller.card_present() {
-        return Err(DriverError::NotFound);
-    }
+    with_controller(|controller| {
+        // Check if card is present
+        if !controller.card_present() {
+            return Err(DriverError::NotFound);
+        }
     
     println!("[sdio] Card detected");
     
-    // Go idle
-    controller.go_idle()?;
-    
-    // Send interface condition (for SD cards, may fail on pure SDIO)
-    let _ = controller.send_if_cond();
-    
-    // Send IO op condition (CMD5) for SDIO
-    let mut ocr = 0u32;
-    loop {
-        let response = controller.io_send_op_cond(ocr)?;
-        if (response & 0x80000000) != 0 {
-            // Card ready
-            println!("[sdio] Card ready, OCR: {:08X}", response);
-            break;
+        // Go idle
+        controller.go_idle()?;
+        
+        // Send interface condition (for SD cards, may fail on pure SDIO)
+        let _ = controller.send_if_cond();
+        
+        // Send IO op condition (CMD5) for SDIO
+        let mut ocr = 0u32;
+        loop {
+            let response = controller.io_send_op_cond(ocr)?;
+            if (response & 0x80000000) != 0 {
+                // Card ready
+                println!("[sdio] Card ready, OCR: {:08X}", response);
+                break;
+            }
+            ocr = response;
         }
-        ocr = response;
-    }
-    
-    // Get relative address
-    let rca = controller.send_relative_addr()?;
-    println!("[sdio] RCA: {:08X}", rca);
-    
-    // Select card
-    controller.select_card(rca >> 16)?;
-    
-    // Set to high speed (50MHz)
-    controller.set_clock(50_000_000)?;
-    controller.set_high_speed(true)?;
-    
-    println!("[sdio] Card initialized");
-    Ok(())
+        
+        // Get relative address
+        let rca = controller.send_relative_addr()?;
+        println!("[sdio] RCA: {:08X}", rca);
+        
+        // Select card
+        controller.select_card(rca >> 16)?;
+        
+        // Set to high speed (50MHz)
+        controller.set_clock(50_000_000)?;
+        controller.set_high_speed(true)?;
+        
+        println!("[sdio] Card initialized");
+        Ok(())
+    }).ok_or(DriverError::NotFound)?
 }
 
 /// SDIO I/O function abstraction
@@ -788,25 +793,29 @@ impl SdioFunction {
 
     /// Read a byte from this function
     pub fn read_byte(&self, address: u32) -> Result<u8, DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.read_byte(self.function_number, address)
+        with_controller(|controller| {
+            controller.read_byte(self.function_number, address)
+        }).ok_or(DriverError::NotFound)?
     }
 
     /// Write a byte to this function
     pub fn write_byte(&self, address: u32, data: u8) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.write_byte(self.function_number, address, data)
+        with_controller(|controller| {
+            controller.write_byte(self.function_number, address, data)
+        }).ok_or(DriverError::NotFound)?
     }
 
     /// Read multiple bytes from this function
     pub fn read(&self, address: u32, buffer: &mut [u8]) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.read_bytes(self.function_number, address, buffer)
+        with_controller(|controller| {
+            controller.read_bytes(self.function_number, address, buffer)
+        }).ok_or(DriverError::NotFound)?
     }
 
     /// Write multiple bytes to this function
     pub fn write(&self, address: u32, buffer: &[u8]) -> Result<(), DriverError> {
-        let controller = controller().ok_or(DriverError::NotFound)?;
-        controller.write_bytes(self.function_number, address, buffer)
+        with_controller(|controller| {
+            controller.write_bytes(self.function_number, address, buffer)
+        }).ok_or(DriverError::NotFound)?
     }
 }

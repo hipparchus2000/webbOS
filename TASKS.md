@@ -315,6 +315,18 @@ Last Updated: 2026-02-20
 - **Task**: Complete USB keyboard/mouse integration
 - **Estimated Effort**: Medium (1 day)
 
+#### 🟢 RPi4 Emulator for Testing
+- **Status**: No emulator available for testing Pi builds
+- **Issue**: QEMU on Windows has memory setup issues with raspi3b/virt machines
+- **Goal**: Create or configure a working Raspberry Pi 4 emulator for Windows
+- **Options**:
+  1. Fix Windows QEMU memory configuration
+  2. Use WSL2 with Linux QEMU (better ARM64 support)
+  3. Create custom emulator using existing ARM64 emulators
+  4. Use cloud-based ARM64 CI/CD for testing
+- **Priority**: Low - can test on real hardware
+- **Estimated Effort**: Medium (2-3 days)
+
 #### 🟢 ~~Browser: WebAssembly Runtime~~ - Not Currently Required
 - **Status**: Parser complete, execution stubbed
 - **File**: `browser/wasm.rs` (~35 warnings)

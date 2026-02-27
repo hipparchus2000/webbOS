@@ -106,25 +106,27 @@ pub fn init() {
 pub fn read_blocks(start: u64, count: usize, buf: &mut [u8]) -> Result<(), StorageError> {
     println!("[sd_card] read_blocks called: start={}, count={}", start, count);
     
-    // Get the SDHCI controller
-    let controller = crate::drivers::sdio::controller()
-        .ok_or(StorageError::NotFound)?;
-    
-    // Set block length to 512 bytes
-    controller.set_blocklen(512)
-        .map_err(|_| StorageError::IoError)?;
-    
-    // Read blocks
-    if count == 1 {
-        // Single block read
-        controller.read_single_block(start as u32, buf)
+    // Use with_controller to access the SDHCI controller
+    match crate::drivers::sdio::with_controller(|controller| {
+        // Set block length to 512 bytes
+        controller.set_blocklen(512)
             .map_err(|_| StorageError::IoError)?;
-    } else {
-        // Multiple block read
-        controller.read_multiple_blocks(start as u32, count as u16, buf)
-            .map_err(|_| StorageError::IoError)?;
+        
+        // Read blocks
+        if count == 1 {
+            // Single block read
+            controller.read_single_block(start as u32, buf)
+                .map_err(|_| StorageError::IoError)?;
+        } else {
+            // Multiple block read
+            controller.read_multiple_blocks(start as u32, count as u16, buf)
+                .map_err(|_| StorageError::IoError)?;
+        }
+        
+        println!("[sd_card] Read {} blocks from offset {}", count, start);
+        Ok(())
+    }) {
+        Some(result) => result,
+        None => Err(StorageError::NotFound),
     }
-    
-    println!("[sd_card] Read {} blocks from offset {}", count, start);
-    Ok(())
 }

@@ -7,6 +7,7 @@ use alloc::collections::BTreeMap;
 use spin::Mutex;
 use lazy_static::lazy_static;
 
+#[path = "context_arm64.rs"]
 pub mod context;
 pub mod scheduler;
 
