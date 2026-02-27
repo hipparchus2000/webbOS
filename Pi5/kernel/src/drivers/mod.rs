@@ -24,14 +24,8 @@ pub mod vesa {
     
     pub use crate::drivers::display::pi_framebuffer::{
         driver,
-        clear,
-        set_pixel,
-        fill_rect,
-        draw_text,
-        print_info,
-        colors,
         PiFramebuffer as VesaDriver,
-        FramebufferInfo,
+        colors,
     };
     
     use crate::drivers::display::pi_framebuffer;

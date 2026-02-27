@@ -236,8 +236,8 @@ impl Fat32Fs {
     /// Read file data from clusters
     fn read_clusters(&self, start_cluster: u32, offset: u64, buf: &mut [u8]) -> FsResult<usize> {
         let mut current_cluster = start_cluster;
-        let mut cluster_offset = (offset / self.bytes_per_cluster as u64) as u32;
-        let mut byte_offset = (offset % self.bytes_per_cluster as u64) as usize;
+        let cluster_offset = (offset / self.bytes_per_cluster as u64) as u32;
+        let byte_offset = (offset % self.bytes_per_cluster as u64) as usize;
         let mut bytes_read = 0;
         let mut buf_offset = 0;
         

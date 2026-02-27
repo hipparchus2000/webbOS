@@ -12,7 +12,7 @@ use alloc::vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use crate::drivers::vesa::{self, VesaDriver, colors};
+use crate::drivers::vesa::{self, VesaDriver};
 use crate::println;
 use crate::browser;
 
@@ -918,7 +918,7 @@ impl DesktopUI {
 
 }
 
-/// Global desktop UI instance
+// Global desktop UI instance
 lazy_static! {
     static ref DESKTOP_UI: Mutex<DesktopUI> = Mutex::new(DesktopUI::new(1280, 800));
 }

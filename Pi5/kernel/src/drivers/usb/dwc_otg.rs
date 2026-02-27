@@ -11,9 +11,8 @@ use core::ptr::{read_volatile, write_volatile};
 use spin::Mutex;
 use lazy_static::lazy_static;
 
-use crate::mm::{phys_to_virt, virt_to_phys_u64};
 use crate::println;
-use webbos_shared::types::PhysAddr;
+
 use super::UsbError;
 
 // =============================================================================

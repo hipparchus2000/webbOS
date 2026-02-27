@@ -3,9 +3,7 @@
 //! Handles IPv4 packet processing and routing.
 
 use alloc::vec;
-use alloc::vec::Vec;
 use crate::net::{Ipv4Address, IpProtocol, arp};
-use crate::println;
 
 /// IPv4 header
 #[repr(C, packed)]
@@ -282,13 +280,13 @@ impl IcmpHeader {
 }
 
 /// Process ICMP packet
-fn process_icmp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
+fn process_icmp_packet(src: Ipv4Address, _dst: Ipv4Address, data: &[u8]) {
     if data.len() < 8 {
         return;
     }
 
     let type_ = data[0];
-    let code = data[1];
+    let _code = data[1];
     // let checksum = u16::from_be_bytes([data[2], data[3]]);
     let id = u16::from_be_bytes([data[4], data[5]]);
     let seq = u16::from_be_bytes([data[6], data[7]]);
@@ -345,13 +343,12 @@ pub fn ping(dst: Ipv4Address) -> Result<(), ()> {
         .map(|_| ())
 }
 
+use core::sync::atomic::{AtomicU16, Ordering};
+
 /// Packet counter for identification
-static mut PACKET_ID: u16 = 0;
+static PACKET_ID: AtomicU16 = AtomicU16::new(0);
 
 /// Get next packet ID
 pub fn next_packet_id() -> u16 {
-    unsafe {
-        PACKET_ID = PACKET_ID.wrapping_add(1);
-        PACKET_ID
-    }
+    PACKET_ID.fetch_add(1, Ordering::SeqCst)
 }

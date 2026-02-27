@@ -4,7 +4,6 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 
 use crate::browser::BrowserError;
 use crate::println;
@@ -361,7 +360,7 @@ impl DomBuilder {
                     self.stack.push(elem);
                 }
                 Token::EndTag(tag) => {
-                    if let Some(mut elem) = self.stack.pop() {
+                    if let Some(elem) = self.stack.pop() {
                         // Capture inline script/style content
                         match tag.as_str() {
                             "script" => {

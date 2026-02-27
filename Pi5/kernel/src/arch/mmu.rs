@@ -6,7 +6,7 @@
 //! - Level 2 (PMD): 512 entries, 2MB each (can be 2MB block)
 //! - Level 3 (PTE): 512 entries, 4KB each (must be page)
 
-use webbos_shared::types::{PhysAddr, VirtAddr, PAGE_SIZE};
+use webbos_shared::types::{PhysAddr, PAGE_SIZE};
 
 /// Page table entry flags
 #[derive(Clone, Copy, Debug)]

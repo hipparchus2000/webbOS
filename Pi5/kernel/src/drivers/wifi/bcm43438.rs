@@ -17,9 +17,7 @@
 use crate::drivers::DriverError;
 use crate::drivers::sdio::SdioFunction;
 use crate::net::{MacAddress, NetworkInterface, NetError};
-use crate::net;
 use crate::println;
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use spin::Mutex;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -705,7 +703,7 @@ impl Bcm43438Device {
         // For now, return an empty list
         
         // Trigger passive scan
-        let scan_params = [0u8; 16]; // Simplified scan parameters
+        let _scan_params = [0u8; 16]; // Simplified scan parameters
         let _ = self.send_ioctl(BRCMF_C_SET_VAR, b"escan\0", 256)?;
         
         // Wait for scan to complete
@@ -883,7 +881,7 @@ impl Bcm43438Device {
         // Parse SDPCM header
         if let Some(header) = SdpcmHeader::from_bytes(&rx_buf) {
             let channel = header.channel_flags & 0x0F;
-            let data_offset = header.next_offset as usize;
+            let _data_offset = header.next_offset as usize;
             let data_len = (header.frame_len & SDPCM_FRAME_LEN_MASK) as usize;
             
             if data_len > SDPCM_HEADER_LEN && data_len <= rx_buf.len() {
@@ -1109,7 +1107,7 @@ impl NetworkInterface for Bcm43438Device {
         }
     }
 
-    fn receive(&self, buf: &mut [u8]) -> Result<usize, NetError> {
+    fn receive(&self, _buf: &mut [u8]) -> Result<usize, NetError> {
         // Process any pending RX packets
         if let Err(_) = self.process_rx() {
             return Err(NetError::NoBuffer);

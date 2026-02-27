@@ -9,34 +9,37 @@
 //! - CNTP_CTL_EL0: Physical Timer Control
 
 use crate::println;
+use core::sync::atomic::{AtomicU64, Ordering};
 
 /// Desired timer frequency (Hz) - 1000Hz = 1ms ticks
 const TIMER_FREQUENCY: u32 = 1000;
 
 /// Counter frequency (read from CNTFRQ_EL0 at boot)
-static mut COUNTER_FREQ: u64 = 0;
+static COUNTER_FREQ: AtomicU64 = AtomicU64::new(0);
 
 /// Timer tick counter (incremented by IRQ handler)
-static mut TIMER_TICKS: u64 = 0;
+static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
 
 /// Initialize the ARM Generic Timer
 pub fn init() {
     println!("[timer] Initializing ARM Generic Timer...");
 
+    // Read the counter frequency
+    let freq: u64;
     unsafe {
-        // Read the counter frequency
-        let freq: u64;
         core::arch::asm!(
             "mrs {0}, CNTFRQ_EL0",
             out(reg) freq,
         );
-        COUNTER_FREQ = freq;
-        
-        println!("[timer] Counter frequency: {} Hz", freq);
-        
-        // Calculate timer interval for desired frequency
-        let interval = freq / TIMER_FREQUENCY as u64;
-        
+    }
+    COUNTER_FREQ.store(freq, Ordering::SeqCst);
+    
+    println!("[timer] Counter frequency: {} Hz", freq);
+    
+    // Calculate timer interval for desired frequency
+    let interval = freq / TIMER_FREQUENCY as u64;
+    
+    unsafe {
         // Set the timer value (will trigger interrupt when count reaches this)
         core::arch::asm!(
             "msr CNTP_TVAL_EL0, {0}",
@@ -48,16 +51,16 @@ pub fn init() {
             "msr CNTP_CTL_EL0, {0}",
             in(reg) 1u64, // Enable = 1, IMASK = 0
         );
-        
-        println!("[timer] Timer interval: {} ticks", interval);
     }
+    
+    println!("[timer] Timer interval: {} ticks", interval);
 
     println!("[timer] ARM Generic Timer initialized at {}Hz", TIMER_FREQUENCY);
 }
 
 /// Get current tick count
 pub fn ticks() -> u64 {
-    unsafe { TIMER_TICKS }
+    TIMER_TICKS.load(Ordering::SeqCst)
 }
 
 /// Alias for ticks() - used by USB driver
@@ -67,24 +70,22 @@ pub fn get_ticks() -> u64 {
 
 /// Get elapsed time in milliseconds
 pub fn elapsed_ms() -> u64 {
-    unsafe {
-        if COUNTER_FREQ == 0 {
-            return 0;
-        }
-        let count = read_counter();
-        (count * 1000) / COUNTER_FREQ
+    let freq = COUNTER_FREQ.load(Ordering::SeqCst);
+    if freq == 0 {
+        return 0;
     }
+    let count = read_counter();
+    (count * 1000) / freq
 }
 
 /// Get elapsed time in seconds
 pub fn elapsed_sec() -> u64 {
-    unsafe {
-        if COUNTER_FREQ == 0 {
-            return 0;
-        }
-        let count = read_counter();
-        count / COUNTER_FREQ
+    let freq = COUNTER_FREQ.load(Ordering::SeqCst);
+    if freq == 0 {
+        return 0;
     }
+    let count = read_counter();
+    count / freq
 }
 
 /// Read the physical counter
@@ -118,10 +119,10 @@ pub fn sleep_sec(sec: u64) {
 /// This is called from interrupt context.
 pub unsafe fn timer_interrupt() {
     // Increment tick counter
-    TIMER_TICKS += 1;
+    TIMER_TICKS.fetch_add(1, Ordering::SeqCst);
     
     // Reload timer for next interrupt
-    let interval = COUNTER_FREQ / TIMER_FREQUENCY as u64;
+    let interval = COUNTER_FREQ.load(Ordering::SeqCst) / TIMER_FREQUENCY as u64;
     core::arch::asm!(
         "msr CNTP_TVAL_EL0, {0}",
         in(reg) interval,
@@ -197,17 +198,15 @@ fn format_num(num: u16, width: usize) -> [u8; 4] {
 
 /// Print timer statistics
 pub fn print_stats() {
-    unsafe {
-        println!("Timer Statistics:");
-        println!("  Ticks: {}", ticks());
-        println!("  Elapsed: {}s", elapsed_sec());
-        println!("  Frequency: {}Hz", TIMER_FREQUENCY);
-        println!("  Counter Freq: {} Hz", COUNTER_FREQ);
-        
-        let rtc = read_rtc();
-        let formatted = rtc.format();
-        if let Ok(time_str) = core::str::from_utf8(&formatted) {
-            println!("  RTC: {}", time_str);
-        }
+    println!("Timer Statistics:");
+    println!("  Ticks: {}", ticks());
+    println!("  Elapsed: {}s", elapsed_sec());
+    println!("  Frequency: {}Hz", TIMER_FREQUENCY);
+    println!("  Counter Freq: {} Hz", COUNTER_FREQ.load(Ordering::SeqCst));
+    
+    let rtc = read_rtc();
+    let formatted = rtc.format();
+    if let Ok(time_str) = core::str::from_utf8(&formatted) {
+        println!("  RTC: {}", time_str);
     }
 }

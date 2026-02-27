@@ -3,7 +3,6 @@
 //! Performs CSS box model layout on the DOM tree.
 
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::browser::BrowserError;
@@ -376,7 +375,7 @@ fn calculate_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensi
 }
 
 /// Calculate inline layout
-fn calculate_inline_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+fn calculate_inline_layout(layout_box: &mut LayoutBox, _containing_block: &Dimensions) {
     // Simple inline layout - just estimate text size
     if let Some(ref text) = layout_box.text {
         // Rough estimate: 8 pixels per character
@@ -395,7 +394,7 @@ fn calculate_inline_layout(layout_box: &mut LayoutBox, containing_block: &Dimens
 }
 
 /// Calculate inline-block layout
-fn calculate_inline_block_layout(layout_box: &mut LayoutBox, containing_block: &Dimensions) {
+fn calculate_inline_block_layout(layout_box: &mut LayoutBox, _containing_block: &Dimensions) {
     // Similar to block but with natural width
     if layout_box.width == 0.0 {
         layout_box.width = 100.0; // Default width

@@ -14,7 +14,7 @@
 
 use crate::drivers::DriverError;
 use crate::println;
-use core::sync::atomic::{fence, Ordering};
+
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -388,7 +388,7 @@ impl SdioSpiController {
 
     /// Wait for and read response R3/R7 (OCR/Interface condition)
     fn read_r3_r7(&self, timeout_ms: u32) -> Result<u32, DriverError> {
-        let r1 = self.read_r1(timeout_ms)?;
+        let _r1 = self.read_r1(timeout_ms)?;
         
         // Read 4 bytes of response
         let mut resp = [0u8; 4];
@@ -636,7 +636,7 @@ impl SdioSpiDevice {
 unsafe impl Send for SdioSpiDevice {}
 unsafe impl Sync for SdioSpiDevice {}
 
-/// Global SDIO SPI controller instance
+// Global SDIO SPI controller instance
 lazy_static! {
     static ref SDIO_SPI_CONTROLLER: Mutex<Option<SdioSpiController>> = Mutex::new(None);
 }

@@ -3,7 +3,6 @@
 //! Implements the window and document global objects for JavaScript.
 
 use alloc::string::String;
-use alloc::vec::Vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -103,7 +102,7 @@ impl JsDocument {
     }
 }
 
-/// Global instances
+// Global instances
 lazy_static! {
     static ref GLOBAL_WINDOW: Mutex<Option<Window>> = Mutex::new(None);
     static ref GLOBAL_DOCUMENT: Mutex<Option<JsDocument>> = Mutex::new(None);

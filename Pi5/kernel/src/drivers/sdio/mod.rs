@@ -8,7 +8,7 @@
 
 use crate::drivers::DriverError;
 use crate::println;
-use core::sync::atomic::{fence, Ordering};
+
 
 // SDIO Register offsets (Arasan SDHCI controller)
 const SDHCI_DMA_ADDRESS: usize = 0x00;
@@ -520,7 +520,7 @@ impl SdhciController {
         let arg = make_cmd53_arg(write, function, block_mode, increment, address, count);
         
         let block_size = if block_mode { 512 } else { 1 };
-        let byte_count = if block_mode { count as usize * 512 } else { count as usize };
+        let _byte_count = if block_mode { count as usize * 512 } else { count as usize };
         
         unsafe {
             // Set block size and count

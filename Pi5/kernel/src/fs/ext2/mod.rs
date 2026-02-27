@@ -6,10 +6,9 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-use spin::Mutex;
 
 use crate::fs::{FileSystem, FileType, Metadata, Permissions, INode, FsResult, FsError};
-use crate::storage::{BlockDevice, StorageError};
+use crate::storage::BlockDevice;
 use crate::println;
 
 /// EXT2 superblock (located at offset 1024)

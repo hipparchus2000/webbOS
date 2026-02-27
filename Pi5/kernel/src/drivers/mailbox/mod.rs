@@ -429,7 +429,7 @@ impl MailboxMessage for PropertyMessage {
     }
 }
 
-/// Default mailbox instance (Pi 3 base address by default)
+// Default mailbox instance (Pi 3 base address by default)
 lazy_static! {
     static ref MAILBOX: Mutex<Mailbox> = Mutex::new(Mailbox::new(MAILBOX_BASE_PI3));
 }

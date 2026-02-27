@@ -3,9 +3,8 @@
 //! Client for automatic IP configuration.
 
 use alloc::vec;
-use alloc::vec::Vec;
 
-use crate::net::{Ipv4Address, Port, IpProtocol, udp, NetworkConfig};
+use crate::net::{Ipv4Address, Port, udp, NetworkConfig};
 use crate::println;
 
 /// DHCP ports

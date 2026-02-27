@@ -456,7 +456,7 @@ pub enum LoginAction {
     LoginFailed,
 }
 
-/// Global login screen instance
+// Global login screen instance
 lazy_static! {
     static ref LOGIN_SCREEN: Mutex<LoginScreen> = Mutex::new(LoginScreen::new());
 }

@@ -5,40 +5,37 @@
 use alloc::string::String;
 use alloc::format;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use spin::Mutex;
-use lazy_static::lazy_static;
 
 use crate::browser::dom_api::{ElementId, api as dom_api};
-use crate::browser::event::{Event, EventType, self};
+use crate::browser::event::EventType;
 use crate::browser::js::{Value, Object, Environment};
 use crate::println;
+use core::sync::atomic::{AtomicUsize, AtomicU32, Ordering};
 
 /// Current document pointer for DOM operations
-static mut CURRENT_DOCUMENT_PTR: usize = 0;
+static CURRENT_DOCUMENT_PTR: AtomicUsize = AtomicUsize::new(0);
 
 /// Set document pointer
 pub fn set_document_ptr(ptr: usize) {
-    unsafe { CURRENT_DOCUMENT_PTR = ptr; }
+    CURRENT_DOCUMENT_PTR.store(ptr, Ordering::SeqCst);
 }
 
 /// Get document pointer
 fn get_document_ptr() -> usize {
-    unsafe { CURRENT_DOCUMENT_PTR }
+    CURRENT_DOCUMENT_PTR.load(Ordering::SeqCst)
 }
 
 /// Current element being operated on (for callbacks)
-static mut CURRENT_ELEMENT_ID: u32 = 0;
+static CURRENT_ELEMENT_ID: AtomicU32 = AtomicU32::new(0);
 
 /// Set current element ID
 fn set_current_element(id: ElementId) {
-    unsafe { CURRENT_ELEMENT_ID = id; }
+    CURRENT_ELEMENT_ID.store(id, Ordering::SeqCst);
 }
 
 /// Get current element ID
 fn get_current_element() -> ElementId {
-    unsafe { CURRENT_ELEMENT_ID }
+    CURRENT_ELEMENT_ID.load(Ordering::SeqCst)
 }
 
 /// Initialize JS environment with DOM bindings

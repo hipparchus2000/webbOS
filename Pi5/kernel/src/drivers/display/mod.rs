@@ -7,18 +7,7 @@
 pub mod pi_framebuffer;
 
 // Re-export the Pi framebuffer types for compatibility
-pub use pi_framebuffer::{
-    PiFramebuffer as DisplayDriver,
-    FramebufferInfo,
-    driver,
-    init,
-    clear,
-    set_pixel,
-    fill_rect,
-    draw_text,
-    print_info,
-    colors,
-};
+pub use pi_framebuffer::colors;
 
 /// Initialize the display subsystem
 /// 
@@ -42,7 +31,4 @@ pub fn is_initialized() -> bool {
 /// Compatibility type alias for code expecting VesaDriver
 pub type VesaDriver = pi_framebuffer::PiFramebuffer;
 
-/// Re-export colors from pi_framebuffer for VESA compatibility
-pub mod vesa_colors {
-    pub use super::colors::*;
-}
+

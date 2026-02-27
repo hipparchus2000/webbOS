@@ -71,10 +71,10 @@ impl BlockDevice for SdCard {
         self.block_count
     }
     
-    fn read_blocks(&self, start: u64, count: usize, buf: &mut [u8]) -> Result<(), StorageError> {
+    fn read_blocks(&self, start: u64, count: usize, _buf: &mut [u8]) -> Result<(), StorageError> {
         // Use SDIO to read blocks
         // SDIO works with function 0 for SD card
-        let address = (start * self.block_size as u64) as u32;
+        let _address = (start * self.block_size as u64) as u32;
         
         // Use CMD53 to read data
         // This is a simplified version - real implementation needs proper SDIO commands
@@ -85,7 +85,7 @@ impl BlockDevice for SdCard {
         Err(StorageError::IoError)
     }
     
-    fn write_blocks(&self, start: u64, count: usize, buf: &[u8]) -> Result<(), StorageError> {
+    fn write_blocks(&self, start: u64, count: usize, _buf: &[u8]) -> Result<(), StorageError> {
         println!("[sd_card] Writing {} blocks to offset {}", count, start);
         
         // TODO: Implement actual SDIO block write

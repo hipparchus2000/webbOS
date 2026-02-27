@@ -14,7 +14,7 @@ use alloc::collections::VecDeque;
 use core::sync::atomic::{AtomicU64, AtomicI32, Ordering};
 
 use crate::println;
-use crate::drivers::usb::hid;
+
 
 /// Maximum event queue size
 const MAX_EVENTS: usize = 64;

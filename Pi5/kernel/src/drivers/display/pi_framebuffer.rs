@@ -704,7 +704,7 @@ fn get_char_bitmap(ch: char) -> [u8; 8] {
     }
 }
 
-/// Global Pi framebuffer driver
+// Global Pi framebuffer driver
 lazy_static! {
     static ref PI_FRAMEBUFFER: Mutex<PiFramebuffer> = Mutex::new(PiFramebuffer::new());
 }

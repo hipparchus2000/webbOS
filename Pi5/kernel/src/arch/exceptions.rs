@@ -209,11 +209,11 @@ extern "C" fn handle_exception(frame: &ExceptionFrame) {
     if ec == 0x24 || ec == 0x25 {
         let isv = (frame.esr >> 24) & 1;
         let sas = (frame.esr >> 22) & 3;
-        let sse = (frame.esr >> 21) & 1;
+        let _sse = (frame.esr >> 21) & 1;
         let srt = (frame.esr >> 16) & 0x1F;
-        let ea = (frame.esr >> 9) & 1;
-        let cm = (frame.esr >> 8) & 1;
-        let s1ptw = (frame.esr >> 7) & 1;
+        let _ea = (frame.esr >> 9) & 1;
+        let _cm = (frame.esr >> 8) & 1;
+        let _s1ptw = (frame.esr >> 7) & 1;
         let wnr = (frame.esr >> 6) & 1;
         let dfsc = frame.esr & 0x3F;
         

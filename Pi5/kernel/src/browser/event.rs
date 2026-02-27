@@ -3,9 +3,6 @@
 //! Provides basic DOM event handling for user interactions.
 
 use alloc::string::String;
-use alloc::vec::Vec;
-use spin::Mutex;
-use lazy_static::lazy_static;
 
 use crate::browser::dom_api::ElementId;
 use crate::browser::js::Value;
@@ -122,7 +119,7 @@ pub fn handle_window_load() {
 
 /// Handle element click
 pub fn handle_element_click(element_id: ElementId, x: i32, y: i32) {
-    let event = Event::mouse(EventType::Click, element_id, x, y);
+    let _event = Event::mouse(EventType::Click, element_id, x, y);
     println!("[event] Click on element {} at ({}, {})", element_id, x, y);
     // TODO: Dispatch to JS event handlers
 }

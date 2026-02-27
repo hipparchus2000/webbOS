@@ -7,7 +7,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
-use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::net::{Ipv4Address, Port, IpProtocol, ip};
 use crate::println;
@@ -260,7 +259,7 @@ impl TcpConnection {
     }
 }
 
-/// TCP socket table
+// TCP socket table
 lazy_static! {
     static ref CONNECTIONS: Mutex<BTreeMap<ConnectionId, TcpConnection>> = Mutex::new(BTreeMap::new());
     static ref LISTENING_SOCKETS: Mutex<BTreeMap<Port, ConnectionId>> = Mutex::new(BTreeMap::new());

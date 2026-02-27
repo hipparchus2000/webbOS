@@ -3,12 +3,10 @@
 //! Implementation of TLS 1.3 (RFC 8446) for WebbOS.
 
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 
-use crate::crypto::sha256::{self, Sha256};
 use crate::crypto::chacha20::{ChaCha20Poly1305, KEY_SIZE as CHACHA_KEY_SIZE, NONCE_SIZE};
 use crate::crypto::hkdf;
-use crate::crypto::x25519::{self, PrivateKey, PublicKey, SharedSecret};
+use crate::crypto::x25519::{self, SharedSecret};
 use crate::println;
 
 /// TLS record types
@@ -199,7 +197,7 @@ impl TlsConnection {
         msg.extend_from_slice(&0x0304u16.to_be_bytes()); // TLS 1.3
         
         // Key Share extension
-        let (private_key, public_key) = x25519::generate_keypair();
+        let (_private_key, public_key) = x25519::generate_keypair();
         msg.extend_from_slice(&0x0033u16.to_be_bytes()); // key_share
         msg.extend_from_slice(&(38u16).to_be_bytes()); // length
         msg.extend_from_slice(&(36u16).to_be_bytes()); // client_shares length
@@ -247,7 +245,7 @@ impl TlsConnection {
         if data.len() < pos + 2 {
             return Err(TlsError::InvalidMessage);
         }
-        pos += 2;
+        let _pos = pos + 2;  // TODO: Use this for further parsing
         
         // Random
         if data.len() < pos + 32 {

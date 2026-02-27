@@ -3,7 +3,7 @@
 //! Implementation of HKDF as defined in RFC 5869.
 
 use alloc::vec::Vec;
-use crate::crypto::sha256::{self, Sha256, DIGEST_SIZE};
+use crate::crypto::sha256::{self, DIGEST_SIZE};
 
 /// HKDF-Extract using SHA-256
 pub fn extract(salt: &[u8], ikm: &[u8]) -> [u8; DIGEST_SIZE] {

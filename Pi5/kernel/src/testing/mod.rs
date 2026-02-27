@@ -70,7 +70,7 @@ impl TestSuite {
                 TestResult::Skipped => "⊘",
             };
             
-            let color_code = match test.result {
+            let _color_code = match test.result {
                 TestResult::Passed => "[32m", // Green
                 TestResult::Failed => "[31m", // Red
                 TestResult::Skipped => "[33m", // Yellow

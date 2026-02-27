@@ -383,7 +383,7 @@ impl DesktopManager {
     
     /// Login
     pub fn login(&mut self, username: &str, password: &str) -> bool {
-        if let Some(session_id) = users::login(username, password) {
+        if let Some(_session_id) = users::login(username, password) {
             self.current_user = users::current_user();
             self.show_login = false;
             self.show_desktop = true;
@@ -429,7 +429,7 @@ impl DesktopManager {
     }
 }
 
-/// Global desktop manager
+// Global desktop manager
 lazy_static! {
     static ref DESKTOP_MANAGER: Mutex<DesktopManager> = Mutex::new(DesktopManager::new());
 }
@@ -576,52 +576,50 @@ pub struct FileInfo {
     pub is_dir: bool,
 }
 
-/// Message queue for HTML frontend to backend communication
-static mut MESSAGE_QUEUE: Vec<DesktopMessage> = Vec::new();
+// Message queue for HTML frontend to backend communication
+lazy_static! {
+    static ref MESSAGE_QUEUE: Mutex<Vec<DesktopMessage>> = Mutex::new(Vec::new());
+}
 
 /// Post a message from HTML frontend to backend
 pub fn post_message(msg: DesktopMessage) {
-    unsafe {
-        MESSAGE_QUEUE.push(msg);
-    }
+    MESSAGE_QUEUE.lock().push(msg);
 }
 
 /// Process all pending messages
 pub fn process_messages() {
-    unsafe {
-        for msg in MESSAGE_QUEUE.drain(..) {
-            match msg {
-                DesktopMessage::BrowserNavigate { url } => {
-                    ui::browser_navigate(&url);
-                }
-                DesktopMessage::OpenFileManager { path } => {
-                    ui::open_file_manager(&path);
-                }
-                DesktopMessage::LaunchApp { name } => {
-                    launch_app(&name);
-                }
-                DesktopMessage::LaunchHtml { path } => {
-                    println!("[desktop] LaunchHtml requested for: {}", path);
-                    // Open HTML file in browser
-                    let file_url = format!("file://{}", path);
-                    ui::browser_navigate(&file_url);
-                }
-                DesktopMessage::FsList { path } => {
-                    println!("[desktop] FsList requested for: {}", path);
-                    // List files in the directory
-                    handle_fs_list(&path);
-                }
-                DesktopMessage::FsListResponse { .. } => {
-                    // This is sent TO the frontend, not handled here
-                }
-                DesktopMessage::FsRead { path } => {
-                    println!("[desktop] FsRead requested for: {}", path);
-                    // TODO: Implement file read
-                }
-                DesktopMessage::FsWrite { path, content } => {
-                    println!("[desktop] FsWrite requested for: {} ({} bytes)", path, content.len());
-                    // TODO: Implement file write
-                }
+    for msg in MESSAGE_QUEUE.lock().drain(..) {
+        match msg {
+            DesktopMessage::BrowserNavigate { url } => {
+                ui::browser_navigate(&url);
+            }
+            DesktopMessage::OpenFileManager { path } => {
+                ui::open_file_manager(&path);
+            }
+            DesktopMessage::LaunchApp { name } => {
+                launch_app(&name);
+            }
+            DesktopMessage::LaunchHtml { path } => {
+                println!("[desktop] LaunchHtml requested for: {}", path);
+                // Open HTML file in browser
+                let file_url = format!("file://{}", path);
+                ui::browser_navigate(&file_url);
+            }
+            DesktopMessage::FsList { path } => {
+                println!("[desktop] FsList requested for: {}", path);
+                // List files in the directory
+                handle_fs_list(&path);
+            }
+            DesktopMessage::FsListResponse { .. } => {
+                // This is sent TO the frontend, not handled here
+            }
+            DesktopMessage::FsRead { path } => {
+                println!("[desktop] FsRead requested for: {}", path);
+                // TODO: Implement file read
+            }
+            DesktopMessage::FsWrite { path, content } => {
+                println!("[desktop] FsWrite requested for: {} ({} bytes)", path, content.len());
+                // TODO: Implement file write
             }
         }
     }
@@ -652,9 +650,7 @@ fn handle_fs_list(path: &str) {
     
     // Store the response for the frontend to pick up
     // TODO: Implement proper message passing to frontend
-    unsafe {
-        PENDING_FS_RESPONSE = Some(FsListResponse { files });
-    }
+    *PENDING_FS_RESPONSE.lock() = Some(FsListResponse { files });
 }
 
 /// Get static app listing for fallback
@@ -689,14 +685,14 @@ pub struct FsListResponse {
     pub files: Vec<FileInfo>,
 }
 
-/// Pending filesystem response (for frontend to pick up)
-static mut PENDING_FS_RESPONSE: Option<FsListResponse> = None;
+// Pending filesystem response (for frontend to pick up)
+lazy_static! {
+    static ref PENDING_FS_RESPONSE: Mutex<Option<FsListResponse>> = Mutex::new(None);
+}
 
 /// Get pending filesystem response (called by frontend message handler)
 pub fn get_pending_fs_response() -> Option<FsListResponse> {
-    unsafe {
-        PENDING_FS_RESPONSE.take()
-    }
+    PENDING_FS_RESPONSE.lock().take()
 }
 
 // HTML/CSS/JS for applications will be in separate files

@@ -47,8 +47,8 @@ impl AesGcm {
     /// Encrypt in place and return tag
     pub fn encrypt_in_place(
         &self,
-        nonce: &[u8],
-        aad: &[u8],
+        _nonce: &[u8],
+        _aad: &[u8],
         plaintext: &mut [u8],
     ) -> [u8; TAG_SIZE] {
         // Simplified implementation - in production, use a proper AES implementation
