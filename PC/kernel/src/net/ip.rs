@@ -1,11 +1,21 @@
 //! IP (Internet Protocol) layer
 //!
+#![allow(dead_code)]
+
 //! Handles IPv4 packet processing and routing.
 
 use alloc::vec;
 use alloc::vec::Vec;
 use crate::net::{Ipv4Address, IpProtocol, arp};
 use crate::println;
+use core::sync::atomic::{AtomicU16, Ordering};
+
+/// Minimum IPv4 header size (20 bytes)
+pub const IPV4_HEADER_MIN_SIZE: usize = 20;
+/// Maximum IPv4 header size (60 bytes with options)
+pub const IPV4_HEADER_MAX_SIZE: usize = 60;
+/// Maximum IPv4 packet size
+pub const IPV4_MAX_PACKET_SIZE: usize = 65535;
 
 /// IPv4 header
 #[repr(C, packed)]
@@ -92,7 +102,13 @@ impl Ipv4Header {
 
     /// Get payload length
     pub fn payload_len(&self) -> usize {
-        (self.total_len as usize).saturating_sub(self.header_len())
+        let header_len = self.header_len();
+        let total_len = self.total_len as usize;
+        if total_len > header_len {
+            total_len - header_len
+        } else {
+            0
+        }
     }
 
     /// Calculate header checksum
@@ -128,21 +144,31 @@ impl Ipv4Header {
     }
 }
 
-/// Process incoming IPv4 packet
+/// Process incoming IPv4 packet (alias for process_ip_packet)
 pub fn process_ipv4_packet(data: &[u8]) {
+    // Validate minimum packet size
+    if data.len() < IPV4_HEADER_MIN_SIZE {
+        return;
+    }
+    
     let header = match Ipv4Header::from_bytes(data) {
         Some(h) => h,
         None => return,
     };
 
-    // Verify version
+    // Verify version (already checked in from_bytes, but double-check)
     if (header.ver_ihl >> 4) != 4 {
         return;
     }
 
     // Verify header length
     let header_len = header.header_len();
-    if header_len < 20 || header_len > data.len() {
+    if header_len < IPV4_HEADER_MIN_SIZE || header_len > IPV4_HEADER_MAX_SIZE {
+        return;
+    }
+    
+    // Ensure header fits within packet
+    if header_len > data.len() {
         return;
     }
 
@@ -151,11 +177,22 @@ pub fn process_ipv4_packet(data: &[u8]) {
 
     // Verify total length
     let total_len = header.total_len as usize;
-    if total_len > data.len() {
+    if total_len < header_len || total_len > data.len() {
+        return;
+    }
+    
+    // Validate payload length
+    let payload_len = total_len - header_len;
+    if payload_len > data.len() - header_len {
         return;
     }
 
     let payload = &data[header_len..total_len];
+    
+    // Verify payload bounds match expected length
+    if payload.len() != payload_len {
+        return;
+    }
 
     // Dispatch based on protocol
     match IpProtocol::from_u8(header.protocol) {
@@ -281,22 +318,37 @@ impl IcmpHeader {
     }
 }
 
+/// Minimum ICMP header size
+const ICMP_HEADER_MIN_SIZE: usize = 8;
+/// Maximum ICMP payload size
+const ICMP_MAX_PAYLOAD_SIZE: usize = 65507;
+
 /// Process ICMP packet
-fn process_icmp_packet(src: Ipv4Address, dst: Ipv4Address, data: &[u8]) {
-    if data.len() < 8 {
+fn process_icmp_packet(src: Ipv4Address, _dst: Ipv4Address, data: &[u8]) {
+    // Validate minimum ICMP header size
+    if data.len() < ICMP_HEADER_MIN_SIZE {
         return;
     }
 
     let type_ = data[0];
-    let code = data[1];
+    let _code = data[1];
     // let checksum = u16::from_be_bytes([data[2], data[3]]);
     let id = u16::from_be_bytes([data[4], data[5]]);
     let seq = u16::from_be_bytes([data[6], data[7]]);
+    
+    // Validate payload length
+    let payload_len = data.len() - ICMP_HEADER_MIN_SIZE;
+    if payload_len > ICMP_MAX_PAYLOAD_SIZE {
+        return;
+    }
 
     match type_ {
         8 => {
             // Echo request - send reply
-            send_icmp_echo_reply(src, id, seq, &data[8..]);
+            // Bounds check for payload access
+            if data.len() >= ICMP_HEADER_MIN_SIZE {
+                send_icmp_echo_reply(src, id, seq, &data[ICMP_HEADER_MIN_SIZE..]);
+            }
         }
         _ => {
             // Other types not handled
@@ -346,12 +398,9 @@ pub fn ping(dst: Ipv4Address) -> Result<(), ()> {
 }
 
 /// Packet counter for identification
-static mut PACKET_ID: u16 = 0;
+static PACKET_ID: AtomicU16 = AtomicU16::new(0);
 
 /// Get next packet ID
 pub fn next_packet_id() -> u16 {
-    unsafe {
-        PACKET_ID = PACKET_ID.wrapping_add(1);
-        PACKET_ID
-    }
+    PACKET_ID.fetch_add(1, Ordering::Relaxed)
 }

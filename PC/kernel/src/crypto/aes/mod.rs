@@ -47,8 +47,8 @@ impl AesGcm {
     /// Encrypt in place and return tag
     pub fn encrypt_in_place(
         &self,
-        nonce: &[u8],
-        aad: &[u8],
+        _nonce: &[u8],
+        _aad: &[u8],
         plaintext: &mut [u8],
     ) -> [u8; TAG_SIZE] {
         // Simplified implementation - in production, use a proper AES implementation
@@ -71,14 +71,14 @@ impl AesGcm {
     /// Decrypt in place and verify tag
     pub fn decrypt_in_place(
         &self,
-        nonce: &[u8],
-        aad: &[u8],
+        _nonce: &[u8],
+        _aad: &[u8],
         ciphertext: &mut [u8],
         tag: &[u8; TAG_SIZE],
     ) -> bool {
         // Make a copy for tag verification
         let ciphertext_copy: alloc::vec::Vec<u8> = ciphertext.iter().copied().collect();
-        let expected_tag = self.encrypt_in_place(nonce, aad, &mut ciphertext_copy.clone());
+        let expected_tag = self.encrypt_in_place(&[], &[], &mut ciphertext_copy.clone());
         
         if !crate::crypto::constant_time_eq(tag, &expected_tag) {
             return false;

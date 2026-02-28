@@ -331,3 +331,19 @@ pub mod vendor {
     pub const VMWARE: u16 = 0x15AD;
     pub const VIA: u16 = 0x1106;
 }
+
+/// USB Controller classes (for xHCI/UHCI detection)
+pub mod usb_class {
+    /// Serial bus controller class
+    pub const SERIAL_BUS: u8 = 0x0C;
+    /// USB subclass
+    pub const USB_SUBCLASS: u8 = 0x03;
+    /// UHCI (USB 1.0) programming interface
+    pub const UHCI_PI: u8 = 0x00;
+    /// OHCI (USB 1.0) programming interface
+    pub const OHCI_PI: u8 = 0x10;
+    /// EHCI (USB 2.0) programming interface
+    pub const EHCI_PI: u8 = 0x20;
+    /// xHCI (USB 3.0) programming interface
+    pub const XHCI_PI: u8 = 0x30;
+}

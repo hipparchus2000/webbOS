@@ -162,7 +162,7 @@ impl NvmeController {
     pub fn init(&mut self) -> Result<(), StorageError> {
         // Check capabilities
         let cap = self.read_cap();
-        let doorbell_stride = 4 << ((cap >> 32) & 0xF); // DSTRD field
+        let _doorbell_stride = 4 << ((cap >> 32) & 0xF); // DSTRD field
 
         println!("[nvme] CAP: {:016X}", cap);
 

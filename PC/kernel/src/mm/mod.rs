@@ -22,7 +22,11 @@ pub const HEAP_START: u64 = KERNEL_BASE + 0x40000000; // 1GB after kernel base
 pub const HEAP_SIZE: u64 = 8 * 1024 * 1024; // 8MB heap for browser and apps
 
 /// Global bump allocator for early boot
-static mut BUMP_ALLOCATOR: Option<bump::BumpAllocator> = None;
+use spin::Mutex;
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref BUMP_ALLOCATOR: Mutex<Option<bump::BumpAllocator>> = Mutex::new(None);
+}
 
 /// Initialize memory management
 /// 

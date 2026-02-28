@@ -2,11 +2,13 @@
 //!
 //! Parses HTML documents into a DOM tree.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 
 use crate::browser::BrowserError;
+use crate::browser::css::Stylesheet;
 use crate::println;
 
 /// HTML Document
@@ -19,6 +21,8 @@ pub struct Document {
     pub scripts: Vec<Script>,
     /// Document stylesheets
     pub stylesheets: Vec<StylesheetRef>,
+    /// Computed stylesheet (filled after CSS parsing, includes keyframes)
+    pub computed_stylesheet: Option<crate::browser::css::Stylesheet>,
 }
 
 impl Document {
@@ -29,6 +33,7 @@ impl Document {
 }
 
 /// HTML Element
+#[derive(Clone)]
 pub struct Element {
     /// Tag name
     pub tag: String,
@@ -74,6 +79,7 @@ impl Element {
 }
 
 /// DOM Node
+#[derive(Clone)]
 pub enum Node {
     Element(Element),
     Text(String),
@@ -359,7 +365,7 @@ impl DomBuilder {
                     self.stack.push(elem);
                 }
                 Token::EndTag(tag) => {
-                    if let Some(mut elem) = self.stack.pop() {
+                    if let Some(elem) = self.stack.pop() {
                         // Capture inline script/style content
                         match tag.as_str() {
                             "script" => {
@@ -426,6 +432,7 @@ impl DomBuilder {
             root,
             scripts: self.scripts,
             stylesheets: self.stylesheets,
+            computed_stylesheet: None,
         })
     }
 }
@@ -473,5 +480,6 @@ pub fn create_test_document() -> Document {
         root: html,
         scripts: Vec::new(),
         stylesheets: Vec::new(),
+        computed_stylesheet: None,
     }
 }

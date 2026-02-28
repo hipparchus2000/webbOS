@@ -119,13 +119,16 @@ impl Object {
     }
 }
 
+/// Native function callback type (using function pointer for Clone support)
+pub type NativeFn = fn(&mut Environment, Vec<Value>) -> Value;
+
 /// JavaScript function
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     pub params: Vec<String>,
     pub body: Vec<Statement>,
-    pub native: Option<fn(&mut Environment, Vec<Value>) -> Value>,
+    pub native: Option<NativeFn>,
 }
 
 /// Environment for variable scoping
@@ -400,7 +403,7 @@ impl<'a> Tokenizer<'a> {
 
 /// Statement types
 #[derive(Debug, Clone)]
-enum Statement {
+pub enum Statement {
     VarDecl(String, Option<Expr>),
     LetDecl(String, Option<Expr>),
     ConstDecl(String, Expr),
@@ -414,7 +417,7 @@ enum Statement {
 
 /// Expression types
 #[derive(Debug, Clone)]
-enum Expr {
+pub enum Expr {
     Identifier(String),
     Number(f64),
     String(String),

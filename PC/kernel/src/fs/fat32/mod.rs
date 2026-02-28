@@ -127,6 +127,12 @@ impl Fat32Fs {
         
         println!("[fat32] Boot sector read OK");
 
+        // Bounds check: ensure buffer is large enough for BootSector
+        if boot_data.len() < core::mem::size_of::<BootSector>() {
+            println!("[fat32] Error: Boot sector data too small");
+            return Err(FsError::InvalidFilesystem);
+        }
+
         let boot_sector = unsafe {
             core::ptr::read(boot_data.as_ptr() as *const BootSector)
         };
@@ -173,6 +179,12 @@ impl Fat32Fs {
         device.read_blocks(fat_start, fat_sectors, &mut fat_buffer)
             .map_err(|_| FsError::IoError)?;
         println!("[fat32] FAT read OK");
+
+        // Bounds check: ensure buffer has enough data for all FAT entries
+        if fat_buffer.len() < fat_entries * 4 {
+            println!("[fat32] Error: FAT buffer too small");
+            return Err(FsError::InvalidFilesystem);
+        }
 
         for i in 0..fat_entries {
             let entry = unsafe {
@@ -307,6 +319,10 @@ impl Fat32Fs {
 
                 // Long file name entry
                 if attrs == ATTR_LFN {
+                    // Bounds check: ensure we have enough data for LfnEntry
+                    if entry_offset + core::mem::size_of::<LfnEntry>() > cluster_data.len() {
+                        continue;
+                    }
                     let lfn: &LfnEntry = unsafe {
                         &*(cluster_data.as_ptr().add(entry_offset) as *const LfnEntry)
                     };
@@ -336,6 +352,10 @@ impl Fat32Fs {
                 }
 
                 // Regular 8.3 entry
+                // Bounds check: ensure we have enough data for DirEntry
+                if entry_offset + core::mem::size_of::<DirEntry>() > cluster_data.len() {
+                    continue;
+                }
                 let entry = unsafe {
                     *(cluster_data.as_ptr().add(entry_offset) as *const DirEntry)
                 };

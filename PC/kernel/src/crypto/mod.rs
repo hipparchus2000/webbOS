@@ -7,11 +7,15 @@
 //! - HKDF key derivation
 //! - X25519 key exchange
 
+#![allow(dead_code)]
+
+pub mod sha1;
 pub mod sha256;
 pub mod sha384;
 pub mod aes;
 pub mod chacha20;
 pub mod hkdf;
+pub mod pbkdf2;
 pub mod x25519;
 
 use crate::println;
@@ -20,11 +24,13 @@ use crate::println;
 pub fn init() {
     println!("[crypto] Initializing cryptographic subsystem...");
     
+    sha1::init();
     sha256::init();
     sha384::init();
     aes::init();
     chacha20::init();
     hkdf::init();
+    pbkdf2::init();
     x25519::init();
     
     println!("[crypto] Cryptographic subsystem initialized");

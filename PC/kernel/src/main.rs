@@ -459,7 +459,7 @@ fn desktop_event_loop() {
         let last_print = LAST_PRINT.load(Ordering::Relaxed);
         if current_tick >= last_print + 50 {
             let events = EVENT_COUNT.load(Ordering::Relaxed);
-            let (kb_irq, mouse_irq) = drivers::input::get_irq_counts();
+            let (_kb_irq, mouse_irq) = drivers::input::get_irq_counts();
             let (mx, my) = drivers::input::mouse_position();
             println!("[hb] loops={} evt={} irq(m)={} mouse=({},{})", 
                 loop_num, events, mouse_irq, mx, my);

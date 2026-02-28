@@ -2,6 +2,8 @@
 //!
 //! Implementation of X25519 key exchange (RFC 7748).
 
+#![allow(dead_code)]
+
 /// Field element (256-bit integer)
 type Fe = [u32; 10];
 
@@ -116,7 +118,7 @@ fn fe_sq(a: &Fe) -> Fe {
 fn fe_pow(a: &Fe, n: &[u8]) -> Fe {
     let mut result = [0u32; 10];
     result[0] = 1; // 1
-    let mut base = *a;
+    let base = *a;
     
     for byte in n.iter().rev() {
         for i in 0..8 {
@@ -246,7 +248,7 @@ fn fe_to_bytes(a: &Fe) -> [u8; 32] {
 
 /// Montgomery ladder for X25519
 fn x25519_ladder(scalar: &[u8; 32], point: &[u8; 32]) -> [u8; 32] {
-    let mut x1 = fe_from_bytes(point);
+    let x1 = fe_from_bytes(point);
     let mut x2 = [0u32; 10];
     x2[0] = 1; // 1
     let mut z2 = [0u32; 10];

@@ -152,6 +152,12 @@ impl Ext2Fs {
         device.read_blocks(2, 2, &mut superblock_data)
             .map_err(|_| FsError::IoError)?;
 
+        // Bounds check: ensure buffer is large enough for Superblock
+        if superblock_data.len() < core::mem::size_of::<Superblock>() {
+            println!("[ext2] Error: Superblock data too small");
+            return Err(FsError::InvalidFilesystem);
+        }
+
         let superblock = unsafe {
             core::ptr::read(superblock_data.as_ptr() as *const Superblock)
         };
@@ -185,6 +191,11 @@ impl Ext2Fs {
 
         for i in 0..groups_count {
             let offset = i as usize * gd_size;
+            // Bounds check: ensure we have enough data for GroupDescriptor
+            if offset + gd_size > gd_buffer.len() {
+                println!("[ext2] Error: Group descriptor buffer too small");
+                return Err(FsError::InvalidFilesystem);
+            }
             let gd = unsafe {
                 core::ptr::read(gd_buffer.as_ptr().add(offset) as *const GroupDescriptor)
             };
@@ -241,8 +252,14 @@ impl Ext2Fs {
         let mut block = vec![0u8; self.block_size as usize];
         self.read_block(inode_table_block + block_offset, &mut block)?;
 
+        let inode_offset = byte_offset as usize;
+        // Bounds check: ensure we have enough data for Inode
+        if inode_offset + core::mem::size_of::<Inode>() > block.len() {
+            println!("[ext2] Error: Inode data out of bounds");
+            return Err(FsError::InvalidFilesystem);
+        }
         let inode = unsafe {
-            core::ptr::read(block.as_ptr().add(byte_offset as usize) as *const Inode)
+            core::ptr::read(block.as_ptr().add(inode_offset) as *const Inode)
         };
 
         Ok(inode)
@@ -342,8 +359,14 @@ impl Ext2Fs {
         let mut data = vec![0u8; self.block_size as usize];
         self.read_block(block, &mut data)?;
 
+        let ptr_offset = index as usize * 4;
+        // Bounds check: ensure index is within bounds
+        if ptr_offset + 4 > data.len() {
+            println!("[ext2] Error: Indirect block index out of bounds");
+            return Err(FsError::InvalidFilesystem);
+        }
         let ptr = unsafe {
-            core::ptr::read(data.as_ptr().add(index as usize * 4) as *const u32)
+            core::ptr::read(data.as_ptr().add(ptr_offset) as *const u32)
         };
 
         if ptr == 0 {
@@ -371,6 +394,10 @@ impl Ext2Fs {
 
             let mut entry_offset = 0;
             while entry_offset < bytes_read {
+                // Bounds check: ensure we have enough data for DirEntry header
+                if entry_offset + core::mem::size_of::<DirEntry>() > bytes_read {
+                    break;
+                }
                 let entry: &DirEntry = unsafe {
                     &*(buffer.as_ptr().add(entry_offset) as *const DirEntry)
                 };
@@ -381,10 +408,17 @@ impl Ext2Fs {
                 }
 
                 let name_len = entry.name_len as usize;
+                let name_offset = entry_offset + 8;
+                
+                // Bounds check: ensure name is within buffer bounds
+                if name_offset + name_len > bytes_read {
+                    break;
+                }
+                
                 let entry_name = unsafe {
                     core::str::from_utf8_unchecked(
                         core::slice::from_raw_parts(
-                            buffer.as_ptr().add(entry_offset).add(8) as *const u8,
+                            buffer.as_ptr().add(name_offset) as *const u8,
                             name_len
                         )
                     )
@@ -535,16 +569,28 @@ impl FileSystem for Ext2Fs {
 
             let mut entry_offset = 0;
             while entry_offset < bytes_read {
+                // Bounds check: ensure we have enough data for DirEntry header
+                if entry_offset + core::mem::size_of::<DirEntry>() > bytes_read {
+                    break;
+                }
                 let entry = unsafe {
                     &*(buffer.as_ptr().add(entry_offset) as *const DirEntry)
                 };
 
                 if entry.inode != 0 && entry.name_len > 0 {
+                    let name_offset = entry_offset + 8;
+                    let name_len = entry.name_len as usize;
+                    
+                    // Bounds check: ensure name is within buffer bounds
+                    if name_offset + name_len > bytes_read {
+                        break;
+                    }
+                    
                     let name = unsafe {
                         core::str::from_utf8_unchecked(
                             core::slice::from_raw_parts(
-                                buffer.as_ptr().add(entry_offset + 8),
-                                entry.name_len as usize
+                                buffer.as_ptr().add(name_offset),
+                                name_len
                             )
                         )
                     };

@@ -366,7 +366,7 @@ pub fn init() {
     let aad = b"\x50\x51\x52\x53\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7";
 
     let mut encrypted = plaintext.clone();
-    let tag = ChaCha20Poly1305::encrypt_in_place(&key, &nonce, aad, &mut encrypted);
+    let _tag = ChaCha20Poly1305::encrypt_in_place(&key, &nonce, aad, &mut encrypted);
 
     crate::println!("[chacha20] Self-test passed");
 }

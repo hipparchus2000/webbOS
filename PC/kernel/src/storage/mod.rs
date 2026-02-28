@@ -120,7 +120,7 @@ pub fn device_count() -> usize {
 
 /// Get block device by index
 pub fn get_device(idx: usize) -> Option<Box<dyn BlockDevice>> {
-    BLOCK_DEVICES.lock().get(idx).map(|d| {
+    BLOCK_DEVICES.lock().get(idx).map(|_d| {
         // Create a simple wrapper - in reality we'd use Arc or similar
         // For now, just return None since we can't easily clone Box<dyn BlockDevice>
         // The actual usage would be through the global list

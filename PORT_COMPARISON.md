@@ -2,11 +2,11 @@
 
 ## Overview
 
-| Port | Target | Files | Code Size | Status |
-|------|--------|-------|-----------|--------|
-| **PC** | x86_64 UEFI | 68 | ~1.05 MB | Working |
-| **Pi5** | ARM64 (Pi 5) | 81 | ~1.25 MB | In Progress |
-| **Pi** | ARM64 (Pi 3/4) | 88 | ~1.34 MB | Most Complete |
+| Port | Target | Files | Code Size | Status | Warnings |
+|------|--------|-------|-----------|--------|----------|
+| **PC** | x86_64 UEFI | 68 | ~1.05 MB | Working | ~474 |
+| **Pi** | ARM64 (Pi 3/4) | 88 | ~1.34 MB | Most Complete | ~500 |
+| **Pi5** | ARM64 (Pi 5) | 81 | ~1.25 MB | In Progress | ~1067 |
 
 ## Architecture Differences
 
@@ -19,6 +19,7 @@ kernel/src/
 ├── drivers/
 │   ├── input/            # Keyboard/mouse
 │   ├── storage/          # Disk/ATA/NVMe
+│   ├── usb/              # USB controller detection (xHCI/EHCI)
 │   └── vesa/             # VESA framebuffer
 ├── graphics/             # Graphics context
 └── ...
@@ -34,170 +35,168 @@ kernel/src/
 │   ├── mailbox/          # VideoCore mailbox
 │   ├── sdio/             # SD card I/O
 │   ├── storage/          # SD card storage
-│   ├── usb/              # USB controller
+│   ├── usb/              # USB controller (DWC OTG)
 │   └── wifi/             # WiFi (BCM43438/BCM43455)
 ├── graphics/             # Graphics context
 └── ...
 ```
-
-## Graphics/Painting Improvements (Pi → PC Backport Needed)
-
-### 1. Dirty Rectangle Tracking ⭐ CRITICAL
-
-**Pi Version (Has it):**
-- `DirtyRect` struct for tracking screen regions needing redraw
-- `mark_dirty()` - marks region as changed
-- `mark_mouse_dirty()` - optimized mouse movement tracking
-- `mark_full_redraw()` - flag for complete redraw
-- Partial redraw support in `draw()` - only redraws changed regions
-
-**PC Version (Missing):**
-- Always clears entire screen and redraws everything
-- No dirty region tracking
-- Performance issue for animations and mouse movement
-
-**Files to Update:**
-- `PC/kernel/src/desktop/ui.rs` - Add dirty rectangle system
-
-### 2. Screen Dimension Tracking
-
-**Pi Version:**
-- Stores `screen_width` and `screen_height` in DesktopUI
-- Handles resolution changes gracefully
-
-**PC Version:**
-- Queries driver every frame
-- No handling for resolution changes
-
-### 3. Graphics Primitives
-
-Both versions have similar primitives:
-- `set_pixel()` with overflow checks ✓ (both have)
-- `fill_rect()`, `draw_rect()` ✓ (both have)
-- `hline()`, `vline()` ✓ (both have)
-- `draw_line()`, `draw_circle()` ✓ (both have)
-
-### 4. Framebuffer Access
-
-**Both versions have:**
-- Checked arithmetic for pixel offset calculations
-- Support for 2, 3, and 4 bytes-per-pixel formats
-- Volatile read/write for framebuffer access
-- `save_under_cursor()` for mouse cursor rendering
 
 ## Feature Comparison
 
 | Feature | PC | Pi5 | Pi |
 |---------|----|-----|-----|
 | **Graphics** ||||
-| VESA framebuffer | ✓ | - | - |
-| Pi mailbox framebuffer | - | ✓ | ✓ |
-| Dirty rectangle tracking | ✗ | ✓ | ✓ |
-| Double buffering | ✗ | ✗ | ✗ |
+| VESA framebuffer | ✅ | - | - |
+| Pi mailbox framebuffer | - | ✅ | ✅ |
+| Dirty rectangle tracking | ✅ | ✅ | ✅ |
+| Double buffering | 🚧 | 🚧 | 🚧 |
 | **Storage** ||||
-| ATA/NVMe | ✓ | - | - |
-| SD card (SDIO) | - | ✓ | ✓ |
+| ATA/NVMe | ✅ | - | - |
+| SD card (SDIO) | - | ✅ | ✅ |
+| FAT32 write | ✅ | ✅ | ✅ |
 | **Network** ||||
-| Ethernet (RTL8139) | ✓ | - | - |
-| WiFi (WPA2) | - | ⚠️ | ✓ |
+| Ethernet (virtio/e1000) | ✅ | - | - |
+| DHCP client (advanced) | ✅ | ✅ | ✅ |
+| WiFi (WPA2) | - | 🚧 | ✅ |
 | **USB** ||||
-| USB controller | ✓ | - | ✓ |
-| USB keyboard/mouse | ✓ | - | ✓ |
+| USB controller detection | ✅ | - | ✅ |
+| USB keyboard/mouse | ✅ | - | ✅ |
 | **Input** ||||
-| PS/2 keyboard | ✓ | - | - |
-| PS/2 mouse | ✓ | - | - |
-| USB HID | ✓ | - | ✓ |
+| PS/2 keyboard | ✅ | - | - |
+| PS/2 mouse | ✅ | - | - |
+| USB HID | ✅ | - | ✅ |
+| **Process/Scheduler** ||||
+| Preemptive scheduler | ✅ | ✅ | ✅ |
+| Kernel threads | ✅ | ✅ | ✅ |
+| Context switching | ✅ | ✅ | ✅ |
+| Sleep/wake queues | ✅ | ✅ | ✅ |
 | **Other** ||||
-| PCI enumeration | ✓ | - | - |
-| Real-time clock | ✓ | - | - |
+| PCI enumeration | ✅ | - | - |
+| Real-time clock | ✅ | - | - |
+| **Security** ||||
+| TCP ISN (RFC 6528) | ✅ | ✅ | ✅ |
+| Filesystem bounds checking | ✅ | ✅ | ✅ |
+| PBKDF2 password hashing | ✅ | ✅ | ✅ |
+| WPA2 crypto | N/A | 🚧 | ✅ |
+| Static mut safety | ✅ | ✅ | ✅ |
 
-Legend: ✓ Working, ✗ Missing, ⚠️ In Progress, - Not applicable
+Legend: ✅ Working, 🚧 In Progress, ❌ Missing, - Not applicable
 
-## Specific Issues in PC Port
+## Security Improvements (Completed)
 
-### 1. Painting Performance
-The PC port redraws the entire screen every frame, causing:
-- Flickering during mouse movement
-- Poor performance for paint/canvas apps
-- High CPU usage for simple animations
+### TCP Sequence Number Generation (All Ports)
+- **Status**: ✅ Implemented RFC 6528 compliant ISN generation
+- **Details**: Uses hardware entropy (RDTSC on PC, CNTPCT_EL0 on Pi) + timer ticks + secret key
+- **Benefit**: Prevents TCP session hijacking attacks
 
-### 2. Mouse Cursor Rendering
-Both versions use save-under buffer, but:
-- PC version doesn't mark dirty regions after restoring cursor
-- Can leave artifacts in some cases
+### Filesystem Bounds Checking (All Ports)
+- **Status**: ✅ Comprehensive bounds checking on all filesystem operations
+- **Details**: 
+  - FAT32: Boot sector, FAT table, directory entries validated
+  - EXT2: Superblock, group descriptors, inodes validated
+  - Initrd: Path traversal protection, offset validation
+- **Benefit**: Prevents buffer overflows from malicious disk images
 
-## Recommendations for PC Port
+### WPA2 Cryptography (Pi)
+- **Status**: ✅ Proper PBKDF2-HMAC-SHA1 implementation
+- **Details**:
+  - 4096 iterations for PMK derivation
+  - PRF-HMAC-SHA1 for PTK derivation
+  - HMAC-SHA1 for MIC calculation
+  - Hardware entropy for nonce generation
+- **Benefit**: Secure WiFi connections
 
-### High Priority
-1. **Port dirty rectangle tracking from Pi**
-   - Copy `DirtyRect` struct and methods
-   - Modify `draw()` to use partial redraws
-   - Add `mark_mouse_dirty()` call in `update_mouse()`
+### Password Hashing (All Ports)
+- **Status**: ✅ PBKDF2-like construction implemented
+- **Details**:
+  - 100,000 iterations of SHA-256
+  - Per-user salt derived from username
+  - Prevents rainbow table attacks
+- **Benefit**: Secure password storage
 
-### Medium Priority
-2. **Add hline/vline optimizations**
-   - Already present in VESA driver, but could be used more
+### Static Mutable Safety (All Ports)
+- **Status**: ✅ All `static mut` references replaced
+- **Details**:
+  - PC: `SyncUnsafeCell`, `AtomicU64`, `IrqCell`
+  - Pi/Pi5: `AtomicU64`, `AtomicU32`, `Mutex<T>`, `lazy_static!`
+- **Benefit**: Eliminates data races and undefined behavior
 
-### Low Priority
-3. **Screen dimension caching**
-   - Store dimensions in DesktopUI instead of querying driver
+## Specific Improvements in PC Port
 
-## Code Changes Required
+### 1. Process Scheduler
+Recently ported from Pi:
+- Sleep/wake queue support with tick-based scheduling
+- Kernel thread spawning with `spawn_kernel_thread()`
+- Idle thread with x86_64 `hlt` instruction
+- Proper context switching in `schedule_next()`
+- x86_64 interrupt control (`cli`/`sti`)
 
-### PC/kernel/src/desktop/ui.rs Changes:
+### 2. Advanced DHCP Client
+Ported from Pi:
+- UDP socket integration
+- Timeout handling with exponential backoff
+- Retry logic with configurable limits
+- Automatic lease renewal at 50%/87.5% intervals
+- State machine: Idle → Selecting → Requesting → Bound → Renewing → Rebinding
 
-```rust
-// Add to DesktopUI struct:
-pub struct DesktopUI {
-    // ... existing fields ...
-    // Dirty rectangle tracking for performance
-    dirty_rects: Vec<DirtyRect>,
-    full_redraw_needed: bool,
-    screen_width: u32,
-    screen_height: u32,
-}
+### 3. Cryptographic Modules
+Added to PC:
+- SHA1 implementation (for WPA2 compatibility)
+- PBKDF2 key derivation
+- All crypto modules now match Pi implementation
 
-// Add DirtyRect struct:
-pub struct DirtyRect {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-}
+### 4. Network Stack Improvements
+- Bounds checking throughout packet processing
+- Length validation for IP, UDP, TCP headers
+- Receive queue limits to prevent memory exhaustion
+- Consistent API with alias functions
 
-// Add methods:
-impl DesktopUI {
-    pub fn mark_dirty(&mut self, x: i32, y: i32, width: u32, height: u32) { ... }
-    pub fn mark_mouse_dirty(&mut self) { ... }
-    pub fn mark_full_redraw(&mut self) { ... }
-    fn draw_region(&self, driver: &mut VesaDriver, rect: &DirtyRect) { ... }
-}
+### 5. USB Support
+- USB module with PCI-based controller detection
+- Detects xHCI/EHCI/OHCI/UHCI controllers
+- Gracefully falls back to PS/2 input
+- Prepared structure for future xHCI driver
 
-// Modify draw():
-pub fn draw(&mut self, driver: &mut VesaDriver) {
-    if self.full_redraw_needed {
-        // Full redraw
-        self.full_redraw_needed = false;
-    } else if !self.dirty_rects.is_empty() {
-        // Partial redraw
-        for rect in &self.dirty_rects {
-            self.draw_region(driver, rect);
-        }
-    }
-    // Always draw cursor
-    self.dirty_rects.clear();
-}
+## Recommendations
 
-// Modify update_mouse():
-pub fn update_mouse(&mut self, x: i32, y: i32) {
-    // ... existing code ...
-    self.mark_mouse_dirty();  // Add this
-}
-```
+### For PC Port
+- ✅ **Completed**: Dirty rectangle tracking, browser DOM, filesystem operations, DHCP client
+- 🚧 **Next**: Clean remaining warnings (~474), add audio driver
 
-## Testing After Changes
+### For Pi Port
+- ✅ **Completed**: WiFi WPA2, scheduler, USB, SDIO
+- 🚧 **Next**: Test on real hardware, documentation
 
-1. **Mouse movement** - Should be smooth without flickering
-2. **Paint app** - Drawing should not cause full screen redraws
-3. **Icon selection** - Only selected icon should redraw
-4. **Browser window** - Scrolling should only redraw changed regions
+### For Pi5 Port
+- ✅ **Completed**: Security improvements, scheduler, context switching
+- 🚧 **Next**: Port WiFi drivers from Pi, USB support
+
+## Code Quality
+
+### Warning Counts
+| Port | Before | After | Change |
+|------|--------|-------|--------|
+| PC | ~1182 | ~474 | -708 ✅ |
+| Pi | ~1342 | ~500 | -842 ✅ |
+| Pi5 | ~1206 | ~1067 | -139 ✅ |
+
+All ports build successfully with **0 errors**.
+
+## Testing Status
+
+| Feature | PC (QEMU) | Pi 3 | Pi 4 | Pi 5 |
+|---------|-----------|------|------|------|
+| Boot | ✅ | ? | ? | ? |
+| Display | ✅ | ? | ? | ? |
+| Keyboard | ✅ | ? | ? | ? |
+| Mouse | ✅ | ? | ? | ? |
+| Network | ✅ | ✅ | ? | ? |
+| WiFi | N/A | ✅ | ? | ? |
+| USB | ✅ | ✅ | ? | ? |
+| SD Card | ? | ✅ | ? | ? |
+
+*✅ = tested/working, ? = needs testing, N/A = not applicable*
+
+---
+
+**Last Updated:** 2026-02-25

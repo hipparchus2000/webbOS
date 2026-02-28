@@ -74,6 +74,7 @@ impl Priority {
 }
 
 /// Thread control block
+#[allow(dead_code)]
 pub struct Thread {
     /// Thread ID
     pub tid: Tid,
@@ -323,6 +324,121 @@ pub fn print_process_list() {
         println!("{:>3}  {:>3}  {:<8} {}", 
             tid, thread.pid.as_u64(), state_str, thread.priority.as_u8());
     }
+}
+
+/// Spawn a kernel thread
+/// 
+/// Creates a new kernel thread with the given entry point and name.
+/// The thread will be added to the scheduler and will start running
+/// when scheduled.
+/// 
+/// # Safety
+/// The entry function must never return. If it does, the thread will
+/// be terminated.
+pub unsafe fn spawn_kernel_thread(entry: fn() -> !, name: &str) -> Result<Tid, ProcessError> {
+    use alloc::alloc::{alloc, Layout};
+    
+    // Allocate a kernel stack
+    let stack_layout = Layout::from_size_align(KERNEL_STACK_SIZE, 16)
+        .map_err(|_| ProcessError::InvalidOperation)?;
+    let stack_bottom = alloc(stack_layout) as u64;
+    if stack_bottom == 0 {
+        return Err(ProcessError::ThreadTableFull);
+    }
+    let stack_top = stack_bottom + KERNEL_STACK_SIZE as u64;
+    
+    // Allocate TID
+    let tid = alloc_tid();
+    
+    // Create a dummy process for this thread (kernel threads have no user process)
+    let pid = {
+        let mut processes = PROCESSES.lock();
+        static mut NEXT_KERNEL_PID: u64 = 0x10000; // Start kernel PIDs high
+        let pid = webbos_shared::types::Pid::new(NEXT_KERNEL_PID);
+        NEXT_KERNEL_PID += 1;
+        
+        let mut process = Process::new(pid, None, name);
+        process.state = ProcessState::Running;
+        processes.insert(pid.as_u64(), process);
+        pid
+    };
+    
+    // Create the thread
+    let mut thread = Thread::new(tid, pid, Priority::NORMAL);
+    thread.kernel_stack = stack_bottom;
+    thread.state = ThreadState::Ready;
+    
+    // Initialize context for the new thread
+    thread.context = Context::new_kernel_thread(entry, stack_top);
+    
+    // Add to thread table
+    {
+        let mut threads = THREADS.lock();
+        threads.insert(tid.as_u64(), thread);
+    }
+    
+    // Add to scheduler
+    scheduler::add_thread(tid);
+    
+    println!("[process] Spawned kernel thread {}:{} ({})", 
+        pid.as_u64(), tid.as_u64(), name);
+    Ok(tid)
+}
+
+/// Spawn a kernel thread with a specific priority
+/// 
+/// # Safety
+/// The entry function must never return.
+pub unsafe fn spawn_kernel_thread_with_priority(
+    entry: fn() -> !, 
+    name: &str,
+    priority: Priority
+) -> Result<Tid, ProcessError> {
+    use alloc::alloc::{alloc, Layout};
+    
+    // Allocate a kernel stack
+    let stack_layout = Layout::from_size_align(KERNEL_STACK_SIZE, 16)
+        .map_err(|_| ProcessError::InvalidOperation)?;
+    let stack_bottom = alloc(stack_layout) as u64;
+    if stack_bottom == 0 {
+        return Err(ProcessError::ThreadTableFull);
+    }
+    let stack_top = stack_bottom + KERNEL_STACK_SIZE as u64;
+    
+    // Allocate TID
+    let tid = alloc_tid();
+    
+    // Create a dummy process for this thread
+    let pid = {
+        let mut processes = PROCESSES.lock();
+        static mut NEXT_KERNEL_PID: u64 = 0x10000;
+        let pid = webbos_shared::types::Pid::new(NEXT_KERNEL_PID);
+        NEXT_KERNEL_PID += 1;
+        
+        let mut process = Process::new(pid, None, name);
+        process.state = ProcessState::Running;
+        processes.insert(pid.as_u64(), process);
+        pid
+    };
+    
+    // Create the thread
+    let mut thread = Thread::new(tid, pid, priority);
+    thread.kernel_stack = stack_bottom;
+    thread.state = ThreadState::Ready;
+    thread.context = Context::new_kernel_thread(entry, stack_top);
+    
+    // Add to thread table
+    {
+        let mut threads = THREADS.lock();
+        threads.insert(tid.as_u64(), thread);
+    }
+    
+    // Add to scheduler
+    scheduler::add_thread(tid);
+    
+    println!("[process] Spawned kernel thread {}:{} ({}) priority={}", 
+        pid.as_u64(), tid.as_u64(), name, priority.as_u8());
+    Ok(tid)
 }
 
 /// Process errors

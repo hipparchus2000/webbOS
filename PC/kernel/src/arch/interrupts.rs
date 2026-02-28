@@ -40,8 +40,34 @@ impl IdtEntry {
 /// Number of IDT entries
 pub const IDT_ENTRIES: usize = 256;
 
-/// IDT (256 entries)
-static mut IDT: [IdtEntry; 256] = [IdtEntry::new(); 256];
+/// IDT (256 entries) - wrapped in SyncUnsafeCell for safe access
+use core::cell::UnsafeCell;
+
+/// Wrapper type to allow Sync for UnsafeCell
+pub struct SyncUnsafeCell<T>(UnsafeCell<T>);
+
+impl<T> SyncUnsafeCell<T> {
+    /// Create a new SyncUnsafeCell
+    pub const fn new(value: T) -> Self {
+        Self(UnsafeCell::new(value))
+    }
+    
+    /// Get a raw pointer to the data
+    pub fn get(&self) -> *mut T {
+        self.0.get()
+    }
+    
+    /// Get a const pointer to the data (for read-only access)
+    pub fn as_ptr(&self) -> *const T {
+        self.0.get()
+    }
+}
+
+// SAFETY: This is safe because we only mutate during initialization (single-threaded).
+unsafe impl<T> Sync for SyncUnsafeCell<T> {}
+
+/// IDT wrapped for thread-safe access
+static IDT: SyncUnsafeCell<[IdtEntry; 256]> = SyncUnsafeCell::new([IdtEntry::new(); 256]);
 
 /// IDT pointer for LIDT instruction
 #[repr(C, packed)]
@@ -131,38 +157,39 @@ pub fn init() {
         init_pic();
         
         // Set up exception handlers (entries 0-31)
-        IDT[0].set_handler(divide_error as u64);
-        IDT[1].set_handler(debug as u64);
-        IDT[2].set_handler(nmi as u64);
-        IDT[3].set_handler(breakpoint as u64);
-        IDT[4].set_handler(overflow as u64);
-        IDT[5].set_handler(bound_range_exceeded as u64);
-        IDT[6].set_handler(invalid_opcode as u64);
-        IDT[7].set_handler(device_not_available as u64);
-        IDT[8].set_handler(double_fault as u64);
-        IDT[10].set_handler(invalid_tss as u64);
-        IDT[11].set_handler(segment_not_present as u64);
-        IDT[12].set_handler(stack_segment_fault as u64);
-        IDT[13].set_handler(general_protection_fault as u64);
-        IDT[14].set_handler(page_fault as u64);
-        IDT[16].set_handler(x87_floating_point as u64);
-        IDT[17].set_handler(alignment_check as u64);
-        IDT[18].set_handler(machine_check as u64);
-        IDT[19].set_handler(simd_floating_point as u64);
-        IDT[20].set_handler(virtualization as u64);
-        IDT[30].set_handler(security_exception as u64);
+        let idt = &mut *IDT.get();
+        idt[0].set_handler(divide_error as u64);
+        idt[1].set_handler(debug as u64);
+        idt[2].set_handler(nmi as u64);
+        idt[3].set_handler(breakpoint as u64);
+        idt[4].set_handler(overflow as u64);
+        idt[5].set_handler(bound_range_exceeded as u64);
+        idt[6].set_handler(invalid_opcode as u64);
+        idt[7].set_handler(device_not_available as u64);
+        idt[8].set_handler(double_fault as u64);
+        idt[10].set_handler(invalid_tss as u64);
+        idt[11].set_handler(segment_not_present as u64);
+        idt[12].set_handler(stack_segment_fault as u64);
+        idt[13].set_handler(general_protection_fault as u64);
+        idt[14].set_handler(page_fault as u64);
+        idt[16].set_handler(x87_floating_point as u64);
+        idt[17].set_handler(alignment_check as u64);
+        idt[18].set_handler(machine_check as u64);
+        idt[19].set_handler(simd_floating_point as u64);
+        idt[20].set_handler(virtualization as u64);
+        idt[30].set_handler(security_exception as u64);
         
         // Set up timer interrupt handler (IRQ0 -> IDT entry 32)
         println!("[interrupts] Setting up timer handler at IDT[32]...");
-        IDT[32].set_handler(timer_interrupt_handler as u64);
+        idt[32].set_handler(timer_interrupt_handler as u64);
 
         // Set up keyboard interrupt handler (IRQ1 -> IDT entry 33)
         println!("[interrupts] Setting up keyboard handler at IDT[33]...");
-        IDT[33].set_handler(keyboard_interrupt_handler as u64);
+        idt[33].set_handler(keyboard_interrupt_handler as u64);
 
         // Set up mouse interrupt handler (IRQ12 -> IDT entry 44)
         println!("[interrupts] Setting up mouse handler at IDT[44]...");
-        IDT[44].set_handler(mouse_interrupt_handler as u64);
+        idt[44].set_handler(mouse_interrupt_handler as u64);
 
         println!("[interrupts] IRQ handlers registered (timer, keyboard, mouse)");
         
@@ -206,7 +233,7 @@ pub fn are_enabled() -> bool {
 pub unsafe fn set_irq_handler(irq: u8, handler: extern "x86-interrupt" fn(InterruptStackFrame)) {
     let idt_index = 32 + irq as usize;
     if idt_index < IDT_ENTRIES {
-        IDT[idt_index].set_handler(handler as u64);
+        (*IDT.get())[idt_index].set_handler(handler as u64);
     }
 }
 
@@ -260,13 +287,11 @@ pub fn send_eoi(irq: u8) {
 
 // Timer interrupt handler (IRQ0)
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    unsafe {
-        // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
-        send_eoi(0);
-        
-        // Increment tick count
-        TIMER_TICKS += 1;
-    }
+    // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
+    send_eoi(0);
+    
+    // Increment tick count
+    TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
 }
 
 // Keyboard interrupt handler (IRQ1)
@@ -292,11 +317,12 @@ extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFr
 }
 
 /// Timer tick counter (accessible from timer module)
-static mut TIMER_TICKS: u64 = 0;
+use core::sync::atomic::{AtomicU64, Ordering};
+static TIMER_TICKS: AtomicU64 = AtomicU64::new(0);
 
 /// Get the current timer tick count
 pub fn get_timer_ticks() -> u64 {
-    unsafe { TIMER_TICKS }
+    TIMER_TICKS.load(Ordering::Relaxed)
 }
 
 // Exception handlers

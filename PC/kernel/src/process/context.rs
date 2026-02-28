@@ -66,6 +66,7 @@ impl Context {
     }
 
     /// Create context for a new kernel thread
+    #[allow(dead_code)]
     pub fn new_kernel_thread(entry: fn() -> !, stack_top: u64) -> Self {
         let mut ctx = Self::new();
         ctx.rip = entry as u64;
@@ -74,6 +75,7 @@ impl Context {
     }
 
     /// Create context for a new user thread
+    #[allow(dead_code)]
     pub fn new_user_thread(entry: u64, stack_top: u64, user_code_seg: u64, user_data_seg: u64) -> Self {
         let mut ctx = Self::new();
         ctx.rip = entry;
@@ -162,6 +164,7 @@ pub unsafe fn switch_context(old: *mut Context, new: *const Context) {
 /// Initialize a kernel thread's stack
 ///
 /// Sets up the initial stack frame for a new kernel thread.
+#[allow(dead_code)]
 pub unsafe fn init_kernel_stack(stack_top: u64, entry: fn() -> !, arg: u64) -> u64 {
     let mut rsp = stack_top;
 

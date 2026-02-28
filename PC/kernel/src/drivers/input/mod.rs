@@ -1,11 +1,14 @@
 //! Input Subsystem
 //!
-//! Handles keyboard and mouse input for WebbOS.
+//! Handles keyboard and mouse input for WebbOS on x86_64 (PC).
 //! 
 //! ARCHITECTURE:
-//! - Mouse IRQ: Minimal - just updates atomic X/Y position
+//! - PS/2 Mouse IRQ: Minimal - just updates atomic X/Y position
 //! - Timer (20Hz): Polls mouse position, generates events, handles printing
 //! This avoids mutex contention and deadlock in IRQ handlers.
+//!
+//! NOTE: USB HID support will be added in the future via xHCI driver.
+//! For now, PS/2 is the primary input method on PC.
 
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -634,25 +637,142 @@ pub fn init() {
 
 // Separate static drivers for interrupt handlers
 // These ONLY update atomic state - NO events, NO queues!
-static mut IRQ_KEYBOARD_DRIVER: KeyboardDriver = KeyboardDriver::new();
-static mut IRQ_MOUSE_DRIVER: MouseDriver = MouseDriver::new();
+// Wrapped in Mutex for thread-safe access from IRQ handlers
+use core::cell::RefCell;
+use core::sync::atomic::AtomicBool;
+
+/// Cell type for IRQ handlers - allows interior mutability in static context
+pub struct IrqCell<T> {
+    inner: RefCell<T>,
+}
+
+impl<T> IrqCell<T> {
+    /// Create a new IrqCell
+    pub const fn new(value: T) -> Self {
+        Self {
+            inner: RefCell::new(value),
+        }
+    }
+    
+    /// Get mutable reference - caller must ensure this is only called from IRQ context
+    /// or when interrupts are disabled
+    pub fn get(&self) -> core::cell::RefMut<'_, T> {
+        self.inner.borrow_mut()
+    }
+    
+    /// Initialize the inner value - must be called with interrupts disabled
+    pub fn init(&self)
+    where
+        T: Initializable,
+    {
+        self.inner.borrow_mut().init();
+    }
+}
+
+/// Trait for types that can be initialized
+pub trait Initializable {
+    fn init(&mut self);
+}
+
+impl Initializable for KeyboardDriver {
+    fn init(&mut self) {
+        // Call the original init logic inline
+        println!("[input] Initializing keyboard...");
+
+        unsafe {
+            let ctrl = inb(0x61);
+            outb(0x61, ctrl | 0x80);
+            outb(0x61, ctrl & 0x7F);
+
+            while inb(0x64) & 0x01 != 0 {
+                inb(0x60);
+            }
+
+            // Unmask IRQ1 (keyboard interrupt)
+            crate::arch::interrupts::unmask_irq(1);
+        }
+
+        println!("[input] Keyboard initialized and IRQ1 unmasked");
+    }
+}
+
+impl Initializable for MouseDriver {
+    fn init(&mut self) {
+        // Call the original init logic inline
+        println!("[input] Initializing mouse...");
+
+        unsafe {
+            // Enable mouse port
+            self.wait_write();
+            outb(0x64, 0xA8);
+
+            // Read command byte
+            self.wait_write();
+            outb(0x64, 0x20);
+            self.wait_read();
+            let status = (inb(0x60) | 2) & 0xDF;
+
+            // Write command byte (enable mouse interrupt)
+            self.wait_write();
+            outb(0x64, 0x60);
+            self.wait_write();
+            outb(0x60, status);
+
+            // Set defaults (0xF6)
+            let defaults_ok = self.write_with_ack(0xF6);
+            if !defaults_ok {
+                println!("[mouse] Warning: Set defaults command failed");
+            }
+
+            // Enable streaming (0xF4) - must succeed for mouse to work
+            let streaming_ok = self.write_with_ack(0xF4);
+            if !streaming_ok {
+                println!("[mouse] Warning: Enable streaming command failed! Mouse may not work.");
+            }
+
+            // Unmask IRQ2 (cascade from slave PIC) and IRQ12 (mouse)
+            crate::arch::interrupts::unmask_irq(2);
+            crate::arch::interrupts::unmask_irq(12);
+        }
+
+        println!("[input] Mouse initialized and IRQ12 unmasked");
+        
+        // Enable diagnostic mode for first 10 packets to help debug
+        self.diagnostic_mode = true;
+        self.diagnostic_packets_remaining = 10;
+    }
+}
+
+// SAFETY: We only access these from IRQ handlers, which are serialized by hardware
+// and cannot be preempted by other instances of the same IRQ.
+// For mixed access (IRQ + main thread), interrupts must be disabled.
+unsafe impl<T> Sync for IrqCell<T> {}
+
+static IRQ_KEYBOARD_DRIVER: IrqCell<KeyboardDriver> = IrqCell::new(KeyboardDriver::new());
+static IRQ_MOUSE_DRIVER: IrqCell<MouseDriver> = IrqCell::new(MouseDriver::new());
 
 /// Keyboard IRQ handler - just accumulates events in queue
 pub fn handle_keyboard_interrupt() { 
     KEYBOARD_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
+    // Disable interrupts briefly to prevent reentrancy issues
     unsafe {
-        if let Some(event) = IRQ_KEYBOARD_DRIVER.handle_interrupt() {
+        crate::arch::interrupts::disable();
+        if let Some(event) = IRQ_KEYBOARD_DRIVER.get().handle_interrupt() {
             // Push to main queue - this is safe because we use Mutex
             INPUT_MANAGER.lock().events.push_back(event);
         }
+        crate::arch::interrupts::enable();
     }
 }
 
 /// Mouse IRQ handler - MINIMAL, just updates atomic position
 pub fn handle_mouse_interrupt() { 
     MOUSE_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
+    // Disable interrupts briefly to prevent reentrancy issues
     unsafe {
-        IRQ_MOUSE_DRIVER.handle_interrupt();
+        crate::arch::interrupts::disable();
+        IRQ_MOUSE_DRIVER.get().handle_interrupt();
+        crate::arch::interrupts::enable();
     }
 }
 
@@ -716,7 +836,7 @@ pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
     LAST_MOUSE_Y.store(clamped_y, Ordering::Relaxed);
     
     unsafe { 
-        IRQ_MOUSE_DRIVER.set_screen_dimensions(width, height); 
+        IRQ_MOUSE_DRIVER.get().set_screen_dimensions(width, height); 
     }
 }
 
@@ -765,11 +885,27 @@ pub fn get_key() -> Option<InputEvent> {
     None
 }
 
+/// Print input status information
 pub fn print_info() {
     let manager = INPUT_MANAGER.lock();
-    let (x, y) = manager.mouse_position();
+    let (x, y) = mouse_position();
+    let (kb_irq, mouse_irq) = get_irq_counts();
+    
     println!("Input Status:");
     println!("  Mouse position: ({}, {})", x, y);
-    println!("  Mouse buttons: {:03b}", manager.mouse_buttons());
+    println!("  Mouse buttons: {:03b}", mouse_buttons());
     println!("  Events in queue: {}", manager.events.len());
+    println!("  Keyboard IRQs: {}", kb_irq);
+    println!("  Mouse IRQs: {}", mouse_irq);
+    println!("  Input method: PS/2 (USB HID via xHCI planned)");
+}
+
+/// Legacy poll function for compatibility
+/// 
+/// NOTE: On PC, we use IRQ-driven keyboard and timer-polling for mouse.
+/// This differs from Pi's USB polling approach.
+pub fn poll() {
+    // On PC, input is IRQ-driven, so this is mostly a no-op.
+    // Keyboard events are queued directly from the IRQ handler.
+    // Mouse events are generated by timer polling (poll_mouse_from_timer).
 }

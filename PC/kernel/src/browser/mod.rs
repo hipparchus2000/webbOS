@@ -15,6 +15,10 @@ pub mod js;
 pub mod wasm;
 pub mod layout;
 pub mod render;
+pub mod dom_api;
+pub mod event;
+pub mod window;
+pub mod js_bindings;
 
 use crate::println;
 
@@ -149,9 +153,22 @@ impl Browser {
     }
 
     /// Fetch local file
-    fn fetch_file(&self, _url: &Url) -> Result<Vec<u8>, BrowserError> {
+    fn fetch_file(&self, url: &Url) -> Result<Vec<u8>, BrowserError> {
         // File protocol - read from filesystem
-        Ok(Vec::new()) // Placeholder
+        let path = &url.path;
+        
+        println!("[browser] Reading file: {}", path);
+        
+        match crate::fs::read_file(path) {
+            Ok(data) => {
+                println!("[browser] Read {} bytes from {}", data.len(), path);
+                Ok(data)
+            }
+            Err(e) => {
+                println!("[browser] Failed to read {}: {:?}", path, e);
+                Err(BrowserError::NetworkError)
+            }
+        }
     }
 
     /// Apply stylesheets to document
@@ -165,9 +182,19 @@ impl Browser {
     /// Execute JavaScript in document
     fn execute_scripts(&mut self) -> Result<(), BrowserError> {
         if let Some(ref doc) = self.document {
+            // Get document pointer for DOM bindings
+            let doc_ptr = doc as *const _ as usize;
+            
+            // Initialize DOM bindings with this document
+            js_bindings::init_js_environment(doc_ptr);
+            
+            // Execute each script
             for script in &doc.scripts {
                 js::execute(&script.content)?;
             }
+            
+            // Dispatch load event
+            event::handle_window_load();
         }
         Ok(())
     }
@@ -319,6 +346,14 @@ pub fn init() {
     layout::init();
     println!("[browser] Init render...");
     render::init();
+    println!("[browser] Init DOM API...");
+    dom_api::init();
+    println!("[browser] Init events...");
+    event::init();
+    println!("[browser] Init window...");
+    window::init(1024, 768);
+    println!("[browser] Init JS bindings...");
+    js_bindings::init();
 
     println!("[browser] Browser engine initialized");
 }
@@ -326,7 +361,11 @@ pub fn init() {
 /// Navigate to URL
 pub fn navigate(url: &str) -> Result<(), BrowserError> {
     if let Some(ref mut browser) = *BROWSER.lock() {
-        browser.navigate(url)
+        // Navigate and load content
+        browser.navigate(url)?;
+        // Automatically render after navigation
+        browser.render()?;
+        Ok(())
     } else {
         Err(BrowserError::Unknown)
     }
@@ -338,6 +377,26 @@ pub fn get_title() -> String {
         browser.title.clone()
     } else {
         String::new()
+    }
+}
+
+/// Get the rendered framebuffer data
+/// Returns (width, height, pixel_data) if a framebuffer exists
+pub fn get_framebuffer() -> Option<(u32, u32, alloc::vec::Vec<u32>)> {
+    if let Some(ref browser) = *BROWSER.lock() {
+        if let Some(ref fb) = browser.render_context.framebuffer {
+            return Some((fb.width, fb.height, fb.data.clone()));
+        }
+    }
+    None
+}
+
+/// Check if browser has a rendered page
+pub fn has_rendered_page() -> bool {
+    if let Some(ref browser) = *BROWSER.lock() {
+        browser.render_context.framebuffer.is_some() && browser.document.is_some()
+    } else {
+        false
     }
 }
 

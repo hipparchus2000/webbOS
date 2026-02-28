@@ -9,11 +9,13 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::format;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use crate::drivers::vesa::{self, VesaDriver, colors};
 use crate::println;
+use crate::browser;
 
 /// macOS-style color palette
 mod palette {
@@ -48,12 +50,48 @@ pub struct Icon {
 pub enum IconAction {
     LaunchApp(String),      // Launch application by name
     OpenFolder(String),     // Open folder in file manager
+    OpenHtmlFile(String),   // Open HTML file in browser
     None,
 }
 
 /// Cursor save-under buffer size (must be larger than cursor)
 const CURSOR_SIZE: usize = 16;
 const SAVE_BUFFER_SIZE: usize = CURSOR_SIZE * CURSOR_SIZE;
+
+/// Dirty rectangle for optimized redraw
+#[derive(Clone, Copy, Debug)]
+pub struct DirtyRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl DirtyRect {
+    pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
+        Self { x, y, width, height }
+    }
+    
+    /// Expand to include another rectangle
+    pub fn merge(&mut self, other: &DirtyRect) {
+        let x1 = self.x.min(other.x);
+        let y1 = self.y.min(other.y);
+        let x2 = (self.x + self.width as i32).max(other.x + other.width as i32);
+        let y2 = (self.y + self.height as i32).max(other.y + other.height as i32);
+        self.x = x1;
+        self.y = y1;
+        self.width = (x2 - x1) as u32;
+        self.height = (y2 - y1) as u32;
+    }
+    
+    /// Check if this rectangle intersects with another
+    pub fn intersects(&self, other: &DirtyRect) -> bool {
+        !(self.x + self.width as i32 <= other.x ||
+          other.x + other.width as i32 <= self.x ||
+          self.y + self.height as i32 <= other.y ||
+          other.y + other.height as i32 <= self.y)
+    }
+}
 
 /// Desktop UI state
 pub struct DesktopUI {
@@ -73,6 +111,11 @@ pub struct DesktopUI {
     save_buffer_valid: bool,
     save_buffer_x: i32,
     save_buffer_y: i32,
+    // Dirty rectangle tracking for performance
+    dirty_rects: Vec<DirtyRect>,
+    full_redraw_needed: bool,
+    screen_width: u32,
+    screen_height: u32,
 }
 
 /// Browser window dimensions
@@ -99,6 +142,10 @@ impl DesktopUI {
             save_buffer_valid: false,
             save_buffer_x: 0,
             save_buffer_y: 0,
+            dirty_rects: Vec::new(),
+            full_redraw_needed: true, // Start with full redraw
+            screen_width: 1280,
+            screen_height: 800,
         };
 
         // Create dock icons (centered at bottom)
@@ -106,6 +153,63 @@ impl DesktopUI {
         ui.setup_desktop_icons();
 
         ui
+    }
+    
+    /// Mark a region as dirty (needs redraw)
+    pub fn mark_dirty(&mut self, x: i32, y: i32, width: u32, height: u32) {
+        // Clamp to screen bounds
+        let x = x.max(0);
+        let y = y.max(0);
+        let width = width.min(self.screen_width - x as u32);
+        let height = height.min(self.screen_height - y as u32);
+        
+        if width == 0 || height == 0 {
+            return;
+        }
+        
+        let new_rect = DirtyRect::new(x, y, width, height);
+        
+        // Check if this can be merged with an existing dirty rect
+        for rect in &mut self.dirty_rects {
+            if rect.intersects(&new_rect) || 
+               (rect.x.abs_diff(new_rect.x) < 50 && rect.y.abs_diff(new_rect.y) < 50) {
+                rect.merge(&new_rect);
+                return;
+            }
+        }
+        
+        // Add as new dirty rect (limit to avoid too many)
+        if self.dirty_rects.len() < 10 {
+            self.dirty_rects.push(new_rect);
+        } else {
+            // Too many dirty rects, just do a full redraw
+            self.full_redraw_needed = true;
+            self.dirty_rects.clear();
+        }
+    }
+    
+    /// Mark the entire screen for redraw
+    pub fn mark_full_redraw(&mut self) {
+        self.full_redraw_needed = true;
+        self.dirty_rects.clear();
+    }
+    
+    /// Mark dirty region for mouse movement (old and new positions)
+    pub fn mark_mouse_dirty(&mut self) {
+        // Mark old position (to restore background)
+        self.mark_dirty(
+            self.old_mouse_x - 2, 
+            self.old_mouse_y - 2, 
+            CURSOR_SIZE as u32 + 4, 
+            CURSOR_SIZE as u32 + 4
+        );
+        // Mark new position (to draw cursor)
+        self.mark_dirty(
+            self.mouse_x - 2, 
+            self.mouse_y - 2, 
+            CURSOR_SIZE as u32 + 4, 
+            CURSOR_SIZE as u32 + 4
+        );
     }
 
     /// Update mouse position
@@ -115,6 +219,8 @@ impl DesktopUI {
         // Trust that coordinates from mouse driver are already clamped
         self.mouse_x = x;
         self.mouse_y = y;
+        // Mark mouse region as dirty for efficient redraw
+        self.mark_mouse_dirty();
     }
 
     /// Get mouse position
@@ -191,36 +297,109 @@ impl DesktopUI {
                 action: IconAction::OpenFolder("/home/user/downloads".to_string()),
                 is_folder: true,
             },
+            Icon {
+                x: 1120,
+                y: 240,
+                width: 64,
+                height: 80,
+                label: "Apps".to_string(),
+                icon_char: 'A',
+                icon_path: Some("system/icons/apps_icon_64.png".to_string()),
+                action: IconAction::OpenFolder("/Apps".to_string()),
+                is_folder: true,
+            },
         ];
     }
 
-    /// Draw the entire desktop
-    pub fn draw(&self, driver: &mut VesaDriver) {
+    /// Draw the desktop (optimized with dirty rectangles)
+    pub fn draw(&mut self, driver: &mut VesaDriver) {
         let info = driver.info();
         let screen_w = info.width;
         let screen_h = info.height;
+        
+        // Update screen dimensions if changed
+        self.screen_width = screen_w;
+        self.screen_height = screen_h;
 
-        // Draw desktop background
-        driver.clear(palette::DESKTOP_BG);
-
-        // Draw menu bar
-        self.draw_menu_bar(driver, screen_w);
-
-        // Draw desktop icons
-        for icon in &self.desktop_icons {
-            self.draw_desktop_icon(driver, icon);
+        if self.full_redraw_needed {
+            // Full redraw - clear everything
+            driver.clear(palette::DESKTOP_BG);
+            self.draw_menu_bar(driver, screen_w);
+            for icon in &self.desktop_icons {
+                self.draw_desktop_icon(driver, icon);
+            }
+            if self.browser_open {
+                self.draw_browser_window(driver);
+            }
+            self.draw_dock(driver, screen_w, screen_h);
+            self.full_redraw_needed = false;
+        } else if !self.dirty_rects.is_empty() {
+            // Partial redraw - only redraw dirty regions
+            // For simplicity, we'll redraw intersecting elements
+            for rect in &self.dirty_rects {
+                self.draw_region(driver, rect, screen_w, screen_h);
+            }
         }
-
-        // Draw browser window if open
-        if self.browser_open {
-            self.draw_browser_window(driver);
-        }
-
-        // Draw dock
-        self.draw_dock(driver, screen_w, screen_h);
-
-        // Draw mouse cursor (always on top)
+        
+        // Always draw mouse cursor on top (but don't add to dirty rects)
         self.draw_mouse_cursor(driver);
+        
+        // Clear dirty rects after drawing
+        self.dirty_rects.clear();
+    }
+    
+    /// Draw a specific region of the screen
+    fn draw_region(&self, driver: &mut VesaDriver, rect: &DirtyRect, screen_w: u32, screen_h: u32) {
+        // Check if region intersects menu bar
+        let menu_bar_rect = DirtyRect::new(0, 0, screen_w, self.menu_bar_height);
+        if rect.intersects(&menu_bar_rect) {
+            self.draw_menu_bar(driver, screen_w);
+        }
+        
+        // Check if region intersects any desktop icon
+        for icon in &self.desktop_icons {
+            let icon_rect = DirtyRect::new(icon.x, icon.y, icon.width, icon.height);
+            if rect.intersects(&icon_rect) {
+                self.draw_desktop_icon(driver, icon);
+            }
+        }
+        
+        // Check if region intersects browser window
+        if self.browser_open {
+            let browser_rect = DirtyRect::new(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
+            if rect.intersects(&browser_rect) {
+                self.draw_browser_window(driver);
+            }
+        }
+        
+        // Check if region intersects dock
+        let dock_width = (self.dock_icon_size + 16) * self.dock_icons.len() as u32;
+        let dock_x = (screen_w - dock_width) / 2;
+        let dock_y = screen_h - self.dock_height - 8;
+        let dock_rect = DirtyRect::new(dock_x as i32, dock_y as i32, dock_width + 16, self.dock_height + 16);
+        if rect.intersects(&dock_rect) {
+            // First clear the dock area to desktop background
+            self.clear_region(driver, dock_rect.x, dock_rect.y, dock_rect.width, dock_rect.height, palette::DESKTOP_BG);
+            self.draw_dock(driver, screen_w, screen_h);
+        }
+    }
+    
+    /// Clear a specific region to a color
+    fn clear_region(&self, driver: &mut VesaDriver, x: i32, y: i32, width: u32, height: u32, color: u32) {
+        let info = driver.info();
+        let screen_w = info.width as i32;
+        let screen_h = info.height as i32;
+        
+        let x0 = x.max(0);
+        let y0 = y.max(0);
+        let x1 = (x + width as i32).min(screen_w);
+        let y1 = (y + height as i32).min(screen_h);
+        
+        for py in y0..y1 {
+            for px in x0..x1 {
+                driver.set_pixel(px as u32, py as u32, color);
+            }
+        }
     }
 
     /// Draw mouse cursor
@@ -644,6 +823,21 @@ impl DesktopUI {
 
     /// Handle mouse click (now launches apps on single click)
     pub fn handle_click(&mut self, x: i32, y: i32) -> bool {
+        // Check menu bar volume control area (right side)
+        let screen_w = self.screen_width;
+        if y >= 0 && y < self.menu_bar_height as i32 {
+            // Volume area: from (screen_w - 130) to (screen_w - 65)
+            let vol_x_start = (screen_w - 130) as i32;
+            let vol_x_end = (screen_w - 65) as i32;
+            if x >= vol_x_start && x < vol_x_end {
+                // Audio not supported on PC platform
+                println!("[desktop] Audio not supported on this platform");
+                // Mark menu bar as dirty for redraw
+                self.mark_dirty(0, 0, screen_w, self.menu_bar_height);
+                return true;
+            }
+        }
+        
         // Check if clicking browser close button (when browser is open)
         if self.browser_open {
             let close_x = BROWSER_X + 12;
@@ -652,11 +846,14 @@ impl DesktopUI {
             if dist_sq < 36 { // Within 6px radius
                 println!("[desktop] Closing browser window");
                 self.browser_open = false;
+                // Mark entire browser window area as dirty
+                self.mark_dirty(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
                 return true; // Redraw needed
             }
         }
         
         // Check dock icons first (launch on single click)
+        let mut file_manager_clicked = false;
         for icon in &self.dock_icons {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
@@ -665,32 +862,79 @@ impl DesktopUI {
                     IconAction::LaunchApp(app_name) => {
                         if app_name == "browser" {
                             println!("[desktop] Opening browser window");
-                            self.browser_open = true;  // Use UI's own browser flag
-                            return true; // Redraw needed
+                            self.browser_open = true;
+                            // Mark entire browser window area as dirty
+                            self.mark_dirty(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
+                            return true;
                         } else if app_name == "appstore" {
                             println!("[desktop] App Store coming soon!");
                         } else if app_name == "filemanager" {
-                            println!("[desktop] File Manager coming soon!");
+                            file_manager_clicked = true;
                         }
+                    }
+                    IconAction::OpenHtmlFile(path) => {
+                        println!("[desktop] Opening HTML file: {}", path);
+                        self.browser_open = true;
+                        crate::desktop::launch_html(path);
+                        self.mark_dirty(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
+                        return true;
                     }
                     _ => {}
                 }
-                return true; // Redraw needed
+                // Mark dock icon as dirty
+                self.mark_dirty(icon.x - 4, icon.y - 4, icon.width + 8, icon.height + 8);
+                
+                // Handle file manager click after loop to avoid borrow issues
+                if file_manager_clicked {
+                    println!("[desktop] Opening File Manager...");
+                    self.open_file_manager_window("/");
+                }
+                return true;
             }
         }
         
         // Check desktop icons (select on single click)
+        let mut clicked_icon_idx = None;
         for (idx, icon) in self.desktop_icons.iter().enumerate() {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
                y >= icon.y && y < icon.y + icon.height as i32 {
-                println!("[desktop] Selected icon: {}", icon.label);
-                self.selected_icon = Some(idx);
-                return true; // Redraw needed
+                clicked_icon_idx = Some(idx);
+                break;
             }
+        }
+        
+        if let Some(idx) = clicked_icon_idx {
+            // Copy all values we need before calling mark_dirty
+            let (new_x, new_y, new_w, new_h, label) = {
+                let icon = &self.desktop_icons[idx];
+                (icon.x, icon.y, icon.width, icon.height, icon.label.clone())
+            };
+            println!("[desktop] Selected icon: {}", label);
+            
+            // Mark old selection as dirty (to remove highlight)
+            if let Some(old_idx) = self.selected_icon {
+                if old_idx != idx {
+                    let (old_x, old_y, old_w, old_h) = {
+                        let old_icon = &self.desktop_icons[old_idx];
+                        (old_icon.x, old_icon.y, old_icon.width, old_icon.height)
+                    };
+                    self.mark_dirty(old_x - 4, old_y - 4, old_w + 8, old_h + 8);
+                }
+            }
+            self.selected_icon = Some(idx);
+            // Mark new selection as dirty
+            self.mark_dirty(new_x - 4, new_y - 4, new_w + 8, new_h + 8);
+            return true;
         }
         
         // Clicked elsewhere - clear selection
         if self.selected_icon.is_some() {
+            let old_idx = self.selected_icon.unwrap();
+            let (old_x, old_y, old_w, old_h) = {
+                let old_icon = &self.desktop_icons[old_idx];
+                (old_icon.x, old_icon.y, old_icon.width, old_icon.height)
+            };
+            self.mark_dirty(old_x - 4, old_y - 4, old_w + 8, old_h + 8);
             self.selected_icon = None;
             return true;
         }
@@ -867,4 +1111,80 @@ pub fn handle_double_click(x: i32, y: i32) {
 /// Check if desktop is active
 pub fn is_active() -> bool {
     true // Desktop is always active after login
+}
+
+/// Navigate browser to URL (called from HTML frontend via message)
+pub fn browser_navigate(url: &str) {
+    println!("[desktop] Browser navigate requested: {}", url);
+    
+    // Try to navigate the browser
+    match crate::browser::navigate(url) {
+        Ok(()) => {
+            println!("[desktop] Browser navigation successful");
+        }
+        Err(e) => {
+            println!("[desktop] Browser navigation failed: {:?}", e);
+        }
+    }
+}
+
+impl DesktopUI {
+    /// Open file manager window showing files from filesystem
+    fn open_file_manager_window(&mut self, path: &str) {
+        println!("[desktop] Opening File Manager at: {}", path);
+        
+        // Scan directory for HTML files
+        match crate::fs::read_dir(path) {
+            Ok(entries) => {
+                println!("[desktop] Found {} entries in {}", entries.len(), path);
+                
+                // Add HTML files as desktop icons dynamically
+                let mut x_pos = 100;
+                let mut y_pos = 400;
+                
+                for (name, is_dir) in entries {
+                    if is_dir {
+                        println!("[desktop]  [DIR]  {}", name);
+                    } else if name.ends_with(".html") || name.ends_with(".htm") {
+                        println!("[desktop]  [HTML] {}", name);
+                        
+                        // Add HTML file as a launchable icon
+                        let full_path = format!("{}/{}", path, name);
+                        self.desktop_icons.push(Icon {
+                            x: x_pos,
+                            y: y_pos,
+                            width: 80,
+                            height: 96,
+                            label: name.clone(),
+                            icon_char: '📄',
+                            icon_path: Some("html".to_string()),
+                            action: IconAction::OpenHtmlFile(full_path),
+                            is_folder: false,
+                        });
+                        
+                        // Position next icon
+                        x_pos += 100;
+                        if x_pos > 1000 {
+                            x_pos = 100;
+                            y_pos += 120;
+                        }
+                    } else {
+                        println!("[desktop]  [FILE] {}", name);
+                    }
+                }
+                
+                // Mark area as dirty to show new icons
+                self.mark_full_redraw();
+            }
+            Err(e) => {
+                println!("[desktop] Failed to read directory {}: {:?}", path, e);
+            }
+        }
+    }
+}
+
+/// Open file manager with given path (public API)
+pub fn open_file_manager(path: &str) {
+    println!("[desktop] Opening file manager at: {}", path);
+    // This is called from external modules - actual UI update happens via message queue
 }

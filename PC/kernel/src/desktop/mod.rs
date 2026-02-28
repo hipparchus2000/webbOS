@@ -5,8 +5,9 @@
 pub mod ui;
 pub mod embedded_icons;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use alloc::vec;
 use alloc::format;
 use alloc::collections::BTreeMap;
 use spin::Mutex;
@@ -382,7 +383,7 @@ impl DesktopManager {
     
     /// Login
     pub fn login(&mut self, username: &str, password: &str) -> bool {
-        if let Some(session_id) = users::login(username, password) {
+        if let Some(_session_id) = users::login(username, password) {
             self.current_user = users::current_user();
             self.show_login = false;
             self.show_desktop = true;
@@ -450,6 +451,54 @@ pub fn launch_app(name: &str) -> Option<WindowId> {
     DESKTOP_MANAGER.lock().launch_app_by_name(name)
 }
 
+/// Launch HTML file in browser
+pub fn launch_html(path: &str) {
+    println!("[desktop] Launching HTML file: {}", path);
+    let url = format!("file://{}", path);
+    ui::browser_navigate(&url);
+}
+
+/// Receive message from HTML frontend (called by browser integration layer)
+pub fn receive_message(msg_type: &str, data: &str) {
+    println!("[desktop] Received message from frontend: type={}, data={}", msg_type, data);
+    
+    match msg_type {
+        "browser_navigate" => {
+            post_message(DesktopMessage::BrowserNavigate { url: data.to_string() });
+        }
+        "launch_app" => {
+            // Parse JSON-like data: path=...,app_type=...
+            if let Some(path) = parse_message_value(data, "path") {
+                post_message(DesktopMessage::LaunchHtml { path });
+            }
+        }
+        "fs_list" => {
+            post_message(DesktopMessage::FsList { path: data.to_string() });
+        }
+        "launch" => {
+            post_message(DesktopMessage::LaunchApp { name: data.to_string() });
+        }
+        _ => {
+            println!("[desktop] Unknown message type: {}", msg_type);
+        }
+    }
+}
+
+/// Parse a simple key=value message format
+fn parse_message_value(data: &str, key: &str) -> Option<String> {
+    // Simple parser for "key1=value1,key2=value2" format
+    for pair in data.split(',') {
+        if let Some(eq_pos) = pair.find('=') {
+            let k = &pair[..eq_pos];
+            let v = &pair[eq_pos + 1..];
+            if k == key {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Close window
 pub fn close_window(window_id: WindowId) -> bool {
     DESKTOP_MANAGER.lock().close_window(window_id)
@@ -496,6 +545,153 @@ pub fn print_info() {
     } else {
         println!("  Current user: none (login screen)");
     }
+}
+
+/// Desktop message types for communication between HTML frontend and backend
+#[derive(Debug, Clone)]
+pub enum DesktopMessage {
+    /// Browser navigation request
+    BrowserNavigate { url: String },
+    /// Open file manager
+    OpenFileManager { path: String },
+    /// Launch application
+    LaunchApp { name: String },
+    /// Launch HTML file in browser
+    LaunchHtml { path: String },
+    /// File system list request
+    FsList { path: String },
+    /// File system list response
+    FsListResponse { files: Vec<FileInfo> },
+    /// File system read request
+    FsRead { path: String },
+    /// File system write request
+    FsWrite { path: String, content: String },
+}
+
+/// File info for file manager
+#[derive(Clone, Debug)]
+pub struct FileInfo {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+lazy_static! {
+    /// Message queue for HTML frontend to backend communication
+    static ref MESSAGE_QUEUE: Mutex<Vec<DesktopMessage>> = Mutex::new(Vec::new());
+}
+
+/// Post a message from HTML frontend to backend
+pub fn post_message(msg: DesktopMessage) {
+    MESSAGE_QUEUE.lock().push(msg);
+}
+
+/// Process all pending messages
+pub fn process_messages() {
+    for msg in MESSAGE_QUEUE.lock().drain(..) {
+        match msg {
+            DesktopMessage::BrowserNavigate { url } => {
+                ui::browser_navigate(&url);
+            }
+            DesktopMessage::OpenFileManager { path } => {
+                ui::open_file_manager(&path);
+            }
+            DesktopMessage::LaunchApp { name } => {
+                launch_app(&name);
+            }
+            DesktopMessage::LaunchHtml { path } => {
+                println!("[desktop] LaunchHtml requested for: {}", path);
+                // Open HTML file in browser
+                let file_url = format!("file://{}", path);
+                ui::browser_navigate(&file_url);
+            }
+            DesktopMessage::FsList { path } => {
+                println!("[desktop] FsList requested for: {}", path);
+                // List files in the directory
+                handle_fs_list(&path);
+            }
+            DesktopMessage::FsListResponse { .. } => {
+                // This is sent TO the frontend, not handled here
+            }
+            DesktopMessage::FsRead { path } => {
+                println!("[desktop] FsRead requested for: {}", path);
+                // TODO: Implement file read
+            }
+            DesktopMessage::FsWrite { path, content } => {
+                println!("[desktop] FsWrite requested for: {} ({} bytes)", path, content.len());
+                // TODO: Implement file write
+            }
+        }
+    }
+}
+
+/// Handle file system list request
+fn handle_fs_list(path: &str) {
+    println!("[desktop] handle_fs_list: {}", path);
+    
+    // Try to read from actual filesystem first
+    let files = match crate::fs::read_dir(path) {
+        Ok(entries) => {
+            entries.into_iter()
+                .map(|(name, is_dir)| FileInfo {
+                    name: name.clone(),
+                    path: format!("{}/{}", path, name),
+                    is_dir,
+                })
+                .collect()
+        }
+        Err(_) => {
+            // Fallback to static listings for known app directories
+            get_static_app_listing(path)
+        }
+    };
+    
+    println!("[desktop] FsListResponse: {} files", files.len());
+    
+    // Store the response for the frontend to pick up
+    *PENDING_FS_RESPONSE.lock() = Some(FsListResponse { files });
+}
+
+/// Get static app listing for fallback
+fn get_static_app_listing(path: &str) -> Vec<FileInfo> {
+    if path == "/Apps" || path == "/apps" {
+        vec![
+            FileInfo { name: "Calculator".to_string(), path: "/Apps/calc.html".to_string(), is_dir: false },
+            FileInfo { name: "Judge".to_string(), path: "/Apps/judge.html".to_string(), is_dir: false },
+            FileInfo { name: "Rich Text Editor".to_string(), path: "/Apps/richtext.html".to_string(), is_dir: false },
+            FileInfo { name: "Spreadsheet".to_string(), path: "/Apps/sheet.html".to_string(), is_dir: false },
+            FileInfo { name: "Games".to_string(), path: "/Apps/Games".to_string(), is_dir: true },
+        ]
+    } else if path == "/Apps/Games" || path == "/apps/games" {
+        vec![
+            FileInfo { name: "Backgammon".to_string(), path: "/Apps/Games/backgamon.html".to_string(), is_dir: false },
+            FileInfo { name: "Chicken Darts".to_string(), path: "/Apps/Games/chickens.html".to_string(), is_dir: false },
+            FileInfo { name: "Decision".to_string(), path: "/Apps/Games/decision.html".to_string(), is_dir: false },
+            FileInfo { name: "Invaders".to_string(), path: "/Apps/Games/invaders.html".to_string(), is_dir: false },
+            FileInfo { name: "Mahjong".to_string(), path: "/Apps/Games/mahjong.html".to_string(), is_dir: false },
+            FileInfo { name: "Platform".to_string(), path: "/Apps/Games/platform.html".to_string(), is_dir: false },
+            FileInfo { name: "Solitaire".to_string(), path: "/Apps/Games/solitaire.html".to_string(), is_dir: false },
+            FileInfo { name: "Swans".to_string(), path: "/Apps/Games/swans.html".to_string(), is_dir: false },
+        ]
+    } else {
+        vec![]
+    }
+}
+
+/// File list response for frontend
+#[derive(Clone, Debug)]
+pub struct FsListResponse {
+    pub files: Vec<FileInfo>,
+}
+
+lazy_static! {
+    /// Pending filesystem response (for frontend to pick up)
+    static ref PENDING_FS_RESPONSE: Mutex<Option<FsListResponse>> = Mutex::new(None);
+}
+
+/// Get pending filesystem response (called by frontend message handler)
+pub fn get_pending_fs_response() -> Option<FsListResponse> {
+    PENDING_FS_RESPONSE.lock().take()
 }
 
 // HTML/CSS/JS for applications will be in separate files

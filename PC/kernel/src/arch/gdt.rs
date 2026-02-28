@@ -146,10 +146,35 @@ impl Tss {
 
 /// GDT with 8 entries (null, kernel code, kernel data, user code32, user data, user code64, TSS low, TSS high)
 /// Note: TSS takes 2 entries in 64-bit mode (16 bytes)
-static mut GDT: [u64; 8] = [0; 8];
+/// 
+/// GDT wrapped in SyncUnsafeCell for safe access during initialization.
+/// We only mutate during GDT initialization (single-threaded), making this safe.
+use core::cell::UnsafeCell;
+
+/// Wrapper type to allow Sync for UnsafeCell
+pub struct SyncUnsafeCell<T>(UnsafeCell<T>);
+
+impl<T> SyncUnsafeCell<T> {
+    /// Create a new SyncUnsafeCell
+    pub const fn new(value: T) -> Self {
+        Self(UnsafeCell::new(value))
+    }
+    
+    /// Get a raw pointer to the data
+    pub fn get(&self) -> *mut T {
+        self.0.get()
+    }
+}
+
+// SAFETY: This is safe because we only mutate during initialization (single-threaded).
+unsafe impl<T> Sync for SyncUnsafeCell<T> {}
+
+/// GDT wrapped for thread-safe access
+static GDT: SyncUnsafeCell<[u64; 8]> = SyncUnsafeCell::new([0; 8]);
 /// Number of GDT entries for GDT pointer (bytes)
 const GDT_SIZE_BYTES: usize = 8 * 8;  // 8 entries * 8 bytes each
-static mut TSS: Tss = Tss::new();
+/// TSS wrapped for thread-safe access
+static TSS: SyncUnsafeCell<Tss> = SyncUnsafeCell::new(Tss::new());
 
 /// GDT pointer for LGDT instruction
 #[repr(C, packed)]
@@ -174,28 +199,31 @@ pub const TSS_SELECTOR: u16 = 0x30;
 /// Initialize GDT
 pub fn init() {
     unsafe {
+        let gdt = &mut *GDT.get();
+        let tss = &mut *TSS.get();
+        
         // Null descriptor (index 0)
-        GDT[0] = 0;
+        gdt[0] = 0;
 
         // Kernel code segment (index 1) - 64-bit code segment
         // Base: 0, Limit: ignored, Long mode (L=1), Present, Ring 0, Code, Readable
-        GDT[1] = 0x00AF9A000000FFFF;
+        gdt[1] = 0x00AF9A000000FFFF;
 
         // Kernel data segment (index 2)
         // Base: 0, Limit: 4GB, Present, Ring 0, Data, Writable
-        GDT[2] = 0x00CF92000000FFFF;
+        gdt[2] = 0x00CF92000000FFFF;
 
         // User code segment 32-bit (index 3)
-        GDT[3] = 0x00CFFA000000FFFF;
+        gdt[3] = 0x00CFFA000000FFFF;
 
         // User data segment (index 4)
-        GDT[4] = 0x00CFF2000000FFFF;
+        gdt[4] = 0x00CFF2000000FFFF;
 
         // User code segment 64-bit (index 5)
-        GDT[5] = 0x00AFFA000000FFFF;
+        gdt[5] = 0x00AFFA000000FFFF;
 
         // TSS entry (indices 6 and 7) - Takes 16 bytes (2 u64s) in 64-bit mode
-        let tss_addr = &TSS as *const _ as u64;
+        let tss_addr = tss as *const _ as u64;
         let tss_limit = (size_of::<Tss>() - 1) as u64;
 
         // TSS low part (index 6)
@@ -210,13 +238,13 @@ pub fn init() {
         // TSS high part (index 7) - Base 63:32
         let tss_high = tss_addr >> 32;
 
-        GDT[6] = tss_low;
-        GDT[7] = tss_high;
+        gdt[6] = tss_low;
+        gdt[7] = tss_high;
 
         // Load GDT
         let gdt_ptr = GdtPointer {
             limit: (GDT_SIZE_BYTES - 1) as u16,
-            base: GDT.as_ptr() as u64,
+            base: GDT.get() as u64,
         };
 
         core::arch::asm!(
@@ -255,6 +283,6 @@ pub fn init() {
 /// Set kernel stack in TSS
 pub fn set_kernel_stack(stack_top: u64) {
     unsafe {
-        TSS.set_rsp0(stack_top);
+        (*TSS.get()).set_rsp0(stack_top);
     }
 }

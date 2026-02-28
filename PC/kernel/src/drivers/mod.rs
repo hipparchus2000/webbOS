@@ -7,6 +7,7 @@ pub mod pci;
 pub mod storage;
 pub mod vesa;
 pub mod input;
+pub mod usb;
 
 use crate::println;
 
@@ -17,6 +18,9 @@ pub fn init() {
     timer::init();
     pci::init();
     // Storage drivers initialized separately after PCI enumeration
+    
+    // Initialize USB subsystem (detects xHCI, falls back to PS/2)
+    usb::init();
     
     println!("[drivers] Device drivers initialized");
 }
