@@ -10,6 +10,8 @@
 //! NOTE: USB HID support will be added in the future via xHCI driver.
 //! For now, PS/2 is the primary input method on PC.
 
+#![allow(dead_code)]
+
 use spin::Mutex;
 use lazy_static::lazy_static;
 use alloc::collections::VecDeque;
@@ -623,10 +625,8 @@ pub fn init() {
     INPUT_MANAGER.lock().init();
     
     // Also initialize the IRQ-specific drivers
-    unsafe {
-        IRQ_KEYBOARD_DRIVER.init();
-        IRQ_MOUSE_DRIVER.init();
-    }
+    IRQ_KEYBOARD_DRIVER.init();
+    IRQ_MOUSE_DRIVER.init();
     
     // Initialize last position from current position
     LAST_MOUSE_X.store(MOUSE_X.load(Ordering::Relaxed), Ordering::Relaxed);
@@ -639,7 +639,6 @@ pub fn init() {
 // These ONLY update atomic state - NO events, NO queues!
 // Wrapped in Mutex for thread-safe access from IRQ handlers
 use core::cell::RefCell;
-use core::sync::atomic::AtomicBool;
 
 /// Cell type for IRQ handlers - allows interior mutability in static context
 pub struct IrqCell<T> {
@@ -755,25 +754,21 @@ static IRQ_MOUSE_DRIVER: IrqCell<MouseDriver> = IrqCell::new(MouseDriver::new())
 pub fn handle_keyboard_interrupt() { 
     KEYBOARD_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
     // Disable interrupts briefly to prevent reentrancy issues
-    unsafe {
-        crate::arch::interrupts::disable();
-        if let Some(event) = IRQ_KEYBOARD_DRIVER.get().handle_interrupt() {
-            // Push to main queue - this is safe because we use Mutex
-            INPUT_MANAGER.lock().events.push_back(event);
-        }
-        crate::arch::interrupts::enable();
+    crate::arch::interrupts::disable();
+    if let Some(event) = IRQ_KEYBOARD_DRIVER.get().handle_interrupt() {
+        // Push to main queue - this is safe because we use Mutex
+        INPUT_MANAGER.lock().events.push_back(event);
     }
+    crate::arch::interrupts::enable();
 }
 
 /// Mouse IRQ handler - MINIMAL, just updates atomic position
 pub fn handle_mouse_interrupt() { 
     MOUSE_IRQ_COUNT.fetch_add(1, Ordering::Relaxed);
     // Disable interrupts briefly to prevent reentrancy issues
-    unsafe {
-        crate::arch::interrupts::disable();
-        IRQ_MOUSE_DRIVER.get().handle_interrupt();
-        crate::arch::interrupts::enable();
-    }
+    crate::arch::interrupts::disable();
+    IRQ_MOUSE_DRIVER.get().handle_interrupt();
+    crate::arch::interrupts::enable();
 }
 
 /// Poll mouse from timer (20Hz) - generates events, does printing
@@ -835,9 +830,7 @@ pub fn set_mouse_screen_dimensions(width: i32, height: i32) {
     LAST_MOUSE_X.store(clamped_x, Ordering::Relaxed);
     LAST_MOUSE_Y.store(clamped_y, Ordering::Relaxed);
     
-    unsafe { 
-        IRQ_MOUSE_DRIVER.get().set_screen_dimensions(width, height); 
-    }
+    IRQ_MOUSE_DRIVER.get().set_screen_dimensions(width, height);
 }
 
 /// Get interrupt counters for diagnostics

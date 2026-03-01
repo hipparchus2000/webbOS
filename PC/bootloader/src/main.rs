@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(allocator_api)]
 #![feature(maybe_uninit_slice)]
+#![allow(dead_code)]
 
 //! WebbOS UEFI Bootloader
 //!
@@ -15,7 +16,7 @@ use uefi::boot::{allocate_pages, AllocateType, MemoryType};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 use uefi::proto::media::file::{File, FileAttribute, FileMode};
 use uefi::{boot, println, Status};
-use uefi::CString16;
+
 use webbos_shared::bootinfo::{BootInfo, FramebufferInfo, PixelFormat, BOOTINFO_MAGIC, BOOTINFO_VERSION};
 use webbos_shared::types::{MemoryRegion, MemoryRegionType, PhysAddr, VirtAddr, ByteSize};
 
@@ -136,22 +137,19 @@ fn main() -> Status {
     }
 
     println!("Boot info prepared");
-    println!("Exiting boot services and jumping to kernel...");
-
-    // Exit boot services
-    unsafe {
-        // We need to get the memory map again after exiting boot services
-        let _ = boot::exit_boot_services(MemoryType::LOADER_DATA);
-    }
 
     // Jump to kernel using the entry point from ELF header
     let kernel_entry_virt = unsafe { KERNEL_ENTRY_POINT };
     
-    println!("Jumping to kernel at {:#x}...", kernel_entry_virt);
+    println!("Switching to kernel page tables and jumping to {:#x}...", kernel_entry_virt);
     
     unsafe {
-        // Disable interrupts during page table switch
+        // Disable interrupts
         core::arch::asm!("cli");
+        
+        // Test: Write to VGA before page table switch
+        core::ptr::write_volatile(0xB8000 as *mut u8, 0x42); // 'B'
+        core::ptr::write_volatile(0xB8001 as *mut u8, 0x0C); // Red on black
         
         // Switch to the new page tables
         core::arch::asm!(
@@ -159,10 +157,17 @@ fn main() -> Status {
             in(reg) _page_tables.as_u64(),
         );
         
+        // Test: Write to VGA after page table switch (using identity mapping)
+        core::ptr::write_volatile(0xB8002 as *mut u8, 0x41); // 'A'
+        core::ptr::write_volatile(0xB8003 as *mut u8, 0x0A); // Green on black
+        
+        // Test: Write to VGA using higher half mapping
+        core::ptr::write_volatile(0xFFFF8000000B8004 as *mut u8, 0x4B); // 'K'
+        core::ptr::write_volatile(0xFFFF8000000B8005 as *mut u8, 0x0F); // White on black
+        
         // Jump to kernel at virtual address
         // The kernel's _start function expects:
         // - RDI = pointer to BootInfo
-        // - Stack at 0xFFFF_8000_0050_0000 (set up by kernel's _start)
         let kernel_entry: extern "sysv64" fn(*const BootInfo) = 
             core::mem::transmute(kernel_entry_virt as *const u8);
         kernel_entry(boot_info.as_ptr::<BootInfo>());
@@ -215,12 +220,19 @@ fn load_kernel() -> uefi::Result<usize> {
     // Open root directory
     let mut root = fs.open_volume()?;
     
-    // Open kernel file
-    let file = root.open(
-        uefi::cstr16!("kernel.elf"),
+    // Open kernel file (try KERNEL.ELF first, then kernel.elf)
+    let file = match root.open(
+        uefi::cstr16!("KERNEL.ELF"),
         FileMode::Read,
         FileAttribute::empty(),
-    )?;
+    ) {
+        Ok(f) => f,
+        Err(_) => root.open(
+            uefi::cstr16!("kernel.elf"),
+            FileMode::Read,
+            FileAttribute::empty(),
+        )?,
+    };
     
     let mut file = file.into_regular_file().ok_or_else(|| uefi::Error::new(Status::NOT_FOUND, ()))?;
     

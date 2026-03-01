@@ -1,5 +1,7 @@
 //! CPU-specific functions
 
+#![allow(dead_code)]
+
 use core::arch::x86_64::__cpuid;
 use crate::println;
 

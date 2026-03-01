@@ -1,5 +1,7 @@
 //! Global Descriptor Table (GDT) setup
 
+#![allow(dead_code)]
+
 use core::mem::size_of;
 
 /// GDT Entry

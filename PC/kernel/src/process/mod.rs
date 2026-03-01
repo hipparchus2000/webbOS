@@ -2,10 +2,12 @@
 //!
 //! Implements task scheduling, process creation, and context switching.
 
+#![allow(dead_code)]
+
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
 
 pub mod context;
 pub mod scheduler;

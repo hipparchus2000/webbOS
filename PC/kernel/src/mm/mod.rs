@@ -3,6 +3,8 @@
 //! Handles physical memory allocation, virtual memory mapping,
 //! and the kernel heap allocator.
 
+#![allow(dead_code)]
+
 use webbos_shared::bootinfo::BootInfo;
 use webbos_shared::types::{MemoryRegionType, PhysAddr, VirtAddr, PAGE_SIZE, KERNEL_BASE};
 use crate::arch::paging::{BootInfoFrameAllocator, Page, PhysFrame, PageTableFlags, OffsetPageTable};

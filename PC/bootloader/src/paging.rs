@@ -3,6 +3,8 @@
 //! Sets up page tables to transition to long mode and map the kernel
 //! into higher half virtual memory.
 
+#![allow(dead_code)]
+
 use crate::memory::alloc_pages;
 use webbos_shared::types::PhysAddr;
 

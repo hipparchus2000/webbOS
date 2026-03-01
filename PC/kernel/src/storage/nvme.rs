@@ -2,13 +2,9 @@
 //!
 //! High-performance SSD driver for NVMe controllers.
 
-use alloc::vec;
-use alloc::vec::Vec;
 use alloc::boxed::Box;
-use alloc::string::String;
-
 use crate::storage::{BlockDevice, StorageError};
-use crate::drivers::pci::{self, PciDevice};
+use crate::drivers::pci;
 use crate::mm::virt_to_phys_u64;
 use crate::println;
 
@@ -28,14 +24,10 @@ const REG_AQA: usize = 0x0024;    // Admin Queue Attributes
 const REG_ASQ: usize = 0x0028;    // Admin Submission Queue Base
 const REG_ACQ: usize = 0x0030;    // Admin Completion Queue Base
 
-/// Doorbell offsets
-const DOORBELL_STRIDE: usize = 4; // Each doorbell is 4 bytes
-
 /// Controller Configuration bits
 const CC_EN: u32 = 0x01;
 const CC_IOSQES: u32 = 6 << 16;  // IO SQ Entry Size = 64 bytes
 const CC_IOCQES: u32 = 4 << 20;  // IO CQ Entry Size = 16 bytes
-const CC_SHN_NONE: u32 = 0 << 14;
 const CC_AMS_RR: u32 = 0 << 11;  // Round-robin arbitration
 const CC_CSS_NVM: u32 = 0 << 4;  // NVM command set
 
@@ -44,10 +36,8 @@ const CSTS_RDY: u32 = 0x01;
 const CSTS_CFS: u32 = 0x02;
 
 /// Admin opcodes
-const CMD_DELETE_SQ: u8 = 0x00;
-const CMD_CREATE_SQ: u8 = 0x01;
-const CMD_DELETE_CQ: u8 = 0x04;
 const CMD_CREATE_CQ: u8 = 0x05;
+const CMD_CREATE_SQ: u8 = 0x01;
 const CMD_IDENTIFY: u8 = 0x06;
 
 /// NVM opcodes
@@ -58,7 +48,6 @@ const CMD_FLUSH: u8 = 0x00;
 /// Identify CNS values
 const CNS_NAMESPACE: u32 = 0x00;
 const CNS_CONTROLLER: u32 = 0x01;
-const CNS_NS_LIST: u32 = 0x02;
 
 /// Submission queue entry (64 bytes)
 #[repr(C)]
@@ -162,7 +151,7 @@ impl NvmeController {
     pub fn init(&mut self) -> Result<(), StorageError> {
         // Check capabilities
         let cap = self.read_cap();
-        let _doorbell_stride = 4 << ((cap >> 32) & 0xF); // DSTRD field
+        let _ = cap; // Capabilities read for future use
 
         println!("[nvme] CAP: {:016X}", cap);
 

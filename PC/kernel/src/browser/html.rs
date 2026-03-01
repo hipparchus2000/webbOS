@@ -6,9 +6,7 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-
 use crate::browser::BrowserError;
-use crate::browser::css::Stylesheet;
 use crate::println;
 
 /// HTML Document
@@ -83,6 +81,7 @@ impl Element {
 pub enum Node {
     Element(Element),
     Text(String),
+    #[allow(dead_code)]
     Comment(String),
 }
 

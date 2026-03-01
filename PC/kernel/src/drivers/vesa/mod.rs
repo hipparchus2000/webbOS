@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 
 use crate::println;
 use crate::mm::phys_to_virt;
-use webbos_shared::types::PhysAddr;
+use webbos_shared::PhysAddr;
 
 /// VBE 2.0+ Information Block
 #[repr(C, packed)]
@@ -148,14 +148,14 @@ impl VesaDriver {
     }
     
     /// Initialize with pitch and virtual address
-    pub fn init_with_pitch(&mut self, width: u32, height: u32, bpp: u8, pitch: u32, phys_addr: u64, virt_addr: u64) {
+    pub fn init_with_pitch(&mut self, width: u32, height: u32, bpp: u8, pitch_in: u32, phys_addr: u64, virt_addr: u64) {
         println!("[vesa] Initializing VESA framebuffer...");
         println!("[vesa] Resolution: {}x{} @ {}bpp", width, height, bpp);
         println!("[vesa] Physical address: 0x{:016x}", phys_addr);
         
         let bytes_per_pixel = (bpp + 7) / 8;
         // Use provided pitch or calculate from width
-        let pitch = if pitch > 0 { pitch } else { width * bytes_per_pixel as u32 };
+        let pitch = if pitch_in > 0 { pitch_in } else { width * bytes_per_pixel as u32 };
         let size = (pitch * height) as usize;
         
         // Calculate color masks based on bpp
@@ -622,8 +622,8 @@ fn get_char_bitmap(ch: char) -> [u8; 8] {
     }
 }
 
-/// Global VESA driver
 lazy_static! {
+    /// Global VESA driver
     static ref VESA_DRIVER: Mutex<VesaDriver> = Mutex::new(VesaDriver::new());
 }
 

@@ -2,6 +2,8 @@
 //!
 //! HTTP/1.1 and HTTP/2 client implementation for WebbOS.
 
+#![allow(dead_code)]
+
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
@@ -535,8 +537,8 @@ fn is_redirect(status: u16) -> bool {
     matches!(status, 301 | 302 | 303 | 307 | 308)
 }
 
-/// Global HTTP client
 lazy_static! {
+    /// Global HTTP client
     static ref HTTP_CLIENT: Client = Client::new();
 }
 

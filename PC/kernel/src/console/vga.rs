@@ -1,13 +1,14 @@
 //! VGA text mode driver
 
 use core::fmt;
+use crate::arch::constants::{VGA_WIDTH, VGA_HEIGHT, VGA_TEXT_BUFFER_ADDR};
 
 /// VGA buffer width
-const BUFFER_WIDTH: usize = 80;
+const BUFFER_WIDTH: usize = VGA_WIDTH;
 /// VGA buffer height
-const BUFFER_HEIGHT: usize = 25;
+const BUFFER_HEIGHT: usize = VGA_HEIGHT;
 /// VGA buffer address
-const BUFFER_ADDR: u64 = 0xB8000;
+const BUFFER_ADDR: u64 = VGA_TEXT_BUFFER_ADDR as u64;
 
 /// Volatile wrapper for VGA buffer
 #[repr(transparent)]
@@ -178,5 +179,4 @@ impl fmt::Write for Writer {
         Ok(())
     }
 }
-
 

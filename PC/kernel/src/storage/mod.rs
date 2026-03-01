@@ -2,8 +2,9 @@
 //!
 //! Block device drivers and storage management.
 
+#![allow(dead_code)]
+
 use alloc::boxed::Box;
-use alloc::vec;
 use alloc::vec::Vec;
 use alloc::string::String;
 use spin::Mutex;
@@ -15,7 +16,6 @@ pub mod nvme;
 pub mod boot_disk;
 pub mod simple_disk;
 
-use crate::drivers::pci::PciDevice;
 use crate::println;
 
 /// Block device trait
@@ -74,8 +74,8 @@ pub struct StorageInfo {
     pub serial: String,
 }
 
-/// Global block device list
 lazy_static! {
+    /// Global block device list
     static ref BLOCK_DEVICES: Mutex<Vec<Box<dyn BlockDevice>>> = Mutex::new(Vec::new());
 }
 

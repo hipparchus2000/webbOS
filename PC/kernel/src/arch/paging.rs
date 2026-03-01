@@ -1,5 +1,7 @@
 //! Paging implementation
 
+#![allow(dead_code)]
+
 use webbos_shared::types::{PhysAddr, PAGE_SIZE};
 
 /// Page table entry

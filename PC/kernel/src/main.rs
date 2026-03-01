@@ -10,9 +10,11 @@
 //!
 //! Main kernel entry point and initialization.
 
+#![allow(dead_code)]
+
 extern crate alloc;
 
-use alloc::boxed::Box;
+
 use core::arch::naked_asm;
 use webbos_shared::bootinfo::BootInfo;
 
@@ -34,6 +36,7 @@ mod testing;
 mod users;
 mod desktop;
 mod login_screen;
+mod debug_log;
 
 use arch::cpu;
 use arch::interrupts;
@@ -41,9 +44,6 @@ use arch::interrupts;
 /// Test FAT32 root directory reading
 fn test_fat32_root() {
     println!("[fs] Testing FAT32 root directory...");
-    
-    // Try to read root directory entries
-    use crate::fs::{FileSystem, INode};
     
     // Get the root filesystem (should be FAT32 mounted at /)
     // For now just print a success message
@@ -97,6 +97,9 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Initialize console for early output
     console::init();
     
+    // Initialize debug logging
+    debug_log::log("Kernel entry");
+    
     println!("╔══════════════════════════════════════════════════╗");
     println!("║                                                  ║");
     println!("║  ██╗    ██╗███████╗██████╗ ██████╗  ██████╗ ███████╗");
@@ -133,6 +136,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("\n[cpu] Initializing...");
     cpu::init();
     println!("[cpu] CPU features detected");
+    debug_log::log("CPU initialized");
 
     // Initialize GDT and TSS
     println!("\n[gdt] Initializing GDT and TSS...");
@@ -140,6 +144,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     // Set kernel stack in TSS (use current stack top from boot info)
     arch::gdt::set_kernel_stack(boot_info.stack_top.as_u64());
     println!("[gdt] GDT and TSS initialized");
+    debug_log::log("GDT/TSS initialized");
 
     // Initialize memory management
     println!("\n[mm] Initializing memory management...");
@@ -147,11 +152,13 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
         mm::init(boot_info);
     }
     println!("[mm] Memory management initialized");
+    debug_log::log("Memory management initialized");
 
     // Initialize interrupt handling
     println!("\n[interrupts] Initializing IDT...");
     interrupts::init();
     println!("[interrupts] IDT initialized");
+    debug_log::log("IDT initialized");
 
     // Print memory statistics
     mm::print_stats();
@@ -237,7 +244,7 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
             vaddr.as_u64()
         } else {
             // Fallback to hardcoded mapping
-            0xFFFF_8000_8000_0000u64
+            crate::arch::constants::FRAMEBUFFER_VIRT_BASE as u64
         };
         println!("[vesa] Using framebuffer virt addr: {:016X}", fb_virt_addr);
         
@@ -254,12 +261,23 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
             );
             println!("[vesa] VESA: {}x{} @ {:?}", fb_info.width, fb_info.height, fb_info.addr);
             
+            // Set up debug framebuffer for early visual debugging
+            set_debug_framebuffer(
+                fb_virt_addr as usize, 
+                fb_info.width as usize, 
+                fb_info.bpp as usize
+            );
+            
+            // Visual debug: Draw test pixels to verify framebuffer works
+            debug_draw_pixel(10, 10, debug_colors::RED);
+            debug_draw_pixel(20, 10, debug_colors::GREEN);
+            debug_draw_pixel(30, 10, debug_colors::BLUE);
+            
             // Set mouse screen dimensions to match framebuffer
             drivers::input::set_mouse_screen_dimensions(fb_info.width as i32, fb_info.height as i32);
             println!("[input] Mouse screen dimensions set to {}x{}", fb_info.width, fb_info.height);
             
-            // Drawing test disabled - see LOGIN_SCREEN_NOTES.md
-            println!("[vesa] Driver ready for drawing from kernel_main");
+            println!("[vesa] Driver ready, test pixels drawn");
         }
         
         // Draw boot indicator to VESA framebuffer
@@ -293,10 +311,9 @@ pub extern "C" fn kernel_entry(boot_info: &'static BootInfo) -> ! {
     println!("[interrupts] Interrupts enabled (timer, keyboard, mouse)");
 
     println!("\n✓ WebbOS kernel initialized successfully!");
-    println!("\nSystem is ready. Type 'help' for available commands.");
 
-    // Main kernel loop
-    kernel_main();
+    // Show login screen directly (no CLI)
+    login_screen_event_loop();
 }
 
 /// Draw the login screen to the VESA framebuffer
@@ -306,63 +323,114 @@ fn draw_vesa_triangle() {
     println!("[vesa] Skipping boot drawing (login screen will be shown later)");
 }
 
-/// Draw a simple triangle using VGA text buffer with colored blocks (fallback)
-fn draw_boot_triangle() {
-    // VGA text buffer address (already mapped by bootloader)
-    let vga_buffer = 0xFFFF8000000B8000 as *mut u16;
-    
-    // Color attributes: high nibble = background, low nibble = foreground
-    // Green background (0x20), white foreground (0x0F) -> 0x2F
-    // Or use 0x2A for green background with green foreground (solid block)
-    let green_block: u16 = (0xDB as u16) | ((0x2A as u16) << 8); // Green block character
-    let white_block: u16 = (0xDB as u16) | ((0x0F as u16) << 8); // White block character
-    
-    // Draw a simple triangle in the center of the screen
-    // VGA text mode is 80x25 characters
-    let center_x = 40;
-    let center_y = 12;
-    
+/// Framebuffer info for debug drawing (set during boot)
+static mut DEBUG_FB_ADDR: usize = 0;
+static mut DEBUG_FB_WIDTH: usize = 0;
+static mut DEBUG_FB_BPP: usize = 0;
+
+/// Set framebuffer address for debug drawing
+fn set_debug_framebuffer(addr: usize, width: usize, bpp: usize) {
     unsafe {
-        // Draw triangle pointing up
-        // Top point
-        let row = center_y - 4;
-        let col = center_x;
-        let offset = row * 80 + col;
-        core::ptr::write_volatile(vga_buffer.add(offset), white_block);
-        
-        // Second row (3 blocks wide)
-        let row = center_y - 3;
-        for i in -1..=1 {
-            let col = (center_x as i32 + i) as usize;
-            let offset = row * 80 + col;
-            core::ptr::write_volatile(vga_buffer.add(offset), green_block);
-        }
-        
-        // Third row (5 blocks wide)
-        let row = center_y - 2;
-        for i in -2..=2 {
-            let col = (center_x as i32 + i) as usize;
-            let offset = row * 80 + col;
-            core::ptr::write_volatile(vga_buffer.add(offset), green_block);
-        }
-        
-        // Bottom row (7 blocks wide) - base of triangle
-        let row = center_y - 1;
-        for i in -3..=3 {
-            let col = (center_x as i32 + i) as usize;
-            let offset = row * 80 + col;
-            core::ptr::write_volatile(vga_buffer.add(offset), green_block);
-        }
-        
-        // Draw white border at edges
-        let row = center_y - 1;
-        let left_col = (center_x as i32 - 3) as usize;
-        let right_col = (center_x as i32 + 3) as usize;
-        core::ptr::write_volatile(vga_buffer.add(row * 80 + left_col), white_block);
-        core::ptr::write_volatile(vga_buffer.add(row * 80 + right_col), white_block);
+        DEBUG_FB_ADDR = addr;
+        DEBUG_FB_WIDTH = width;
+        DEBUG_FB_BPP = bpp;
     }
+}
+
+/// Debug: Draw a colored pixel to the framebuffer
+/// This is visible even when serial/console output isn't working
+fn debug_draw_pixel(x: usize, y: usize, color: u32) {
+    unsafe {
+        if DEBUG_FB_ADDR == 0 {
+            return; // Framebuffer not set up yet
+        }
+        
+        // Calculate pixel offset based on BPP
+        let bytes_per_pixel = DEBUG_FB_BPP / 8;
+        let offset = (y * DEBUG_FB_WIDTH + x) * bytes_per_pixel;
+        
+        // Write pixel based on BPP
+        if DEBUG_FB_BPP == 32 {
+            let fb = DEBUG_FB_ADDR as *mut u32;
+            fb.add(offset / 4).write_volatile(color);
+        } else if DEBUG_FB_BPP == 24 {
+            let fb = DEBUG_FB_ADDR as *mut u8;
+            let bytes = color.to_le_bytes();
+            fb.add(offset).write_volatile(bytes[0]);
+            fb.add(offset + 1).write_volatile(bytes[1]);
+            fb.add(offset + 2).write_volatile(bytes[2]);
+        }
+    }
+}
+
+/// Debug colors for framebuffer
+#[allow(dead_code)]
+mod debug_colors {
+    pub const RED: u32 = 0xFFFF0000;
+    pub const GREEN: u32 = 0xFF00FF00;
+    pub const BLUE: u32 = 0xFF0000FF;
+    pub const WHITE: u32 = 0xFFFFFFFF;
+    pub const YELLOW: u32 = 0xFFFFFF00;
+    pub const CYAN: u32 = 0xFF00FFFF;
+    pub const MAGENTA: u32 = 0xFFFF00FF;
+}
+
+/// Login screen event loop - handles login and transitions to desktop
+fn login_screen_event_loop() -> ! {
+    use core::sync::atomic::{AtomicU64, Ordering};
     
-    println!("[boot] Triangle drawn to VGA buffer");
+    // Show login screen
+    println!("[boot] Starting...");
+    println!("[boot] Calling login_screen::show()...");
+    login_screen::show();
+    println!("[boot] login_screen::show() returned");
+    
+    println!("[login] Entering login event loop");
+    
+    // Heartbeat counter
+    static LOOP_COUNT: AtomicU64 = AtomicU64::new(0);
+    static LAST_PRINT: AtomicU64 = AtomicU64::new(0);
+    
+    loop {
+        let loop_num = LOOP_COUNT.fetch_add(1, Ordering::Relaxed);
+        
+        // Check for keyboard input
+        if let Some(c) = console::getchar() {
+            match login_screen::handle_key(c) {
+                login_screen::LoginAction::LoginSuccess => {
+                    // Login successful - show graphical desktop
+                    println!("\n[desktop] Login successful, launching desktop...");
+
+                    // Show the macOS-style graphical desktop
+                    desktop::ui::show();
+
+                    println!("[desktop] Desktop shown, entering desktop mode...");
+                    // Enter desktop event loop
+                    desktop_event_loop();
+                    
+                    // If we exit desktop loop, return to login screen
+                    println!("\n[login] Returned from desktop, showing login screen...");
+                    login_screen::show();
+                }
+                login_screen::LoginAction::LoginFailed => {
+                    // Login failed, stay on login screen
+                    println!("[login] Authentication failed");
+                }
+                login_screen::LoginAction::None => {}
+            }
+        }
+        
+        // Print heartbeat every ~5 seconds
+        let current_tick = crate::arch::interrupts::get_timer_ticks();
+        let last_print = LAST_PRINT.load(Ordering::Relaxed);
+        if current_tick >= last_print + 500 {
+            println!("[hb] login loop={}", loop_num);
+            LAST_PRINT.store(current_tick, Ordering::Relaxed);
+        }
+
+        // Halt CPU to save power
+        cpu::halt();
+    }
 }
 
 /// Desktop event loop - handles mouse and keyboard input for desktop
@@ -412,8 +480,10 @@ fn desktop_event_loop() {
             }
             
             // Check for mouse button press (for double-click detection)
+            const MOUSE_LEFT_BUTTON_MASK: u8 = 0x01;
             let current_buttons = drivers::input::mouse_buttons();
-            let button_just_pressed = (current_buttons & 0x01) != 0 && (last_button_state & 0x01) == 0;
+            let button_just_pressed = (current_buttons & MOUSE_LEFT_BUTTON_MASK) != 0 && 
+                                       (last_button_state & MOUSE_LEFT_BUTTON_MASK) == 0;
             let (mouse_x, mouse_y) = drivers::input::mouse_position();
             
             if button_just_pressed {
@@ -445,7 +515,8 @@ fn desktop_event_loop() {
                 EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
                 match event.event_type {
                     drivers::input::EventType::KeyPress => {
-                        if event.ascii == 27 { // ESC
+                        const KEY_ESCAPE: u8 = 27;
+                        if event.ascii == KEY_ESCAPE {
                             println!("[desktop] ESC pressed, exiting desktop mode");
                             return;
                         }
@@ -471,265 +542,6 @@ fn desktop_event_loop() {
     }
 }
 
-/// Main kernel loop
-fn kernel_main() -> ! {
-    let mut buffer = [0u8; 256];
-    let mut pos = 0;
-    let mut first_boot = true;
-
-    loop {
-        // Show login screen on first boot after a short delay
-        if first_boot {
-            first_boot = false;
-            println!("[boot] Starting...");
-            // Use simple delay loop instead of timer sleep (timer not working yet)
-            println!("[boot] Waiting...");
-            for _ in 0..10000000 {
-                core::hint::spin_loop();
-            }
-            println!("[boot] Wait complete");
-            println!("[boot] Calling login_screen::show()...");
-            login_screen::show();
-            println!("[boot] login_screen::show() returned");
-        }
-        
-        // Only show prompt if login screen is not visible
-        if !login_screen::is_visible() {
-            print!("$ ");
-        }
-        
-        // Simple command loop
-        loop {
-            // Check for input
-            let key_opt = console::getchar();
-            
-            if let Some(c) = key_opt {
-                // If login screen is visible, route input to it
-                if login_screen::is_visible() {
-                    match login_screen::handle_key(c) {
-                        login_screen::LoginAction::LoginSuccess => {
-                            // Login successful - show graphical desktop
-                            println!("\n[desktop] Login successful, launching desktop...");
-
-                            // Show the macOS-style graphical desktop
-                            desktop::ui::show();
-
-                            println!("[desktop] Desktop shown, entering desktop mode...");
-                            // Enter desktop event loop
-                            desktop_event_loop();
-                            // If we exit desktop loop, go back to command prompt
-                            println!("\nExited desktop mode");
-                            break;
-                        }
-                        login_screen::LoginAction::LoginFailed => {
-                            // Login failed, stay on login screen
-                            println!("[login] Authentication failed");
-                        }
-                        login_screen::LoginAction::None => {}
-                    }
-                    continue;
-                }
-                
-                match c {
-                    b'\n' | b'\r' => {
-                        println!();
-                        buffer[pos] = 0;
-                        process_command(&buffer[..pos]);
-                        pos = 0;
-                        break;
-                    }
-                    8 | 127 => { // Backspace
-                        if pos > 0 {
-                            pos -= 1;
-                            print!("\x08 \x08");
-                        }
-                    }
-                    c if pos < buffer.len() - 1 => {
-                        buffer[pos] = c;
-                        pos += 1;
-                        print!("{}", c as char);
-                    }
-                    _ => {}
-                }
-            }
-            
-            // Halt CPU until next interrupt (saves power)
-            cpu::halt();
-        }
-    }
-}
-
-/// Process a user command
-fn process_command(cmd: &[u8]) {
-    let cmd_str = core::str::from_utf8(cmd).unwrap_or("").trim();
-    
-    match cmd_str {
-        "" => {}
-        "help" => {
-            println!("Available commands:");
-            println!("  help       - Show this help message");
-            println!("  info       - Show system information");
-            println!("  memory     - Show memory statistics");
-            println!("  processes  - Show process list");
-            println!("  scheduler  - Show scheduler statistics");
-            println!("  vfs        - Show VFS statistics");
-            println!("  pci        - Show PCI devices");
-            println!("  time       - Show time/timers");
-            println!("  network    - Show network status");
-            println!("  dhcp       - Start DHCP discovery");
-            println!("  ping       - Ping a host");
-            println!("  netstat    - Show network connections");
-            println!("  storage    - Show storage devices");
-            println!("  tls        - Test TLS connection");
-            println!("  http       - HTTP client usage");
-            println!("  fetch      - Fetch a URL (e.g., fetch http://example.com)");
-            println!("  graphics   - Show graphics info");
-            println!("  vesa       - Show VESA framebuffer info");
-            println!("  input      - Show input status");
-            println!("  test       - Run test suite");
-            println!("  users      - List user accounts");
-            println!("  sessions   - List active sessions");
-            println!("  login      - Login to desktop");
-            println!("  desktop    - Show desktop info");
-            println!("  launch     - Launch application (e.g., launch notepad)");
-            println!("  browser    - Show browser engine status");
-            println!("  navigate   - Navigate to URL (e.g., navigate file:///test.html)");
-            println!("  reboot     - Reboot the system");
-            println!("  shutdown   - Shutdown the system");
-        }
-        "info" => {
-            println!("System Information:");
-            println!("  OS: WebbOS v0.1.0");
-            println!("  Architecture: x86_64");
-            cpu::print_info();
-        }
-        "memory" => {
-            mm::print_stats();
-        }
-        "processes" | "ps" => {
-            process::print_process_list();
-        }
-        "scheduler" => {
-            process::scheduler::print_stats();
-        }
-        "vfs" => {
-            fs::print_stats();
-        }
-        "pci" => {
-            drivers::pci::print_devices();
-        }
-        "time" => {
-            drivers::timer::print_stats();
-        }
-        "network" | "net" => {
-            net::print_interfaces();
-            println!();
-            net::print_stats();
-        }
-        "dhcp" => {
-            net::dhcp::start_dhcp();
-        }
-        "ping" => {
-            println!("Usage: ping <ip_address>");
-            println!("Example: ping 8.8.8.8");
-        }
-        "netstat" => {
-            net::socket::print_sockets();
-        }
-        "storage" => {
-            storage::print_devices();
-        }
-        "tls" => {
-            let _ = tls::connect("example.com");
-        }
-        "http" => {
-            println!("Usage: http <url>");
-            println!("Example: http http://example.com");
-        }
-        "fetch" => {
-            if net::dns::resolve("example.com").is_none() {
-                println!("Configuring network with static IP...");
-                let config = net::NetworkConfig {
-                    ip: net::Ipv4Address::from_octets(10, 0, 2, 15),
-                    netmask: net::Ipv4Address::from_octets(255, 255, 255, 0),
-                    gateway: net::Ipv4Address::from_octets(10, 0, 2, 2),
-                    dns: net::Ipv4Address::from_octets(8, 8, 8, 8),
-                };
-                net::set_config(config);
-            }
-            match net::http::get("http://example.com") {
-                Ok(response) => net::http::print_response(&response),
-                Err(e) => println!("HTTP request failed: {:?}", e),
-            }
-        }
-        "graphics" => {
-            graphics::print_info();
-        }
-        "vesa" => {
-            drivers::vesa::print_info();
-        }
-        "input" => {
-            drivers::input::print_info();
-        }
-        "test" => {
-            testing::run_tests();
-        }
-        "users" => {
-            users::print_users();
-        }
-        "sessions" => {
-            users::print_sessions();
-        }
-        "login" => {
-            println!("Usage: login <username> <password>");
-            println!("Example: login admin admin");
-        }
-        "desktop" => {
-            desktop::print_info();
-        }
-        "launch" => {
-            // Parse command to get app name
-            let args = &cmd_str[cmd_str.len().min(6)..];
-            let app_name = args.trim();
-            if !app_name.is_empty() {
-                if let Some(window_id) = desktop::launch_app(app_name) {
-                    println!("Launched {} (window {})", app_name, window_id);
-                } else {
-                    println!("Failed to launch {}", app_name);
-                    println!("Available apps: filemanager, notepad, paint, taskmanager, usermanager, terminal, browser");
-                }
-            } else {
-                println!("Usage: launch <app_name>");
-                println!("Available apps:");
-                for app in desktop::list_apps() {
-                    println!("  {} - {} {}", app.name, app.icon, app.title);
-                }
-            }
-        }
-        "browser" => {
-            browser::print_stats();
-        }
-        "navigate" => {
-            println!("Usage: navigate <url>");
-            println!("Examples:");
-            println!("  navigate file:///test.html");
-            println!("  navigate http://example.com");
-        }
-        "reboot" => {
-            println!("Rebooting...");
-            cpu::reboot();
-        }
-        "shutdown" => {
-            println!("Shutting down...");
-            cpu::shutdown();
-        }
-        _ => {
-            println!("Unknown command: {}", cmd_str);
-            println!("Type 'help' for available commands.");
-        }
-    }
-}
-
 /// Kernel entry trampoline
 /// 
 /// This is the actual entry point from the bootloader.
@@ -741,10 +553,6 @@ pub unsafe extern "C" fn _start() -> ! {
     naked_asm!(
         // Save boot info pointer (in RDI from bootloader)
         "mov r12, rdi",
-        
-        // Debug: Write 'K' to VGA buffer to show we got here
-        "mov byte ptr [0xFFFF8000000B8000], 0x4B",  // 'K'
-        "mov byte ptr [0xFFFF8000000B8001], 0x0F",  // White on black
         
         // Set up kernel stack
         "mov rsp, {stack_top}",
@@ -762,7 +570,7 @@ pub unsafe extern "C" fn _start() -> ! {
         "hlt",
         "jmp 2b",
         
-        stack_top = const 0xFFFF_8000_0000_0000u64 + 0x500000u64, // Top of 2MB stack at 3MB
+        stack_top = const crate::arch::constants::KERNEL_STACK_TOP as u64,
         kernel_entry = sym kernel_entry,
     );
 }

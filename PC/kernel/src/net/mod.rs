@@ -1,11 +1,16 @@
 //! Network stack
 //!
 //! TCP/IP network implementation for WebbOS.
+//!
+
+#![allow(dead_code)]
 
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 use spin::Mutex;
 use lazy_static::lazy_static;
+
+
 
 pub mod drivers;
 pub mod tcp;
@@ -296,8 +301,8 @@ pub enum NetError {
     Unknown = 255,
 }
 
-/// Global network interfaces
 lazy_static! {
+    /// Global network interfaces
     static ref INTERFACES: Mutex<Vec<Box<dyn NetworkInterface>>> = Mutex::new(Vec::new());
     static ref DEFAULT_INTERFACE: Mutex<Option<usize>> = Mutex::new(None);
 }
@@ -441,8 +446,8 @@ impl NetworkConfig {
     }
 }
 
-/// Global network configuration
 lazy_static! {
+    /// Global network configuration
     static ref NET_CONFIG: Mutex<NetworkConfig> = Mutex::new(NetworkConfig::empty());
 }
 

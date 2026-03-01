@@ -2,9 +2,10 @@
 //!
 //! Parses CSS stylesheets and applies styles to DOM elements.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 
 use crate::browser::{BrowserError, html::{Document, Element, Node}};
 use crate::println;
@@ -35,11 +36,14 @@ pub enum Selector {
     /// ID selector (#id)
     Id(String),
     /// Attribute selector ([attr=value])
+    #[allow(dead_code)]
     Attribute(String, String),
     /// Descendant selector (ancestor descendant)
-    Descendant(Box<Selector>, Box<Selector>),
+    #[allow(dead_code)]
+    Descendant(alloc::boxed::Box<Selector>, alloc::boxed::Box<Selector>),
     /// Child selector (parent > child)
-    Child(Box<Selector>, Box<Selector>),
+    #[allow(dead_code)]
+    Child(alloc::boxed::Box<Selector>, alloc::boxed::Box<Selector>),
 }
 
 /// CSS Declaration

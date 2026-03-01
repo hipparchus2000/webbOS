@@ -1,13 +1,11 @@
 //! IP (Internet Protocol) layer
 //!
-#![allow(dead_code)]
-
 //! Handles IPv4 packet processing and routing.
 
+#![allow(dead_code)]
+
 use alloc::vec;
-use alloc::vec::Vec;
 use crate::net::{Ipv4Address, IpProtocol, arp};
-use crate::println;
 use core::sync::atomic::{AtomicU16, Ordering};
 
 /// Minimum IPv4 header size (20 bytes)

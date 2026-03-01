@@ -1,5 +1,7 @@
 //! Interrupt handling
 
+#![allow(dead_code)]
+
 use crate::println;
 
 /// IDT Entry
@@ -296,24 +298,20 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
 // Keyboard interrupt handler (IRQ1)
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    unsafe {
-        // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
-        send_eoi(1);
-        
-        // Handle keyboard input
-        crate::drivers::input::handle_keyboard_interrupt();
-    }
+    // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
+    send_eoi(1);
+    
+    // Handle keyboard input
+    crate::drivers::input::handle_keyboard_interrupt();
 }
 
 // Mouse interrupt handler (IRQ12)
 extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    unsafe {
-        // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
-        send_eoi(12);
-        
-        // Handle mouse input
-        crate::drivers::input::handle_mouse_interrupt();
-    }
+    // Send EOI FIRST to prevent interrupt loss if handler hangs/panics
+    send_eoi(12);
+    
+    // Handle mouse input
+    crate::drivers::input::handle_mouse_interrupt();
 }
 
 /// Timer tick counter (accessible from timer module)

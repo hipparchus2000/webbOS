@@ -2,6 +2,8 @@
 //!
 //! Multi-user support for WebbOS with authentication and permissions.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::format;
@@ -152,22 +154,37 @@ impl UserManager {
     
     /// Authenticate user
     pub fn authenticate(&mut self, username: &str, password: &str) -> Option<UserId> {
+        println!("[users] authenticate() called");
+        println!("[users] Hashing password...");
+        
         let password_hash = hash_password(password);
         
+        println!("[users] Password hashed, comparing with {} users...", self.users.len());
+        
         for (id, user) in &self.users {
+            println!("[users] Checking user: {} (active={})", user.username, user.is_active);
             if user.username == username 
                 && user.password_hash == password_hash
                 && user.is_active {
+                println!("[users] Match found!");
                 return Some(*id);
             }
         }
         
+        println!("[users] No match found");
         None
     }
     
     /// Login user and create session
     pub fn login(&mut self, username: &str, password: &str) -> Option<u64> {
-        if let Some(user_id) = self.authenticate(username, password) {
+        println!("[users] login() called for user: {}", username);
+        println!("[users] Calling authenticate()...");
+        
+        let auth_result = self.authenticate(username, password);
+        
+        println!("[users] authenticate() returned: {:?}", auth_result);
+        
+        if let Some(user_id) = auth_result {
             let session_id = self.next_session_id;
             self.next_session_id += 1;
             
@@ -295,18 +312,23 @@ pub enum UserError {
     NotAuthenticated,
 }
 
-/// Global user manager
 lazy_static! {
+    /// Global user manager
     static ref USER_MANAGER: Mutex<UserManager> = Mutex::new(UserManager::new());
 }
 
 /// Hash password using SHA-256
 fn hash_password(password: &str) -> [u8; 32] {
+    println!("[users] hash_password() called with password len: {}", password.len());
+    
     let mut hasher = sha256::Sha256::new();
     hasher.update(password.as_bytes());
     // Add a simple salt
     hasher.update(b"WebbOS");
-    hasher.finalize()
+    let result = hasher.finalize();
+    
+    println!("[users] hash_password() done");
+    result
 }
 
 /// Get current time (placeholder)

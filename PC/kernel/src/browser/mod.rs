@@ -3,8 +3,9 @@
 //! A lightweight web browser engine for WebbOS.
 //! Supports HTML, CSS, JavaScript, and WebAssembly.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -146,7 +147,7 @@ impl Browser {
     }
 
     /// Fetch via HTTP/HTTPS
-    fn fetch_http(&self, url: &Url, _tls: bool) -> Result<Vec<u8>, BrowserError> {
+    fn fetch_http(&self, _url: &Url, _tls: bool) -> Result<Vec<u8>, BrowserError> {
         // Simple HTTP GET implementation
         // For now, just return a basic HTML page
         Ok(Vec::new()) // Placeholder
@@ -318,8 +319,8 @@ pub enum BrowserError {
     Unknown = 255,
 }
 
-/// Global browser instance
 lazy_static! {
+    /// Global browser instance
     static ref BROWSER: Mutex<Option<Browser>> = Mutex::new(None);
 }
 

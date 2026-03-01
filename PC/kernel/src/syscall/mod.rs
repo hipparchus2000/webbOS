@@ -2,8 +2,9 @@
 //!
 //! Implements system calls for user space programs.
 
-use crate::println;
-use crate::print;
+#![allow(dead_code)]
+
+use crate::{print, println};
 
 /// System call numbers
 #[repr(u64)]
@@ -204,14 +205,12 @@ unsafe fn setup_syscall_msrs() {
 
     efer |= 1; // Set SCE (System Call Extensions) bit
 
-    unsafe {
-        core::arch::asm!(
-            "wrmsr",
-            in("ecx") 0xC0000080u32, // EFER
-            in("eax") efer as u32,
-            in("edx") 0u32,
-        );
-    }
+    core::arch::asm!(
+        "wrmsr",
+        in("ecx") 0xC0000080u32, // EFER
+        in("eax") efer as u32,
+        in("edx") 0u32,
+    );
 }
 
 /// System call entry point

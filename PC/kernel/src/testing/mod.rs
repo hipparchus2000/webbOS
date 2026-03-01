@@ -2,6 +2,8 @@
 //!
 //! Kernel testing framework for unit and integration tests.
 
+#![allow(dead_code)]
+
 use crate::println;
 
 /// Test result

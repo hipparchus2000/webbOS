@@ -1,9 +1,9 @@
 //! DHCP Client Implementation
 //!
 //! Implements DHCP (Dynamic Host Configuration Protocol) for automatic
-#![allow(dead_code)]
-
 //! IP address configuration on WiFi networks.
+
+#![allow(dead_code)]
 
 use alloc::vec::Vec;
 use crate::net::Ipv4Address;

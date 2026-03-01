@@ -13,9 +13,8 @@ use alloc::format;
 use spin::Mutex;
 use lazy_static::lazy_static;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use crate::drivers::vesa::{self, VesaDriver, colors};
+use crate::drivers::vesa::{self, VesaDriver};
 use crate::println;
-use crate::browser;
 
 /// macOS-style color palette
 mod palette {
@@ -670,6 +669,12 @@ impl DesktopUI {
         // Apple logo (W for Webb)
         driver.draw_text("W", 10, 6, palette::MENU_BAR_TEXT, 1);
 
+        // Build datetime (center)
+        const BUILD_DATETIME: &str = concat!("Build: ", env!("BUILD_DATE"), " ", env!("BUILD_TIME"));
+        let build_width = BUILD_DATETIME.len() as u32 * 8; // Approximate text width
+        let build_x = (screen_w - build_width) / 2;
+        driver.draw_text(BUILD_DATETIME, build_x as i32, 6, palette::MENU_BAR_TEXT, 1);
+
         // System info (right side)
         let time_str = "12:00";
         driver.draw_text(time_str, (screen_w - 60) as i32, 6, palette::MENU_BAR_TEXT, 1);
@@ -949,8 +954,8 @@ impl DesktopUI {
 
 }
 
-/// Global desktop UI instance
 lazy_static! {
+    /// Global desktop UI instance
     static ref DESKTOP_UI: Mutex<DesktopUI> = Mutex::new(DesktopUI::new());
 }
 

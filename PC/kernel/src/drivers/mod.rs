@@ -2,6 +2,8 @@
 //!
 //! Hardware-specific drivers for various devices.
 
+#![allow(dead_code)]
+
 pub mod timer;
 pub mod pci;
 pub mod storage;

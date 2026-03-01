@@ -1,8 +1,8 @@
 //! TCP (Transmission Control Protocol)
 //!
-#![allow(dead_code)]
-
 //! Full TCP implementation with connection state management.
+
+#![allow(dead_code)]
 
 use alloc::collections::BTreeMap;
 use alloc::vec;
@@ -255,8 +255,8 @@ impl TcpConnection {
     }
 }
 
-/// TCP socket table
 lazy_static! {
+    /// TCP socket table
     static ref CONNECTIONS: Mutex<BTreeMap<ConnectionId, TcpConnection>> = Mutex::new(BTreeMap::new());
     static ref LISTENING_SOCKETS: Mutex<BTreeMap<Port, ConnectionId>> = Mutex::new(BTreeMap::new());
     static ref NEXT_EPHEMERAL_PORT: Mutex<u16> = Mutex::new(49152);

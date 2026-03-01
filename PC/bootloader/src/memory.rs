@@ -2,6 +2,8 @@
 //!
 //! Simple allocation utilities for bootloader use.
 
+#![allow(dead_code)]
+
 use uefi::boot::{allocate_pages, AllocateType, MemoryType};
 use webbos_shared::types::PhysAddr;
 

@@ -1,46 +1,37 @@
 //! Console output
 //!
-//! Provides VGA text mode and serial port output.
+//! Provides VGA text mode output.
 
 use core::fmt;
 use spin::Mutex;
 
 mod vga;
-mod serial;
 
 /// Global writer for console output
 static WRITER: Mutex<ConsoleWriter> = Mutex::new(ConsoleWriter::new());
 
-/// Console writer that outputs to both VGA and serial
+/// Console writer that outputs to VGA
 struct ConsoleWriter {
     vga: Option<vga::Writer>,
-    serial: Option<serial::SerialPort>,
 }
 
 impl ConsoleWriter {
     const fn new() -> Self {
         Self {
             vga: None,
-            serial: None,
         }
     }
 
     fn init(&mut self) {
         self.vga = Some(vga::Writer::new());
-        self.serial = Some(serial::SerialPort::new(serial::COM1));
     }
 }
 
 impl fmt::Write for ConsoleWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        // Write to VGA
+        // Write to VGA only
         if let Some(ref mut vga) = self.vga {
             vga.write_str(s)?;
-        }
-        
-        // Write to serial
-        if let Some(ref mut serial) = self.serial {
-            serial.write_str(s)?;
         }
         
         Ok(())
@@ -52,13 +43,8 @@ pub fn init() {
     WRITER.lock().init();
 }
 
-/// Get a character from input
+/// Get a character from input (keyboard only)
 pub fn getchar() -> Option<u8> {
-    // Try serial first, then keyboard
-    if let Some(c) = serial::try_receive() {
-        return Some(c);
-    }
-
     // Check keyboard input via interrupt-driven input system
     if let Some(event) = crate::drivers::input::poll_event() {
         if event.event_type == crate::drivers::input::EventType::KeyPress {

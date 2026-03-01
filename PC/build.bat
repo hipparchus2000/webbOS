@@ -18,6 +18,13 @@ echo Build type: %BUILD_TYPE%
 echo ============================================
 echo.
 
+REM Set build datetime environment variables
+for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set BUILD_DATE=%%c-%%a-%%b)
+for /f "tokens=1-2 delims=: " %%a in ('time /t') do (set BUILD_TIME=%%a:%%b)
+echo Build date: %BUILD_DATE%
+echo Build time: %BUILD_TIME%
+echo.
+
 REM Build kernel
 echo Building kernel...
 cargo +nightly-2025-01-15 build -p kernel --target x86_64-unknown-none -Z build-std=core,compiler_builtins,alloc %CARGO_FLAG%

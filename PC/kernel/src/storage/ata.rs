@@ -3,11 +3,7 @@
 //! Supports legacy ATA/IDE hard disk controllers.
 
 use core::arch::asm;
-use alloc::vec::Vec;
 use alloc::boxed::Box;
-use alloc::string::String;
-use spin::Mutex;
-
 use crate::storage::{BlockDevice, StorageError};
 use crate::println;
 

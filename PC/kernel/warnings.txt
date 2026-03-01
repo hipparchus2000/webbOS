@@ -1,0 +1,428 @@
+﻿cargo : warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+At line:1 char:73
++ ... 2-25"; $env:BUILD_TIME="22:46:00"; cargo build --release 2>&1 | Out-F ...
++                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: profil...workspace root::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+package:   C:\Users\hippa\src\webbOs\PC\bootloader\Cargo.toml
+workspace: C:\Users\hippa\src\webbOs\PC\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\hippa\src\webbOs\PC\kernel\Cargo.toml
+workspace: C:\Users\hippa\src\webbOs\PC\Cargo.toml
+   Compiling kernel v0.1.0 (C:\Users\hippa\src\webbOs\PC\kernel)
+warning: unused import: `alloc::boxed::Box`
+  --> kernel\src\main.rs:15:5
+   |
+15 | use alloc::boxed::Box;
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\fs\ext2\mod.rs:9:5
+  |
+9 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `StorageError`
+  --> kernel\src\fs\ext2\mod.rs:12:35
+   |
+12 | use crate::storage::{BlockDevice, StorageError};
+   |                                   ^^^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\drivers\vesa\mod.rs:625:1
+    |
+625 | /// Global VESA driver
+    | ^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+    = note: `#[warn(unused_doc_comments)]` on by default
+
+warning: unused import: `core::sync::atomic::AtomicBool`
+   --> kernel\src\drivers\input\mod.rs:642:5
+    |
+642 | use core::sync::atomic::AtomicBool;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\net\mod.rs:302:1
+    |
+302 | /// Global network interfaces
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> kernel\src\net\mod.rs:447:1
+    |
+447 | /// Global network configuration
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused imports: `read_config16` and `read_config8`
+  --> kernel\src\net\drivers\virtio_net.rs:14:27
+   |
+14 | use crate::drivers::pci::{read_config8, read_config16, read_config32};
+   |                           ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `phys_to_virt`
+  --> kernel\src\net\drivers\virtio_net.rs:15:17
+   |
+15 | use crate::mm::{phys_to_virt, virt_to_phys_u64};
+   |                 ^^^^^^^^^^^^
+
+warning: unnecessary parentheses around method argument
+   --> kernel\src\net\drivers\virtio_net.rs:148:55
+    |
+148 |                 let desc = &mut *self.descriptors.add(((start_idx as usize + i) % self.queue_size as usize));
+    |                                                       ^                                                   ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+148 -                 let desc = &mut *self.descriptors.add(((start_idx as usize + i) % self.queue_size as usize));
+148 +                 let desc = &mut *self.descriptors.add((start_idx as usize + i) % self.queue_size as usize);
+    |
+
+warning: unnecessary parentheses around block return value
+   --> kernel\src\net\drivers\virtio_net.rs:153:21
+    |
+153 |                     ((start_idx + i as u16 + 1) % self.queue_size)
+    |                     ^                                            ^
+    |
+help: remove these parentheses
+    |
+153 -                     ((start_idx + i as u16 + 1) % self.queue_size)
+153 +                     (start_idx + i as u16 + 1) % self.queue_size
+    |
+
+warning: unused doc comment
+   --> kernel\src\net\tcp.rs:258:1
+    |
+258 | /// TCP socket table
+    | ^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> kernel\src\net\udp.rs:116:1
+    |
+116 | /// UDP socket table
+    | ^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\net\ip.rs:8:5
+  |
+8 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::println`
+  --> kernel\src\net\ip.rs:10:5
+   |
+10 | use crate::println;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused doc comment
+  --> kernel\src\net\arp.rs:84:1
+   |
+84 | /// ARP cache
+   | ^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `DHCP_OPTION_END`
+ --> kernel\src\net\dhcp_client.rs:6:141
+  |
+6 | ..._SERVER_PORT, DHCP_MAGIC_COOKIE, DHCP_OPTION_MESSAGE_TYPE, DHCP_OPTION_END};
+  |                                                               ^^^^^^^^^^^^^^^
+
+warning: unused doc comment
+  --> kernel\src\net\socket.rs:95:1
+   |
+95 | /// Socket table
+   | ^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `alloc::string::String`
+ --> kernel\src\net\socket.rs:7:5
+  |
+7 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::net`
+  --> kernel\src\net\socket.rs:12:5
+   |
+12 | use crate::net;
+   |     ^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\net\http\mod.rs:538:1
+    |
+538 | /// Global HTTP client
+    | ^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> kernel\src\browser\mod.rs:320:1
+    |
+320 | /// Global browser instance
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `alloc::boxed::Box`
+  --> kernel\src\browser\wasm.rs:11:5
+   |
+11 | use alloc::boxed::Box;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Color`, `FontWeight`, and `TextAlign`
+ --> kernel\src\browser\render.rs:9:62
+  |
+9 | use crate::browser::layout::{LayoutBox, LayoutTree, BoxType, Color, TextAlign, FontWeight};
+  |                                                              ^^^^^  ^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused doc comment
+  --> kernel\src\storage\mod.rs:75:1
+   |
+75 | /// Global block device list
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\storage\ata.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> kernel\src\storage\ata.rs:8:5
+  |
+8 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\storage\ata.rs:9:5
+  |
+9 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\storage\nvme.rs:5:5
+  |
+5 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\storage\boot_disk.rs:6:5
+  |
+6 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> kernel\src\storage\simple_disk.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `spin::Mutex`
+ --> kernel\src\storage\simple_disk.rs:7:5
+  |
+7 | use spin::Mutex;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `crate::println`
+  --> kernel\src\storage\simple_disk.rs:10:5
+   |
+10 | use crate::println;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\tls\mod.rs:6:5
+  |
+6 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `self`
+ --> kernel\src\tls\mod.rs:8:29
+  |
+8 | use crate::crypto::sha256::{self};
+  |                             ^^^^
+
+warning: unused doc comment
+   --> kernel\src\graphics\mod.rs:326:1
+    |
+326 | /// Global graphics context
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel\src\graphics\mod.rs:7:5
+  |
+7 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\users\mod.rs:313:1
+    |
+313 | /// Global user manager
+    | ^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> kernel\src\desktop\mod.rs:439:1
+    |
+439 | /// Global desktop manager
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> kernel\src\desktop\ui.rs:958:1
+    |
+958 | /// Global desktop UI instance
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused import: `colors`
+  --> kernel\src\desktop\ui.rs:16:46
+   |
+16 | use crate::drivers::vesa::{self, VesaDriver, colors};
+   |                                              ^^^^^^
+
+warning: unused import: `crate::browser`
+  --> kernel\src\desktop\ui.rs:18:5
+   |
+18 | use crate::browser;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused doc comment
+   --> kernel\src\login_screen.rs:464:1
+    |
+464 | /// Global login screen instance
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused imports: `FileSystem` and `INode`
+  --> kernel\src\main.rs:47:21
+   |
+47 |     use crate::fs::{FileSystem, INode};
+   |                     ^^^^^^^^^^  ^^^^^
+
+error[E0597]: `ordered` does not live long enough
+  --> kernel\src\debug_log.rs:70:9
+   |
+59 |       pub fn get_messages(&self) -> impl Iterator<Item = &str> {
+   |                           - let's call the lifetime of this reference `'1`
+60 |           // Create ordered list of indices
+61 |           let mut ordered: [(usize, usize); MAX_MESSAGES] = [(0, 0); MAX_MESSAGES];
+   |               ----------- binding `ordered` declared here
+...
+70 |           ordered.iter()
+   |           -^^^^^^
+   |           |
+   |  _________borrowed value does not live long enough
+   | |
+71 | |             .take(self.count)
+72 | |             .filter_map(|&(_, buf_idx)| {
+73 | |                 let msg = &self.messages[buf_idx];
+...  |
+76 | |                 core::str::from_utf8(&msg[..len]).ok()
+77 | |             })
+   | |______________- argument requires that `ordered` is borrowed for `'1`
+78 |       }
+   |       - `ordered` dropped here while still borrowed
+
+warning: variable does not need to be mutable
+   --> kernel\src\fs\fat32\mod.rs:239:13
+    |
+239 |         let mut cluster_offset = (offset / self.bytes_per_cluster as u64) as u32;
+    |             ----^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> kernel\src\fs\fat32\mod.rs:240:13
+    |
+240 |         let mut byte_offset = (offset % self.bytes_per_cluster as u64) as usize;
+    |             ----^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unnecessary `unsafe` block
+   --> kernel\src\drivers\input\mod.rs:626:5
+    |
+626 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` on by default
+
+warning: unnecessary `unsafe` block
+   --> kernel\src\drivers\input\mod.rs:758:5
+    |
+758 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> kernel\src\drivers\input\mod.rs:772:5
+    |
+772 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> kernel\src\drivers\input\mod.rs:838:5
+    |
+838 |     unsafe { 
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: unused variable: `avail`
+   --> kernel\src\net\drivers\virtio_net.rs:322:24
+    |
+322 |             let (desc, avail, used) = rx_queue.get_phys();
+    |                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_avail`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `used`
+   --> kernel\src\net\drivers\virtio_net.rs:322:31
+    |
+322 |             let (desc, avail, used) = rx_queue.get_phys();
+    |                               ^^^^ help: if this is intentional, prefix it with an underscore: `_used`
+
+warning: unused variable: `avail`
+   --> kernel\src\net\drivers\virtio_net.rs:331:24
+    |
+331 |             let (desc, avail, used) = tx_queue.get_phys();
+    |                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_avail`
+
+warning: unused variable: `used`
+   --> kernel\src\net\drivers\virtio_net.rs:331:31
+    |
+331 |             let (desc, avail, used) = tx_queue.get_phys();
+    |                               ^^^^ help: if this is intentional, prefix it with an underscore: `_used`
+
+warning: variable does not need to be mutable
+   --> kernel\src\net\drivers\virtio_net.rs:353:13
+    |
+353 |         let mut device = Self {
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+For more information about this error, try `rustc --explain E0597`.
+warning: `kernel` (bin "kernel") generated 55 warnings
+error: could not compile `kernel` (bin "kernel") due to 1 previous error; 55 warnings emitted

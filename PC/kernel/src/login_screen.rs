@@ -432,8 +432,13 @@ impl LoginScreen {
         let password = self.password.clone();
 
         println!("[login_screen] Attempting login for user: {}", username);
+        println!("[login_screen] Calling desktop::login()...");
 
-        if desktop::login(&username, &password) {
+        let result = desktop::login(&username, &password);
+        
+        println!("[login_screen] desktop::login() returned: {}", result);
+
+        if result {
             println!("[login_screen] Login successful!");
             self.hide();
             LoginAction::LoginSuccess
@@ -456,8 +461,8 @@ pub enum LoginAction {
     LoginFailed,
 }
 
-/// Global login screen instance
 lazy_static! {
+    /// Global login screen instance
     static ref LOGIN_SCREEN: Mutex<LoginScreen> = Mutex::new(LoginScreen::new());
 }
 

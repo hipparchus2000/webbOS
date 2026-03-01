@@ -2,6 +2,8 @@
 //!
 //! A simple JavaScript interpreter for WebbOS.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -120,6 +122,7 @@ impl Object {
 }
 
 /// Native function callback type (using function pointer for Clone support)
+#[allow(dead_code)]
 pub type NativeFn = fn(&mut Environment, Vec<Value>) -> Value;
 
 /// JavaScript function

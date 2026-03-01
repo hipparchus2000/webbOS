@@ -2,6 +2,8 @@
 //!
 //! HTML-based desktop with window manager, taskbar, and applications.
 
+#![allow(dead_code)]
+
 pub mod ui;
 pub mod embedded_icons;
 
@@ -266,7 +268,6 @@ impl DesktopManager {
             if app.singleton {
                 if let Some((id, _)) = self.windows.iter().find(|(_, w)| w.app_id == app_id) {
                     let existing_id = *id;
-                    drop(id);
                     self.focus_window(existing_id);
                     return Some(existing_id);
                 }
@@ -383,7 +384,14 @@ impl DesktopManager {
     
     /// Login
     pub fn login(&mut self, username: &str, password: &str) -> bool {
-        if let Some(_session_id) = users::login(username, password) {
+        println!("[desktop] login() called for user: {}", username);
+        println!("[desktop] Calling users::login()...");
+        
+        let session = users::login(username, password);
+        
+        println!("[desktop] users::login() returned: {:?}", session.is_some());
+        
+        if let Some(_session_id) = session {
             self.current_user = users::current_user();
             self.show_login = false;
             self.show_desktop = true;
@@ -429,8 +437,8 @@ impl DesktopManager {
     }
 }
 
-/// Global desktop manager
 lazy_static! {
+    /// Global desktop manager
     static ref DESKTOP_MANAGER: Mutex<DesktopManager> = Mutex::new(DesktopManager::new());
 }
 

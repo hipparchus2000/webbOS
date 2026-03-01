@@ -2,13 +2,13 @@
 //!
 //! Implementation of TLS 1.3 (RFC 8446) for WebbOS.
 
-use alloc::vec::Vec;
-use alloc::boxed::Box;
+#![allow(dead_code)]
 
-use crate::crypto::sha256::{self, Sha256};
+use alloc::vec::Vec;
+
 use crate::crypto::chacha20::{ChaCha20Poly1305, KEY_SIZE as CHACHA_KEY_SIZE, NONCE_SIZE};
 use crate::crypto::hkdf;
-use crate::crypto::x25519::{self, PrivateKey, PublicKey, SharedSecret};
+use crate::crypto::x25519::{self, SharedSecret};
 use crate::println;
 
 /// TLS record types
@@ -271,7 +271,6 @@ impl TlsConnection {
             0x1303 => Some(CipherSuite::Chacha20Poly1305Sha256),
             _ => return Err(TlsError::UnsupportedCipherSuite),
         };
-        pos += 2;
         
         self.state = TlsState::ServerHelloReceived;
         Ok(())

@@ -2,6 +2,8 @@
 //!
 //! Enumerates PCI devices and provides access to configuration space.
 
+#![allow(dead_code)]
+
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -301,6 +303,7 @@ pub fn print_devices() {
 }
 
 /// Common PCI class codes
+#[allow(dead_code)]
 pub mod class {
     pub const MASS_STORAGE: u8 = 0x01;
     pub const NETWORK: u8 = 0x02;
@@ -312,6 +315,7 @@ pub mod class {
 }
 
 /// Common PCI subclass codes
+#[allow(dead_code)]
 pub mod subclass {
     pub const IDE: u8 = 0x01;
     pub const SATA: u8 = 0x06;
@@ -321,6 +325,7 @@ pub mod subclass {
 }
 
 /// Common PCI vendor IDs
+#[allow(dead_code)]
 pub mod vendor {
     pub const INTEL: u16 = 0x8086;
     pub const AMD: u16 = 0x1022;

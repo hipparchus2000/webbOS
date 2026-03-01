@@ -1,6 +1,9 @@
 //! Virtual File System (VFS)
 //!
 //! Provides a unified interface for different filesystem implementations.
+//!
+
+#![allow(dead_code)]
 
 use alloc::sync::Arc;
 use alloc::string::{String, ToString};

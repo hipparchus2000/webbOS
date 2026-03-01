@@ -3,10 +3,11 @@
 //! A minimal WebAssembly interpreter for WebbOS.
 //! Supports the core WebAssembly spec.
 
+#![allow(dead_code)]
+
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 
 use crate::browser::BrowserError;
@@ -433,6 +434,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_section(&mut self, _types: &[FuncType]) -> Result<Vec<Function>, BrowserError> {
+        let _ = _types;
         let count = self.read_u32();
         let mut functions = Vec::with_capacity(count as usize);
 
@@ -509,7 +511,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_init_expr(&mut self) -> Result<Value, BrowserError> {
-        let _insts = self.parse_instruction_sequence()?;
+        let _ = self.parse_instruction_sequence()?;
         // Simplified: just return a default value
         Ok(Value::I32(0))
     }
