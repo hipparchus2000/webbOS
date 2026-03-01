@@ -29,6 +29,10 @@ mod palette {
     pub const WINDOW_TITLE: u32 = 0xFFE0E0E0;     // Light gray
     pub const TEXT_BLACK: u32 = 0xFF000000;
     pub const TEXT_WHITE: u32 = 0xFFFFFFFF;
+    pub const TEXT_SECONDARY: u32 = 0xFF666666;   // Gray
+    pub const BUTTON_BG: u32 = 0xFF667EEA;        // Purple/blue
+    pub const BUTTON_TEXT: u32 = 0xFFFFFFFF;      // White
+    pub const INPUT_BORDER: u32 = 0xFFE0E0E0;     // Light gray
 }
 
 /// Desktop icon
@@ -105,6 +109,8 @@ pub struct DesktopUI {
     old_mouse_x: i32,
     old_mouse_y: i32,
     browser_open: bool,
+    file_manager_open: bool,
+    file_manager_path: alloc::string::String,
     // Save-under buffer for mouse cursor (stores pixels under cursor)
     save_buffer: [u32; SAVE_BUFFER_SIZE],
     save_buffer_valid: bool,
@@ -123,6 +129,12 @@ const BROWSER_HEIGHT: u32 = 700;
 const BROWSER_X: i32 = 140;
 const BROWSER_Y: i32 = 50;
 
+/// File Manager window dimensions
+const FILE_MANAGER_WIDTH: u32 = 800;
+const FILE_MANAGER_HEIGHT: u32 = 600;
+const FILE_MANAGER_X: i32 = 200;
+const FILE_MANAGER_Y: i32 = 100;
+
 impl DesktopUI {
     pub fn new() -> Self {
         let mut ui = Self {
@@ -137,6 +149,8 @@ impl DesktopUI {
             old_mouse_x: 640,
             old_mouse_y: 400,
             browser_open: false,
+            file_manager_open: false,
+            file_manager_path: alloc::string::String::new(),
             save_buffer: [0; SAVE_BUFFER_SIZE],
             save_buffer_valid: false,
             save_buffer_x: 0,
@@ -330,6 +344,9 @@ impl DesktopUI {
             if self.browser_open {
                 self.draw_browser_window(driver);
             }
+            if self.file_manager_open {
+                self.draw_file_manager_window(driver);
+            }
             self.draw_dock(driver, screen_w, screen_h);
             self.full_redraw_needed = false;
         } else if !self.dirty_rects.is_empty() {
@@ -368,6 +385,14 @@ impl DesktopUI {
             let browser_rect = DirtyRect::new(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
             if rect.intersects(&browser_rect) {
                 self.draw_browser_window(driver);
+            }
+        }
+        
+        // Check if region intersects file manager window
+        if self.file_manager_open {
+            let fm_rect = DirtyRect::new(FILE_MANAGER_X, FILE_MANAGER_Y, FILE_MANAGER_WIDTH, FILE_MANAGER_HEIGHT);
+            if rect.intersects(&fm_rect) {
+                self.draw_file_manager_window(driver);
             }
         }
         
@@ -857,6 +882,20 @@ impl DesktopUI {
             }
         }
         
+        // Check if clicking file manager close button (when file manager is open)
+        if self.file_manager_open {
+            let close_x = FILE_MANAGER_X + FILE_MANAGER_WIDTH as i32 - 20;
+            let close_y = FILE_MANAGER_Y + 15;
+            let dist_sq = (x - close_x) * (x - close_x) + (y - close_y) * (y - close_y);
+            if dist_sq < 100 { // Within 10px radius
+                println!("[desktop] Closing file manager window");
+                self.file_manager_open = false;
+                // Mark entire file manager window area as dirty
+                self.mark_dirty(FILE_MANAGER_X, FILE_MANAGER_Y, FILE_MANAGER_WIDTH, FILE_MANAGER_HEIGHT);
+                return true; // Redraw needed
+            }
+        }
+        
         // Check dock icons first (launch on single click)
         let mut file_manager_clicked = false;
         for icon in &self.dock_icons {
@@ -898,7 +937,7 @@ impl DesktopUI {
             }
         }
         
-        // Check desktop icons (select on single click)
+        // Check desktop icons (open on single click)
         let mut clicked_icon_idx = None;
         for (idx, icon) in self.desktop_icons.iter().enumerate() {
             if x >= icon.x && x < icon.x + icon.width as i32 &&
@@ -909,26 +948,41 @@ impl DesktopUI {
         }
         
         if let Some(idx) = clicked_icon_idx {
-            // Copy all values we need before calling mark_dirty
-            let (new_x, new_y, new_w, new_h, label) = {
+            // Get icon info and open it immediately
+            let (icon_x, icon_y, icon_w, icon_h, action, label) = {
                 let icon = &self.desktop_icons[idx];
-                (icon.x, icon.y, icon.width, icon.height, icon.label.clone())
+                (icon.x, icon.y, icon.width, icon.height, icon.action.clone(), icon.label.clone())
             };
-            println!("[desktop] Selected icon: {}", label);
+            println!("[desktop] Clicked icon: {} - opening", label);
             
-            // Mark old selection as dirty (to remove highlight)
-            if let Some(old_idx) = self.selected_icon {
-                if old_idx != idx {
-                    let (old_x, old_y, old_w, old_h) = {
-                        let old_icon = &self.desktop_icons[old_idx];
-                        (old_icon.x, old_icon.y, old_icon.width, old_icon.height)
-                    };
-                    self.mark_dirty(old_x - 4, old_y - 4, old_w + 8, old_h + 8);
-                }
-            }
+            // Update selection
             self.selected_icon = Some(idx);
-            // Mark new selection as dirty
-            self.mark_dirty(new_x - 4, new_y - 4, new_w + 8, new_h + 8);
+            self.mark_dirty(icon_x - 4, icon_y - 4, icon_w + 8, icon_h + 8);
+            
+            // Execute the action immediately on single click
+            match action {
+                IconAction::OpenFolder(path) => {
+                    println!("[desktop] Opening folder: {}", path);
+                    self.open_file_manager_window(&path);
+                    return true;
+                }
+                IconAction::OpenHtmlFile(path) => {
+                    println!("[desktop] Opening HTML: {}", path);
+                    self.browser_open = true;
+                    crate::desktop::launch_html(&path);
+                    self.mark_dirty(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
+                    return true;
+                }
+                IconAction::LaunchApp(app_name) => {
+                    println!("[desktop] Launching app: {}", app_name);
+                    if app_name == "browser" {
+                        self.browser_open = true;
+                        self.mark_dirty(BROWSER_X, BROWSER_Y, BROWSER_WIDTH, BROWSER_HEIGHT);
+                        return true;
+                    }
+                }
+                _ => {}
+            }
             return true;
         }
         
@@ -947,8 +1001,7 @@ impl DesktopUI {
     }
     
     pub fn handle_double_click(&mut self, x: i32, y: i32) -> bool {
-        // Double-click now does the same as single-click for simplicity
-        // In the future this could do something different (e.g., open properties)
+        // Single-click opens apps/folders immediately
         self.handle_click(x, y)
     }
 
@@ -1137,54 +1190,63 @@ impl DesktopUI {
     /// Open file manager window showing files from filesystem
     fn open_file_manager_window(&mut self, path: &str) {
         println!("[desktop] Opening File Manager at: {}", path);
+        self.file_manager_open = true;
+        self.file_manager_path = alloc::string::String::from(path);
+        self.mark_dirty(FILE_MANAGER_X, FILE_MANAGER_Y, FILE_MANAGER_WIDTH, FILE_MANAGER_HEIGHT);
+    }
+    
+    /// Draw the file manager window
+    fn draw_file_manager_window(&self, driver: &mut VesaDriver) {
+        use alloc::string::ToString;
         
-        // Scan directory for HTML files
-        match crate::fs::read_dir(path) {
+        // Window background
+        driver.fill_rect(FILE_MANAGER_X, FILE_MANAGER_Y, FILE_MANAGER_WIDTH, FILE_MANAGER_HEIGHT, palette::WINDOW_BG);
+        driver.draw_rect(FILE_MANAGER_X, FILE_MANAGER_Y, FILE_MANAGER_WIDTH, FILE_MANAGER_HEIGHT, palette::TEXT_BLACK);
+        
+        // Title bar
+        driver.fill_rect(FILE_MANAGER_X, FILE_MANAGER_Y, FILE_MANAGER_WIDTH, 30, palette::BUTTON_BG);
+        driver.draw_text("File Manager", FILE_MANAGER_X + 10, FILE_MANAGER_Y + 8, palette::BUTTON_TEXT, 1);
+        
+        // Path display
+        driver.draw_text("Location: ", FILE_MANAGER_X + 10, FILE_MANAGER_Y + 45, palette::TEXT_BLACK, 1);
+        driver.draw_text(&self.file_manager_path, FILE_MANAGER_X + 80, FILE_MANAGER_Y + 45, palette::TEXT_BLACK, 1);
+        
+        // Draw separator line
+        driver.fill_rect(FILE_MANAGER_X + 10, FILE_MANAGER_Y + 60, FILE_MANAGER_WIDTH - 20, 2, palette::INPUT_BORDER);
+        
+        // Read and display directory contents
+        let mut y_offset = FILE_MANAGER_Y + 80;
+        match crate::fs::read_dir(&self.file_manager_path) {
             Ok(entries) => {
-                println!("[desktop] Found {} entries in {}", entries.len(), path);
-                
-                // Add HTML files as desktop icons dynamically
-                let mut x_pos = 100;
-                let mut y_pos = 400;
-                
-                for (name, is_dir) in entries {
-                    if is_dir {
-                        println!("[desktop]  [DIR]  {}", name);
-                    } else if name.ends_with(".html") || name.ends_with(".htm") {
-                        println!("[desktop]  [HTML] {}", name);
-                        
-                        // Add HTML file as a launchable icon
-                        let full_path = format!("{}/{}", path, name);
-                        self.desktop_icons.push(Icon {
-                            x: x_pos,
-                            y: y_pos,
-                            width: 80,
-                            height: 96,
-                            label: name.clone(),
-                            icon_char: '📄',
-                            icon_path: Some("html".to_string()),
-                            action: IconAction::OpenHtmlFile(full_path),
-                            is_folder: false,
-                        });
-                        
-                        // Position next icon
-                        x_pos += 100;
-                        if x_pos > 1000 {
-                            x_pos = 100;
-                            y_pos += 120;
-                        }
-                    } else {
-                        println!("[desktop]  [FILE] {}", name);
+                for (name, is_dir) in entries.iter().take(20) { // Show up to 20 items
+                    if y_offset > FILE_MANAGER_Y + FILE_MANAGER_HEIGHT as i32 - 30 {
+                        break; // Don't draw past window
                     }
+                    
+                    let icon = if *is_dir { "📁" } else { "📄" };
+                    let display_text = format!("{} {}", icon, name);
+                    driver.draw_text(&display_text, FILE_MANAGER_X + 20, y_offset, palette::TEXT_BLACK, 1);
+                    y_offset += 25;
                 }
                 
-                // Mark area as dirty to show new icons
-                self.mark_full_redraw();
+                if entries.len() > 20 {
+                    driver.draw_text("... (more items)", FILE_MANAGER_X + 20, y_offset, palette::TEXT_SECONDARY, 1);
+                }
             }
             Err(e) => {
-                println!("[desktop] Failed to read directory {}: {:?}", path, e);
+                let error_msg = format!("Error: {:?}", e);
+                driver.draw_text(&error_msg, FILE_MANAGER_X + 20, y_offset, palette::TEXT_BLACK, 1);
             }
         }
+        
+        // Close button (X)
+        driver.fill_rect(
+            FILE_MANAGER_X + FILE_MANAGER_WIDTH as i32 - 30, 
+            FILE_MANAGER_Y + 5, 
+            20, 20, 
+            0xFFFF5F56
+        );
+        driver.draw_text("X", FILE_MANAGER_X + FILE_MANAGER_WIDTH as i32 - 24, FILE_MANAGER_Y + 8, palette::BUTTON_TEXT, 1);
     }
 }
 
